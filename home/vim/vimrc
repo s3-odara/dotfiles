@@ -75,6 +75,7 @@ set laststatus=2
 set autoindent
 set background=dark
 set showcmd
+set updatetime=200 " signifyの更新速度向上
 
 " lightline.vim
 let g:lightline = {
