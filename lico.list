@@ -1,1 +1,1 @@
-./home/gnupg/gpg.conf:{{ .Home }}/.gnupg/gpg.conf
+{{ .Home }}/.lico/repo/home/gnupg/gpg.conf:{{ .Home }}/.gnupg/gpg.conf
