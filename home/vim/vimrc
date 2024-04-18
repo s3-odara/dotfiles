@@ -106,13 +106,13 @@ let g:lsp_diagnostics_virtual_text_prefix = "🍖 "
 let g:asyncomplete_popup_delay = 200
 
 " git commit時にはVimEnter自動コマンドを無効にする
-function! ShouldSkipAutoCmds()
-  if $HOME != $USERPROFILE && $GIT_EXEC_PATH != ''
-    return 1
-  else
-    return 0
-  endif
-endfunction
+"function! ShouldSkipAutoCmds()
+"  if $HOME != $USERPROFILE && $GIT_EXEC_PATH != ''
+"    return 1
+"  else
+"    return 0
+"  endif
+"endfunction
 " VimEnter自動コマンド
 "if !ShouldSkipAutoCmds()
 "  autocmd VimEnter * :bo term
