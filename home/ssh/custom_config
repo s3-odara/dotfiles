@@ -1,0 +1,9 @@
+Host github.com
+  HostName github.com
+  UpdateHostKeys no
+  KexAlgorithms curve25519-sha256
+  Ciphers chacha20-poly1305@openssh.com
+Host gitlab.com
+  HostName gitlab.com
+  KexAlgorithms curve25519-sha256
+  Ciphers chacha20-poly1305@openssh.com

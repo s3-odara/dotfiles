@@ -1,0 +1,176 @@
+" 使用プラグイン
+" lightline.vim
+" vim-gitbranch
+" fern
+" fern-gitstatus
+" vim-lsp
+" vim-lsp-settings
+" asyncomplete.vim
+" asyncomplete-lsp.vim
+" vim-vsnip
+" vim-vsnip-integ
+" ctrlp
+
+
+" waylandでクリップボードを使う
+xnoremap "+y y:call system("wl-copy", @")<cr>
+nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '', 'g')<cr>p
+nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
+
+" asyncomplete.vim
+inoremap <expr> <Tab>   pumvisible() ? "\<C-n>" : "\<Tab>"
+inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
+inoremap <expr> <cr>    pumvisible() ? asyncomplete#close_popup() : "\<cr>"
+
+" ctrlp
+nnoremap <silent> <space>f :CtrlP<CR>
+
+" fern
+augroup fern-custom
+  autocmd! *
+  autocmd FileType fern call s:init_fern()
+augroup END
+
+nnoremap <C-n> :Fern . -reveal=% -drawer -toggle -width=30<CR>
+
+function! s:init_fern() abort
+  nmap <buffer><expr>
+      \ <Plug>(fern-my-expand-or-collapse)
+      \ fern#smart#leaf(
+      \   "\<Plug>(fern-action-collapse)",
+      \   "\<Plug>(fern-action-expand)",
+      \   "\<Plug>(fern-action-collapse)",
+      \ )
+
+  nmap <buffer><nowait> <CR> <Plug>(fern-my-expand-or-collapse)
+endfunction
+
+let g:fern#default_hidden = 1
+
+let g:netrw_liststyle=1
+
+nnoremap <F3> :nohlsearch<CR>
+
+syntax on
+filetype plugin indent on
+
+au FileType html,htmldjango setlocal indentexpr=
+
+" tab
+set expandtab
+set tabstop=4
+set softtabstop=-1 "shiftwidthに従う
+set shiftwidth=0 "tabstopに従う
+
+set ttymouse=sgr " alacritty用。 xterm2でもtmuxとの相互運用性が良いけどsgrはさらに拡張されているぽい？
+set wildmenu
+set ruler
+set mouse=a
+set number
+set hlsearch
+set ignorecase
+set incsearch
+set smartcase
+set laststatus=2
+set autoindent
+set background=dark
+set showcmd
+
+" lightline.vim
+let g:lightline = {
+      \ 'active': {
+      \   'left': [ ['mode', 'paste'], ['gitbranch', 'readonly', 'absolutepath', 'modified'] ]
+      \ },
+      \ 'component_function':{ 'gitbranch': 'Gitbranch'},
+      \ 'separator': { 'left': "\ue0b0", 'right': "\ue0b2" },
+      \ 
+      \}
+
+" gitbranchにnerdフォントを使用
+function! Gitbranch()
+	let head = gitbranch#name()
+	if head != ""
+		let head = "\uf126 " .. head
+	endif
+	return head
+endfunction
+
+let g:lsp_diagnostics_echo_cursor = 1
+let g:lsp_diagnostics_echo_delay = 200
+let g:lsp_diagnostics_highlights_delay = 200
+let g:lsp_diagnostics_signs_delay = 200
+let g:lsp_diagnostics_virtual_text_delay = 200
+let g:lsp_document_highlight_delay = 200
+let g:lsp_document_code_action_signs_delay = 200
+let g:lsp_diagnostics_virtual_text_prefix = "🍖 "
+let g:asyncomplete_popup_delay = 200
+
+" git commit時にはVimEnter自動コマンドを無効にする
+function! ShouldSkipAutoCmds()
+  if $HOME != $USERPROFILE && $GIT_EXEC_PATH != ''
+    return 1
+  else
+    return 0
+  endif
+endfunction
+" VimEnter自動コマンド
+"if !ShouldSkipAutoCmds()
+"  autocmd VimEnter * :bo term
+"  autocmd VimEnter * :NERDTree
+"endif
+
+" ディレクトリ自動作成
+" https://vim-jp.org/vim-users-jp/2011/02/20/Hack-202.html
+augroup vimrc-auto-mkdir  " {{{
+  autocmd!
+  autocmd BufWritePre * call s:auto_mkdir(expand('<afile>:p:h'), v:cmdbang)
+  function! s:auto_mkdir(dir, force)  " {{{
+    if !isdirectory(a:dir) && (a:force ||
+    \    input(printf('"%s" does not exist. Create? [y/N]', a:dir)) =~? '^y\%[es]$')
+      call mkdir(iconv(a:dir, &encoding, &termencoding), 'p')
+    endif
+  endfunction  " }}}
+augroup END  " }}}
+
+" 開いているファイルにカレントディレクトリを移動
+" https://vim-jp.org/vim-users-jp/2009/09/08/Hack-69.html
+command! -nargs=? -complete=dir -bang CD  call s:ChangeCurrentDir('<args>', '<bang>')
+function! s:ChangeCurrentDir(directory, bang)
+    if a:directory == ''
+        lcd %:p:h
+    else
+        execute 'lcd' . a:directory
+    endif
+
+    if a:bang == ''
+        pwd
+    endif
+endfunction
+
+" Change current directory.
+nnoremap <silent> <Space>cd :<C-u>CD<CR>
+
+" Transparent editing of gpg encrypted files.
+" By Wouter Hanegraaff <wouter@blub.net>
+augroup encrypted
+au!
+" First make sure nothing is written to ~/.viminfo while editing
+" an encrypted file.
+autocmd BufReadPre,FileReadPre *.gpg set viminfo=
+" We don't want a swap file, as it writes unencrypted data to disk
+autocmd BufReadPre,FileReadPre *.gpg set noswapfile
+autocmd BufReadPre,FileReadPre *.gpg set noundofile
+" Switch to binary mode to read the encrypted file
+autocmd BufReadPre,FileReadPre *.gpg set bin
+autocmd BufReadPre,FileReadPre *.gpg let ch_save = &ch|set ch=2
+autocmd BufReadPost,FileReadPost *.gpg '[,']!gpg --decrypt 2> /dev/null
+" Switch to normal mode for editing
+autocmd BufReadPost,FileReadPost *.gpg set nobin
+autocmd BufReadPost,FileReadPost *.gpg let &ch = ch_save|unlet ch_save
+autocmd BufReadPost,FileReadPost *.gpg execute ":doautocmd BufReadPost " . expand("%:r")
+" Convert all text to encrypted text before writing
+autocmd BufWritePre,FileWritePre *.gpg '[,']!gpg --default-recipient-self -ae 2>/dev/null
+" Undo the encryption so we are back in the normal text, directly
+" after the file has been written.
+autocmd BufWritePost,FileWritePost *.gpg u
+

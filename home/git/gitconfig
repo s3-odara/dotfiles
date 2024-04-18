@@ -1,0 +1,12 @@
+[user]
+	email = haruta@s3-odara.net
+	name = s3-odara
+	signingkey = F1A2E293CE3B8617!
+[commit]
+	gpgsign = true
+[merge]
+	tool = vimdiff
+[push]
+	autoSetupRemote = true
+[gpg]
+	format = openpgp

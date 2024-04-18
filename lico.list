@@ -1,1 +1,24 @@
 {{ .Home }}/.lico/repo/home/gnupg/gpg.conf:{{ .Home }}/.gnupg/gpg.conf
+{{ .Home }}/.lico/repo/home/gnupg/gpg-agent.conf:{{ .Home }}/.gnupg/gpg-agent.conf
+{{ .Home }}/.lico/repo/home/ssh/config:{{ .Home }}/.ssh/config
+{{ .Home }}/.lico/repo/home/ssh/custom_config:{{ .Home }}/.ssh/custom_config
+{{ .Home }}/.lico/repo/home/ssh/known_hosts:{{ .Home }}/.ssh/known_hosts
+{{ .Home }}/.lico/repo/home/vim/vimrc:{{ .Home }}/.vimrc
+{{ .Home }}/.lico/repo/home/zsh/zshrc:{{ .Home }}/.zshrc
+{{ .Home }}/.lico/repo/home/enviroment/gpg_agent.conf:{{ .Home }}/.config/environment.d/gpg_agent.conf
+{{ .Home }}/.lico/repo/home/enviroment/pass.conf:{{ .Home }}/.config/environment.d/pass.conf
+{{ .Home }}/.lico/repo/home/alacritty/alacritty.toml:{{ .Home }}/.config/alacritty/alacritty.toml
+{{ .Home }}/.lico/repo/home/git/gitconfig:{{ .Home }}/.gitconfig
+{{ .Home }}/.lico/repo/home/tmux/tmux.conf:{{ .Home }}/.config/tmux/tmux.conf
+/home/odara/.lico/repo/etc/unbound/unbound.conf:/etc/unbound/unbound.conf
+/home/odara/.lico/repo/etc/pacman/mirrorlist:/etc/pacman.d/mirrorlist
+/home/odara/.lico/repo/etc/pacman/pacman.conf:/etc/pacman.conf
+/home/odara/.lico/repo/etc/makepkg/makepkg.conf:/etc/makepkg.conf
+/home/odara/.lico/repo/etc/fstab/fstab:/etc/fstab
+/home/odara/.lico/repo/etc/chrony/chrony.conf:/etc/chrony.conf
+/home/odara/.lico/repo/etc/dhcpcd/dhcpcd.conf:/etc/dhcpcd.conf
+/home/odara/.lico/repo/etc/resolver/resolv.conf:/etc/resolv.conf
+/home/odara/.lico/repo/etc/env/environment:/etc/environment
+/home/odara/.lico/repo/etc/initramfs/mkinitcpio.conf:/etc/mkinitcpio.conf
+/home/odara/.lico/repo/etc/grub/grub:/etc/default/grub
+/home/odara/.lico/repo/etc/ssh/sshd_config:/etc/ssh/sshd_config

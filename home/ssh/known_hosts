@@ -1,0 +1,6 @@
+# GitHub -- UpdateHostKeys no
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+
+# GitHub
+gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
+firefish.dev ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO7CoJD4DTQ3RpyzemTQHlTH1ULOWVKS3y34rVyXuaOx
