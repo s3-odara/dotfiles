@@ -1,1 +1,1 @@
-home/gnupg:{{ .Home }}/.gnupg/gpg.conf
+./home/gnupg/gpg.conf:{{ .Home }}/.gnupg/gpg.conf
