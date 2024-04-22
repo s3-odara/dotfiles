@@ -10,6 +10,7 @@
 " vim-vsnip
 " vim-vsnip-integ
 " ctrlp
+" vim-signify
 
 
 " waylandでクリップボードを使う
@@ -41,8 +42,23 @@ function! s:init_fern() abort
       \   "\<Plug>(fern-action-expand)",
       \   "\<Plug>(fern-action-collapse)",
       \ )
+  nmap <buffer><expr>
+      \ <Plug>(fern-my-open-or-expand)
+	    \ fern#smart#leaf(
+	    \   "<Plug>(fern-action-open)",
+	    \   "<Plug>(fern-action-expand)",
+	    \ )
+  nmap <buffer><expr>
+      \ <Plug>(fern-my-open-or-expand-or-collapse)
+      \ fern#smart#leaf(
+      \ "<Plug>(fern-action-open)",
+      \ "<Plug>(fern-action-expand)",
+      \ "<Plug>(fern-action-collapse)",
+      \)
 
   nmap <buffer><nowait> <CR> <Plug>(fern-my-expand-or-collapse)
+  "  nmap <buffer> <LeftRelease> <Plug>(fern-action-edit)
+  nmap <buffer> <LeftRelease> <Plug>(fern-my-open-or-expand-or-collapse)
 endfunction
 
 let g:fern#default_hidden = 1
@@ -75,7 +91,7 @@ set laststatus=2
 set autoindent
 set background=dark
 set showcmd
-set updatetime=200 " signifyの更新速度向上
+set updatetime=1000 " signifyの更新速度向上
 
 " lightline.vim
 let g:lightline = {
@@ -101,7 +117,7 @@ let g:lsp_diagnostics_echo_delay = 200
 let g:lsp_diagnostics_highlights_delay = 200
 let g:lsp_diagnostics_signs_delay = 200
 let g:lsp_diagnostics_virtual_text_delay = 200
-let g:lsp_document_highlight_delay = 200
+let g:lsp_document_highlight_delay = 100 " カーソル位置の単語が明るくなるやつ
 let g:lsp_document_code_action_signs_delay = 200
 let g:lsp_diagnostics_virtual_text_prefix = "🍖 "
 let g:asyncomplete_popup_delay = 200
@@ -150,6 +166,14 @@ endfunction
 
 " Change current directory.
 nnoremap <silent> <Space>cd :<C-u>CD<CR>
+
+" syntaxハイライトを利用したオムニ補完
+" https://vim-jp.org/vim-users-jp/2009/11/01/Hack-96.html
+" https://vim-jp.org/vimdoc-ja/insert.html#ft-syntax-omni
+autocmd FileType *
+\   if &l:omnifunc == ''
+\ |   setlocal omnifunc=syntaxcomplete#Complete
+\ | endif
 
 " Transparent editing of gpg encrypted files.
 " By Wouter Hanegraaff <wouter@blub.net>
