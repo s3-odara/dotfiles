@@ -92,6 +92,14 @@ set autoindent
 set background=dark
 set showcmd
 set updatetime=1000 " signifyの更新速度向上
+set termguicolors
+
+colorscheme habamax
+highlight Normal ctermbg=NONE guibg=NONE
+highlight NonText ctermbg=NONE guibg=NONE
+highlight SpecialKey ctermbg=NONE guibg=NONE
+highlight EndOfBuffer ctermbg=NONE guibg=NONE
+
 
 " lightline.vim
 let g:lightline = {

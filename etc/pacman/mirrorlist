@@ -16,12 +16,12 @@
 #Server = http://mirrors.ocf.berkeley.edu/archlinux/$repo/os/$arch
 #Server = http://mirror.arizona.edu/archlinux/$repo/os/$arch
 
-# With: curl -s "https://archlinux.org/mirrorlist/?country=JP&protocol=http&protocol=https&ip_version=4&ip_version6&use_mirror_status=on" | sed -e 's/^#Server/Server/' -e '/^#/d' | rankmirrors -
+# With: curl -s "https://archlinux.org/mirrorlist/?country=JP&protocol=http&protocol=https&ip_version=4&ip_version6&use_mirror_status=on" | sed -e 's/^#Server/Server/' -e '/^#/d' | rankmirrors -v -
 # When: 2024-02-08 17:14:50+09:00
 
+Server = https://repo.jing.rocks/archlinux/$repo/os/$arch
 Server = https://ftp.tsukuba.wide.ad.jp/Linux/archlinux/$repo/os/$arch
 Server = https://mirrors.cat.net/archlinux/$repo/os/$arch
 Server = https://mirror.nishi.network/archlinux/$repo/os/$arch
 Server = https://jp.mirrors.cicku.me/archlinux/$repo/os/$arch
 Server = https://ftp.jaist.ac.jp/pub/Linux/ArchLinux/$repo/os/$arch
-Server = https://repo.jing.rocks/archlinux/$repo/os/$arch

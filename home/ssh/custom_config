@@ -7,3 +7,10 @@ Host gitlab.com
   HostName gitlab.com
   KexAlgorithms curve25519-sha256
   Ciphers chacha20-poly1305@openssh.com
+
+Host odarah.org
+  HostName 167.179.72.51
+  User linuxuser
+  KexAlgorithms sntrup761x25519-sha512@openssh.com
+  Ciphers chacha20-poly1305@openssh.com
+
