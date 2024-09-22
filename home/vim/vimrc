@@ -1,3 +1,5 @@
+scriptencoding utf-8
+
 " 使用プラグイン
 " lightline.vim
 " vim-gitbranch
@@ -24,7 +26,7 @@ inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <cr>    pumvisible() ? asyncomplete#close_popup() : "\<cr>"
 
 " ctrlp
-nnoremap <silent> <space>f :CtrlP<CR>
+nnoremap <silent> <space>f <Cmd>CtrlP<CR>
 
 " fern
 augroup fern-custom
@@ -65,7 +67,7 @@ let g:fern#default_hidden = 1
 
 let g:netrw_liststyle=1
 
-nnoremap <F3> :nohlsearch<CR>
+nnoremap <F3> <Cmd>nohlsearch<CR>
 
 syntax on
 filetype plugin indent on
@@ -94,12 +96,21 @@ set showcmd
 set updatetime=1000 " signifyの更新速度向上
 set termguicolors
 
-colorscheme habamax
-highlight Normal ctermbg=NONE guibg=NONE
-highlight NonText ctermbg=NONE guibg=NONE
-highlight SpecialKey ctermbg=NONE guibg=NONE
-highlight EndOfBuffer ctermbg=NONE guibg=NONE
 
+function! DefineMyHighlights()
+    if g:colors_name is "habamax"
+        highlight Normal ctermbg=NONE guibg=NONE
+        highlight NonText ctermbg=NONE guibg=NONE
+        highlight SpecialKey ctermbg=NONE guibg=NONE
+        highlight EndOfBuffer ctermbg=NONE guibg=NONE
+    endif
+endfunction
+augroup TransparentBG
+    autocmd!
+    autocmd ColorScheme * :call DefineMyHighlights()
+augroup END
+
+colorscheme habamax
 
 " lightline.vim
 let g:lightline = {
@@ -130,20 +141,6 @@ let g:lsp_document_code_action_signs_delay = 200
 let g:lsp_diagnostics_virtual_text_prefix = "🍖 "
 let g:asyncomplete_popup_delay = 200
 
-" git commit時にはVimEnter自動コマンドを無効にする
-"function! ShouldSkipAutoCmds()
-"  if $HOME != $USERPROFILE && $GIT_EXEC_PATH != ''
-"    return 1
-"  else
-"    return 0
-"  endif
-"endfunction
-" VimEnter自動コマンド
-"if !ShouldSkipAutoCmds()
-"  autocmd VimEnter * :bo term
-"  autocmd VimEnter * :NERDTree
-"endif
-
 " ディレクトリ自動作成
 " https://vim-jp.org/vim-users-jp/2011/02/20/Hack-202.html
 augroup vimrc-auto-mkdir  " {{{
@@ -173,15 +170,19 @@ function! s:ChangeCurrentDir(directory, bang)
 endfunction
 
 " Change current directory.
-nnoremap <silent> <Space>cd :<C-u>CD<CR>
+nnoremap <silent> <Space>cd <Cmd>CD<CR>
 
 " syntaxハイライトを利用したオムニ補完
 " https://vim-jp.org/vim-users-jp/2009/11/01/Hack-96.html
 " https://vim-jp.org/vimdoc-ja/insert.html#ft-syntax-omni
+augroup omni
+    autocmd!
 autocmd FileType *
 \   if &l:omnifunc == ''
 \ |   setlocal omnifunc=syntaxcomplete#Complete
 \ | endif
+augroup END
+
 
 " Transparent editing of gpg encrypted files.
 " By Wouter Hanegraaff <wouter@blub.net>
@@ -206,4 +207,5 @@ autocmd BufWritePre,FileWritePre *.gpg '[,']!gpg --default-recipient-self -ae 2>
 " Undo the encryption so we are back in the normal text, directly
 " after the file has been written.
 autocmd BufWritePost,FileWritePost *.gpg u
+augroup END
 
