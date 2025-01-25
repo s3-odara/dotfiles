@@ -14,3 +14,5 @@ Host odarah.org
   KexAlgorithms sntrup761x25519-sha512@openssh.com
   Ciphers chacha20-poly1305@openssh.com
 
+Host sfo2.tmate.io
+  HostKeyAlgorithms rsa-sha2-512

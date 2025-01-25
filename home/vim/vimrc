@@ -13,7 +13,7 @@ scriptencoding utf-8
 " vim-vsnip-integ
 " ctrlp
 " vim-signify
-
+" vim-lexiv
 
 " waylandでクリップボードを使う
 xnoremap "+y y:call system("wl-copy", @")<cr>
@@ -27,6 +27,7 @@ inoremap <expr> <cr>    pumvisible() ? asyncomplete#close_popup() : "\<cr>"
 
 " ctrlp
 nnoremap <silent> <space>f <Cmd>CtrlP<CR>
+let g:ctrlp_map = ''
 
 " fern
 augroup fern-custom
@@ -34,7 +35,7 @@ augroup fern-custom
   autocmd FileType fern call s:init_fern()
 augroup END
 
-nnoremap <C-n> :Fern . -reveal=% -drawer -toggle -width=30<CR>
+nnoremap <space>t <cmd>Fern . -reveal=% -drawer -toggle -width=30<CR>
 
 function! s:init_fern() abort
   nmap <buffer><expr>
@@ -65,6 +66,7 @@ endfunction
 
 let g:fern#default_hidden = 1
 
+
 let g:netrw_liststyle=1
 
 nnoremap <F3> <Cmd>nohlsearch<CR>
@@ -72,7 +74,10 @@ nnoremap <F3> <Cmd>nohlsearch<CR>
 syntax on
 filetype plugin indent on
 
-au FileType html,htmldjango setlocal indentexpr=
+augroup noindent
+autocmd!
+autocmd FileType html,htmldjango setlocal indentexpr=
+augroup END
 
 " tab
 set expandtab
@@ -95,6 +100,10 @@ set background=dark
 set showcmd
 set updatetime=1000 " signifyの更新速度向上
 set termguicolors
+set diffopt=internal,filler,algorithm:patience,indent-heuristic
+set spelllang=en_us,cjk
+set dictionary=~/.vim/dict/words
+set thesaurus=~/.vim/dict/thesaurus
 
 
 function! DefineMyHighlights()
@@ -117,7 +126,7 @@ let g:lightline = {
       \ 'active': {
       \   'left': [ ['mode', 'paste'], ['gitbranch', 'readonly', 'absolutepath', 'modified'] ]
       \ },
-      \ 'component_function':{ 'gitbranch': 'Gitbranch'},
+      \ 'component_function':{ 'gitbranch': 'Gitbranch' },
       \ 'separator': { 'left': "\ue0b0", 'right': "\ue0b2" },
       \ 
       \}

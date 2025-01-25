@@ -12,6 +12,7 @@ $directory\
 [](fg:#0087AF) \
 $fill\
 $git_branch\
+$git_state\
 $git_status\
 $c\
 $elixir\
@@ -54,6 +55,7 @@ symbol = " "
 ssh_only = false
 style = "bg:#444444"
 format = '[$ssh_symbol]($style)[ $hostname ]($style)'
+ssh_symbol ="🈲 "
 
 [directory]
 style = "fg:#303030 bg:#0087AF"
@@ -100,11 +102,15 @@ format = '[ $symbol ($version) ]($style)'
 [git_branch]
 symbol = ""
 style = "fg:#303030 bg:#AFD700"
-format = '[](fg:#AFD700)[ $symbol $branch ]($style)'
+format = '[](fg:#AFD700)[ $symbol $branch]($style)'
+
+[git_state]
+style = "fg:#303030 bg:#AFD700"
+format = '[ \($state( $progress_current/$progress_total)\)]($style)'
 
 [git_status]
 style = "fg:#9e0903 bg:#AFD700"
-format = '[$all_status$ahead_behind ]($style)[](bg:#AFD700 fg:#303030 fg:#444444)'
+format = '[( $all_status$ahead_behind) ]($style)[](bg:#AFD700 fg:#303030 fg:#444444)'
 
 [golang]
 symbol = " "
