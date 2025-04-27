@@ -4,10 +4,8 @@
 # Syntax: simple "KEY=VAL" pairs on separate lines
 #
 
-XMODIFIERS=@im=fcitx
-MOZ_ENABLE_WAYLAND=1 firefox
-QT_QPA_PLATFORM=wayland
 
 #GBM_BACKEND=nvidia-drm
 #__GLX_VENDOR_LIBRARY_NAME=nvidia
 EDITOR=vim
+LESS='--mouse --wheel-lines 3 -iRMW +S'

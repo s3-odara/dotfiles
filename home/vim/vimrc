@@ -69,7 +69,11 @@ let g:fern#default_hidden = 1
 
 let g:netrw_liststyle=1
 
+"キー割り当て
+
 nnoremap <F3> <Cmd>nohlsearch<CR>
+inoremap <C-x><C-d> <C-x><C-k>
+
 
 syntax on
 filetype plugin indent on
@@ -98,12 +102,15 @@ set laststatus=2
 set autoindent
 set background=dark
 set showcmd
-set updatetime=1000 " signifyの更新速度向上
+set updatetime=500 " signifyの更新速度向上
 set termguicolors
 set diffopt=internal,filler,algorithm:patience,indent-heuristic
 set spelllang=en_us,cjk
 set dictionary=~/.vim/dict/words
 set thesaurus=~/.vim/dict/thesaurus
+set timeoutlen=1500
+set encoding=utf-8
+set fileencodings=utf-8,iso-2022-jp,euc-jp,sjis
 
 
 function! DefineMyHighlights()
@@ -141,10 +148,11 @@ function! Gitbranch()
 endfunction
 
 let g:lsp_diagnostics_echo_cursor = 1
-let g:lsp_diagnostics_echo_delay = 200
-let g:lsp_diagnostics_highlights_delay = 200
-let g:lsp_diagnostics_signs_delay = 200
-let g:lsp_diagnostics_virtual_text_delay = 200
+let g:lsp_diagnostics_echo_delay = 100
+let g:lsp_diagnostics_highlights_delay = 100
+let g:lsp_diagnostics_signs_delay = 100
+let g:lsp_diagnostics_virtual_text_delay = 100
+let g:lsp_document_code_action_signs_delay =100
 let g:lsp_document_highlight_delay = 100 " カーソル位置の単語が明るくなるやつ
 let g:lsp_document_code_action_signs_delay = 200
 let g:lsp_diagnostics_virtual_text_prefix = "🍖 "
