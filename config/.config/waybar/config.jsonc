@@ -1,0 +1,101 @@
+{
+    "modules-left": [
+        "clock",
+        "river/tags"
+    ],
+    "modules-center": [],
+    "modules-right": [
+        "tray",
+        "custom/pacman",
+        "idle_inhibitor",
+        "wireplumber",
+        "cpu",
+        "temperature",
+        "memory",
+        "disk",
+        "battery",
+        "backlight",
+        "network"
+    ],
+
+    // Modules Configuration
+    "river/tags": {
+        "num-tags": 9
+    },
+    "wireplumber": {
+        "format": "{volume}% {icon}",
+        "format-muted": "󰸈",
+        "on-click": "helvum",
+        "format-icons": ["", "", ""]
+    },
+    "idle_inhibitor": {
+        "format": "{icon}",
+        "format-icons": {
+            "activated": "",
+            "deactivated": ""
+        }
+    },
+    "tray": {
+        "icon-size": 24,
+        "spacing": 10
+    },
+    "clock": {
+        "interval": 60,
+        "format": " {:%H:%M}",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "format-alt": "{:%Y-%m-%d}"
+    },
+    "cpu": {
+        "interval": 20,
+        "format": "{usage}% ",
+        "tooltip": true
+    },
+    "memory": {
+        "format": "{}% ",
+        "interval": 20
+    },
+    "temperature": {
+        "format": "{temperatureC}°C",
+        "interval": 20
+    },
+    "disk": {
+        "interval": 3600,
+        "format": "{percentage_used}% ",
+        "on-click": "thunar"
+    },
+    "backlight": {
+        "device": "/dev/i2c-2",
+        "format": "{percent}% {icon}",
+        "format-icons": ["󱩑", "󱩑"]
+    },
+    "battery": {
+        "bat": "BAT0",
+        "states": {
+            "good": 95,
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{capacity}% {icon}",
+        "format-charging": "{capacity}% 󰂇",
+        "format-plugged": "{capacity}% ",
+        "format-alt": "{time} {icon}",
+        "format-icons": ["", "", "", "", ""]
+    },
+    "network": {
+        "interface": "wlan*",
+        "format-wifi": "{signaldBm}dB 󰖩",
+        "format-ethernet": "{ifname}: {ipaddr}/{cidr} 󰈀",
+        "format-linked": "{ifname} (No IP) ",
+        "format-disconnected": "Disconnected ⚠",
+        "format-alt": "{bandwidthUpBits}  {bandwidthDownBits} ",
+        "tooltip-format": "{ifname}: {ipaddr}/{cidr}\n{essid}",
+        "interval": 15
+    },
+    "custom/pacman": {
+        "format": "{} ",
+        "interval": 3600, // every hour
+        "exec": "checkupdates | wc -l", // # of updates
+        "exec-if": "exit 0", // always run
+        "signal": 8
+    }
+}

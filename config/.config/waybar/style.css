@@ -1,0 +1,140 @@
+/* Waybar Stylesheet */
+
+/* General Configuration */
+* {
+    border: none;
+    font-family: PlemolJP35;
+}
+
+window#waybar {
+    background-color: #e5efed;
+    color: black;
+    transition-property: background-color;
+    transition-duration: 0.5s;
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+label:disabled,
+button:disabled {
+    color: inherit;
+    background-image: none;
+}
+
+/* --- River Tags (Workspaces) --- */
+#tags {
+    margin-top: 2px;
+    margin-left: 12px;
+    font-size: 4px;
+    margin-bottom: 0px;
+    border-radius: 10px;
+    min-width: 0;
+    background: #0e1218;
+    transition: none;
+}
+
+#tags button {
+    min-width: 50px;
+    transition: none;
+    color: #7c6d56;
+    background: transparent;
+    font-size: 16px;
+    border-radius: 2px;
+}
+
+#tags button.occupied {
+    transition: none;
+    color: white;
+    background: transparent;
+    font-size: 16px;
+}
+
+#tags button.focused {
+    color: #cc8a5e;
+    border-top: 2px solid #cc8a5e;
+    border-bottom: 2px solid #cc8a5e;
+}
+
+#tags button:hover {
+    transition: none;
+    box-shadow: inherit;
+    text-shadow: inherit;
+    color: #ffffee;
+    border-color: #ffffee;
+}
+
+#tags button.focused:hover {
+    color: #ffffee;
+}
+
+#tags button.urgent {
+    border-top: 2px solid #fb4934;
+    border-bottom: 2px solid #fb4934;
+}
+
+/* --- Modules General --- */
+
+/* Default padding for most modules */
+#clock,
+#battery,
+#cpu,
+#memory,
+#disk,
+#temperature,
+#backlight,
+#network,
+#wireplumber,
+#idle_inhibitor,
+#custom-pacman,
+#tray {
+    padding: 0 15px;
+}
+
+/* Default margin for specific modules */
+#cpu,
+#temperature,
+#memory,
+#disk,
+#network,
+#wireplumber {
+    margin: 2px 0px;
+}
+
+/* --- Modules Specific --- */
+
+#clock {
+    margin: 2px;
+    border-radius: 5px;
+    font-size: 1.4em;
+}
+
+@keyframes blink {
+    to {
+        background-color: #f2d8e9;
+        color: #000000;
+    }
+}
+
+#battery.critical:not(.charging) {
+    background-color: #d92365;
+    color: #f2d8e9;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+
+
+#idle_inhibitor.activated {
+    background-color: #f2d8e9;
+    color: #0b0b0b;
+    border-radius: 5px;
+    padding: 0 15px;
+}
+
+
+

@@ -1,0 +1,25 @@
+[user]
+	email = haruta@s3-odara.net
+	name = s3-odara
+	signingkey = F1A2E293CE3B8617!
+[commit]
+	gpgsign = true
+[merge]
+	tool = vimdiff
+	ff = false
+[push]
+	autoSetupRemote = true
+[gpg]
+	format = openpgp
+[diff]
+	algorithm = patience
+	tool = vimdiff
+[difftool]
+	prompt = true
+[pull]
+    ff = only
+[color "blame"]
+	highlightRecent = "#7d877f", 23 month ago, "#78887a", 22 month ago, "#768d79", 21 month ago, "#739078", 20 month ago, "#709376", 19 month ago, "#6c9973", 18 month ago, "#6a9d73", 17 month ago, "#69a072", 16 month ago, "#68a272", 15 month ago, "#65a56f", 14 month ago, "#61a76d", 13 month ago, "#5caa69", 12 month ago, "#5aad68", 11 month ago, "#54af64", 10 month ago, "#54b664", 9 month ago, "#4bb75d", 8 month ago, "#4bbd5e", 7 month ago, "#45bf5a", 6 month ago, "#43c158", 5 month ago, "#34ca4d", 4 month ago, "#2dd249", 3 month ago, "#2ad446", 2 month ago, "#24d943", 1 month ago, "#20dd40", 3 weeks ago, "#1ee03f", 2 weeks ago, "#1ae23c", 1 week ago, "#18e53a"
+[blame]
+	coloring = highlightRecent
+	date = human
