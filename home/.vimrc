@@ -10,7 +10,25 @@ endif
 command! PackUpdate call s:PackInit() | call minpac#update()
 command! PackClean  call s:PackInit() | call minpac#clean()
 command! PackStatus packadd minpac | call minpac#status()
-command! -nargs=* Fern packadd vim-fern | packadd vim-fern-git-status | call fern#command#call(<q-args>)
+
+augroup LazyLoadInsert
+    autocmd!
+    autocmd InsertEnter * ++once packadd vim-vsnip | packadd vim-vsnip-integ | packadd vim-lexiv
+augroup END
+
+let s:lsp_filetypes = ['python', 'toml', 'rust', 'c', 'cpp', 'vim', 'sh', 'yaml', 'html', 'css']
+
+augroup LazyLoadLsp
+  autocmd!
+  execute 'autocmd FileType ' . join(s:lsp_filetypes, ',') . ' ++once call s:load_lsp()'
+augroup END
+
+function! s:load_lsp() abort
+  packadd vim-lsp
+  packadd asyncomplete.vim
+  packadd asyncomplete-lsp.vim
+  packadd vim-lsp-settings
+endfunction
 
 function! s:PackInit() abort
     packadd minpac
@@ -20,19 +38,19 @@ function! s:PackInit() abort
 	
 	call minpac#add('https://github.com/itchyny/lightline.vim.git')
 	call minpac#add('https://github.com/itchyny/vim-gitbranch.git')
-	call minpac#add('https://github.com/prabirshrestha/vim-lsp.git')
-	call minpac#add('https://github.com/prabirshrestha/asyncomplete.vim.git')
-	call minpac#add('https://github.com/prabirshrestha/asyncomplete-lsp.vim.git')
-	call minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
-	call minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git')
 	call minpac#add('https://github.com/mhinz/vim-signify.git')
-	call minpac#add('https://github.com/mattn/vim-lexiv.git')
 	
 	call minpac#add('https://github.com/lambdalisue/vim-fern.git', {'type': 'opt'})
 	call minpac#add('https://github.com/lambdalisue/vim-fern-git-status.git', {'type': 'opt'})
 	call minpac#add('https://github.com/ctrlpvim/ctrlp.vim.git', {'type': 'opt'})
+	call minpac#add('https://github.com/prabirshrestha/vim-lsp.git', {'type': 'opt'})
+    call minpac#add('https://github.com/mattn/vim-lsp-settings.git', {'type': 'opt'})
+	call minpac#add('https://github.com/prabirshrestha/asyncomplete.vim.git', {'type': 'opt'})
+	call minpac#add('https://github.com/prabirshrestha/asyncomplete-lsp.vim.git', {'type': 'opt'})
 
-  
+    call minpac#add('https://github.com/hrsh7th/vim-vsnip.git', {'type': 'opt'})
+    call minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git', {'type': 'opt'})
+    call minpac#add('https://github.com/mattn/vim-lexiv.git', {'type': 'opt'})
 endfunction
 
 " waylandでクリップボードを使う
@@ -76,7 +94,6 @@ augroup fern-custom
   autocmd FileType fern call s:init_fern()
 augroup END
 
-nnoremap <space>t <cmd>Fern . -reveal=% -drawer -toggle -width=30<CR>
 
 function! s:init_fern() abort
   nmap <buffer><expr>
