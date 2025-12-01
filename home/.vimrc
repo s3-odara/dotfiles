@@ -1,19 +1,39 @@
 scriptencoding utf-8
 
-" 使用プラグイン
-" lightline.vim
-" vim-gitbranch
-" fern
-" fern-gitstatus
-" vim-lsp
-" vim-lsp-settings
-" asyncomplete.vim
-" asyncomplete-lsp.vim
-" vim-vsnip
-" vim-vsnip-integ
-" ctrlp
-" vim-signify
-" vim-lexiv
+let s:minpac_dir = expand('~/.vim/pack/minpac/opt/minpac')
+if !isdirectory(s:minpac_dir)
+  call system('git clone https://github.com/k-takata/minpac ' . s:minpac_dir)
+  packadd minpac
+endif
+
+" minpac
+command! PackUpdate call s:PackInit() | call minpac#update()
+command! PackClean  call s:PackInit() | call minpac#clean()
+command! PackStatus packadd minpac | call minpac#status()
+command! -nargs=* Fern packadd vim-fern | packadd vim-fern-git-status | call fern#command#call(<q-args>)
+
+function! s:PackInit() abort
+    packadd minpac
+	call minpac#init()
+	
+	call minpac#add('https://github.com/k-takata/minpac.git', {'type': 'opt'})
+	
+	call minpac#add('https://github.com/itchyny/lightline.vim.git')
+	call minpac#add('https://github.com/itchyny/vim-gitbranch.git')
+	call minpac#add('https://github.com/prabirshrestha/vim-lsp.git')
+	call minpac#add('https://github.com/prabirshrestha/asyncomplete.vim.git')
+	call minpac#add('https://github.com/prabirshrestha/asyncomplete-lsp.vim.git')
+	call minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
+	call minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git')
+	call minpac#add('https://github.com/mhinz/vim-signify.git')
+	call minpac#add('https://github.com/mattn/vim-lexiv.git')
+	
+	call minpac#add('https://github.com/lambdalisue/vim-fern.git', {'type': 'opt'})
+	call minpac#add('https://github.com/lambdalisue/vim-fern-git-status.git', {'type': 'opt'})
+	call minpac#add('https://github.com/ctrlpvim/ctrlp.vim.git', {'type': 'opt'})
+
+  
+endfunction
 
 " waylandでクリップボードを使う
 xnoremap "+y y:call system("wl-copy", @")<cr>
@@ -46,10 +66,11 @@ inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <cr>    pumvisible() ? asyncomplete#close_popup() : "\<cr>"
 
 " ctrlp
-nnoremap <silent> <space>f <Cmd>CtrlP<CR>
-let g:ctrlp_map = ''
+nnoremap <space>f <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
 
 " fern
+nnoremap <space>t <cmd>packadd vim-fern \| packadd vim-fern-git-status \| Fern . -reveal=% -drawer -toggle -width=30<CR> 
+
 augroup fern-custom
   autocmd! *
   autocmd FileType fern call s:init_fern()
