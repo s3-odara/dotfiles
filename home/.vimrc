@@ -96,14 +96,18 @@ augroup LazyLoadInsert
 augroup END
 
 " LSP
-let s:lsp_filetypes = ['python', 'toml', 'rust', 'c', 'cpp', 'vim', 'sh', 'yaml', 'html', 'css']
+let s:lsp_filetypes = ['python', 'toml', 'rust', 'c', 'cpp', 'vim', 'sh', 'yaml', 'html', 'css', 'lua']
 
 augroup LazyLoadLsp
   autocmd!
-  execute 'autocmd FileType ' . join(s:lsp_filetypes, ',') . ' ++once call s:load_lsp()'
+  execute 'autocmd FileType ' . join(s:lsp_filetypes, ',') . ' call s:load_lsp()'
 augroup END
 
 function! s:load_lsp() abort
+  if exists('g:lsp_loaded')
+    return
+  endif
+
   packadd vim-lsp
   packadd asyncomplete.vim
   packadd asyncomplete-lsp.vim
@@ -125,7 +129,7 @@ let g:lsp_diagnostics_echo_delay = 100
 let g:lsp_diagnostics_highlights_delay = 100
 let g:lsp_diagnostics_signs_delay = 100
 let g:lsp_diagnostics_virtual_text_delay = 100
-let g:lsp_document_code_action_signs_delay = 200 " 重複していたので統合
+let g:lsp_document_code_action_signs_delay = 200
 let g:lsp_document_highlight_delay = 100
 let g:lsp_diagnostics_virtual_text_prefix = "🍖 "
 
@@ -211,12 +215,20 @@ augroup fcitx5_control_fn
   autocmd!
   function! s:FcitxOnInsertLeave()
     let w:im_name = trim(system('fcitx5-remote -n'))
-    silent !fcitx5-remote -o
+    if has('job')
+      call job_start(['fcitx5-remote', '-o'])
+    else
+      call system('fcitx5-remote -o')
+    endif
   endfunction
 
   function! s:FcitxOnInsertEnter()
     if exists('w:im_name') && w:im_name != 'keyboard-us'
-      silent !fcitx5-remote -c
+      if has('job')
+        call job_start(['fcitx5-remote', '-c'])
+      else
+        call system('fcitx5-remote -c')
+      endif
     endif
   endfunction
 
