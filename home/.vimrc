@@ -7,11 +7,11 @@ if !isdirectory(s:minpac_dir)
   packadd minpac
 endif
 
-command! PackUpdate call s:PackInit() | call minpac#update()
-command! PackClean  call s:PackInit() | call minpac#clean()
+command! PackUpdate call PackInit() | call minpac#update()
+command! PackClean  call PackInit() | call minpac#clean()
 command! PackStatus packadd minpac | call minpac#status()
 
-function! s:PackInit() abort
+function! PackInit() abort
   packadd minpac
   call minpac#init()
   
