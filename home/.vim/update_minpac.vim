@@ -1,19 +1,25 @@
-function UpdatePlugins()
-  call PackInit()
+function! UpdatePlugins()
+  try
+    call PackInit()
 
-  if !exists("g:loaded_minpac")
-    call setline(1, split(execute("message"), "\n"))
-    call append("$", "Failed to load minpac")
-    %print
+    if !exists("g:loaded_minpac")
+      call writefile(["Error: minpac not loaded"], "minpac_update.log")
+      cquit!
+    endif
+
+    let g:minpac#opt.status_auto = v:true
+    call minpac#update("", {"do": "call PostUpdatePlugins()"})
+
+  catch
+    call writefile(["Exception: " . v:exception], "minpac_update.log")
     cquit!
-  endif
-
-  let g:minpac#opt.status_auto = v:true
-
-  call minpac#update("", {"do": "call PostUpdatePlugins()"})
+  endtry
 endfunction
 
-function PostUpdatePlugins()
-  %print
+function! PostUpdatePlugins()
+  let l:messages = split(execute("message"), "\n")
+  call writefile(l:messages, "minpac_update.log")
   quitall!
 endfunction
+
+call UpdatePlugins()
