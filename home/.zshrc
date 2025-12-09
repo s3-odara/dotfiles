@@ -32,7 +32,7 @@ autoload -Uz add-zsh-hook
 add-zsh-hook precmd _toggle_pure_git_display
 
 
-set -a; source <(envsubst < ~/.env); set +a
+set -a; source <(envsubst < ~/.envenv); set +a
 
 RPROMPT+='%F{#8798e8}%T'
 
