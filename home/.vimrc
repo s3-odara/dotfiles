@@ -101,7 +101,7 @@ nnoremap <leader>] <cmd>LspNextError<CR>
 " Insert Mode
 augroup LazyLoadInsert
     autocmd!
-    autocmd InsertEnter * ++once packadd vim-vsnip | packadd vim-vsnip-integ | packadd vim-lexiv
+    autocmd InsertEnter * ++once packadd vim-lexiv
 augroup END
 
 " LSP
@@ -121,6 +121,9 @@ function! s:load_lsp() abort
   packadd asyncomplete.vim
   packadd asyncomplete-lsp.vim
   packadd vim-lsp-settings
+
+  packadd vim-vsnip
+  packadd vim-vsnip-integ
 
   if &filetype != ''
     execute 'doautocmd FileType ' . &filetype
