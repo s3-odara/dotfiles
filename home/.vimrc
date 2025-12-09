@@ -120,6 +120,10 @@ function! s:load_lsp() abort
   packadd asyncomplete.vim
   packadd asyncomplete-lsp.vim
   packadd vim-lsp-settings
+
+  if &filetype != ''
+    execute 'doautocmd FileType ' . &filetype
+  endif
 endfunction
 
 " プラグイン設定
