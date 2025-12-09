@@ -47,6 +47,7 @@ set tabstop=4
 set softtabstop=-1    " shiftwidthに従う
 set shiftwidth=0      " tabstopに従う
 set autoindent
+set completeopt=menuone,noinsert,noselect,preview
 
 set number
 set ruler
