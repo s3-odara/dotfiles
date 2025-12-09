@@ -79,14 +79,22 @@ syntax on
 filetype plugin indent on
 
 " キーマップ
-" Wayland Clipboard
-xnoremap "+y y:call system("wl-copy", @")<cr>
+let mapleader = "\<Space>"
+xnoremap <silent> "+y :<C-u>call Osc52Copy()<CR>
 nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
-
 nnoremap <F3> <Cmd>nohlsearch<CR>
 inoremap <C-x><C-d> <C-x><C-k>
-nnoremap <silent> <Space>cd <Cmd>CD<CR>
+
+nnoremap <leader>d <cmd>LspDefinition<CR>
+nnoremap <leader>e <cmd>LspDeclaration<CR>
+nnoremap <leader>er <cmd>LspReferences<CR>
+nnoremap <leader>h  <cmd>LspHover<CR>
+nnoremap <leader>rn <cmd>LspRename<CR>
+nnoremap <leader>ca <cmd>LspCodeAction<CR>
+nnoremap <leader>f  <cmd>LspDocumentFormat<CR>
+nnoremap <leader>[ <cmd>LspPreviousError<CR>
+nnoremap <leader>] <cmd>LspNextError<CR>
 
 " プラグインロード
 " Insert Mode
@@ -117,9 +125,14 @@ endfunction
 " プラグイン設定
 
 " asyncomplete.vim
-inoremap <expr> <Tab>   pumvisible() ? "\<C-n>" : "\<Tab>"
-inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
-inoremap <expr> <cr>    pumvisible() ? asyncomplete#close_popup() : "\<cr>"
+inoremap <expr> <Tab>
+      \ pumvisible() ? "\<C-n>" :
+      \ vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" :
+      \ "\<Tab>"
+inoremap <expr> <S-Tab>
+      \ pumvisible() ? "\<C-p>" :
+      \ vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" :
+      \ "\<S-Tab>"
 let g:asyncomplete_popup_delay = 200
 
 " vim-lsp
@@ -151,10 +164,10 @@ function! Gitbranch()
 endfunction
 
 " ctrlp
-nnoremap <space>f <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
+nnoremap <leader>p <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
 
 " fern
-nnoremap <space>t <cmd>packadd vim-fern \| packadd vim-fern-git-status \| Fern . -reveal=% -drawer -toggle -width=30<CR> 
+nnoremap <leader>t <cmd>packadd vim-fern \| packadd vim-fern-git-status \| Fern . -reveal=% -drawer -toggle -width=30<CR> 
 let g:fern#default_hidden = 1
 let g:netrw_liststyle = 1
 
@@ -256,19 +269,10 @@ augroup vimrc-auto-mkdir
 augroup END
 
 " 開いているファイルにカレントディレクトリを移動
-" https://vim-jp.org/vim-users-jp/2009/09/08/Hack-69.html
-command! -nargs=? -complete=dir -bang CD  call s:ChangeCurrentDir('<args>', '<bang>')
-function! s:ChangeCurrentDir(directory, bang)
-    if a:directory == ''
-        lcd %:p:h
-    else
-        execute 'lcd' . a:directory
-    endif
-
-    if a:bang == ''
-        pwd
-    endif
-endfunction
+autocmd BufEnter * let s:root = finddir('.git', expand('%:p:h') . ';') |
+      \ if !empty(s:root) |
+      \   execute 'cd ' . fnameescape(fnamemodify(s:root, ':h')) |
+      \ endif
 
 " Syntaxハイライトを利用したオムニ補完
 " https://vim-jp.org/vim-users-jp/2009/11/01/Hack-96.html
@@ -297,3 +301,34 @@ augroup encrypted
   autocmd BufWritePre,FileWritePre *.gpg '[,']!gpg --default-recipient-self -ae 2>/dev/null
   autocmd BufWritePost,FileWritePost *.gpg u
 augroup END
+
+" OSC52を利用したコピー
+function! Osc52Copy()
+  " 現在の無名レジスタの中身を退避
+  let l:save_reg = @"
+  normal! gvy
+  let l:content = @"
+  " レジスタを復元
+  let @" = l:save_reg
+  if len(l:content) == 0
+    echo "Nothing to copy"
+    return
+  endif
+  " Base64
+  let l:b64 = system('base64 | tr -d "\n"', l:content)
+  " 文字数制限
+  if len(l:b64) > 100000
+    redraw
+    echohl WarningMsg
+    echo "Warning: Content too large for OSC 52 copy."
+    echohl None
+    return
+  endif
+  " シーケンスを作成
+  "    \x1b]52;c;{base64}\x07
+  let l:seq = "\x1b]52;c;" . l:b64 . "\x07"
+  call writefile([l:seq], "/dev/tty", "b")
+  redraw!
+  echo "Copied to clipboard (OSC 52)"
+endfunction
+
