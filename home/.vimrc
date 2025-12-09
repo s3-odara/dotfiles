@@ -88,10 +88,10 @@ inoremap <C-x><C-d> <C-x><C-k>
 
 nnoremap <leader>d <cmd>LspDefinition<CR>
 nnoremap <leader>e <cmd>LspDeclaration<CR>
-nnoremap <leader>er <cmd>LspReferences<CR>
+nnoremap <leader>r <cmd>LspReferences<CR>
 nnoremap <leader>h  <cmd>LspHover<CR>
 nnoremap <leader>rn <cmd>LspRename<CR>
-nnoremap <leader>ca <cmd>LspCodeAction<CR>
+nnoremap <leader>a <cmd>LspCodeAction<CR>
 nnoremap <leader>f  <cmd>LspDocumentFormat<CR>
 nnoremap <leader>[ <cmd>LspPreviousError<CR>
 nnoremap <leader>] <cmd>LspNextError<CR>
