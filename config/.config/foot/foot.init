@@ -1,0 +1,19 @@
+[main]
+pad=10x10 center-when-maximized-and-fullscreen
+
+font = PlemolJP35:size=30
+font-bold = PlemolJP35 Medium
+font-italic = PlemolJP35
+font-bold-italic = PlemolJP35 Medium
+horizontal-letter-offset = 1
+vertical-letter-offset=1
+
+[key-bindings]
+Control+Shift+f = spawn new-window
+
+[cursor]
+style = underline
+blink=yes
+
+[colors]
+alpha = 0.9

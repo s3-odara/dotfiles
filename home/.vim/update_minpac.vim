@@ -14,8 +14,6 @@ function! UpdatePlugins()
 endfunction
 
 function PostUpdatePlugins()
-  " minpac がプラグインの更新情報をカレントバッファに残しているので、それを
-  " 標準出力に流したのち、Vim を正常終了させています。
   %print
   quitall!
 endfunction
