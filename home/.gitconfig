@@ -4,6 +4,7 @@
 	signingkey = F1A2E293CE3B8617!
 [commit]
 	gpgsign = true
+	verbose = true
 [merge]
 	tool = vimdiff
 	ff = false
@@ -19,9 +20,18 @@
 [pull]
     ff = only
 [color "blame"]
-	highlightRecent = "#7d877f", 23 month ago, "#78887a", 22 month ago, "#768d79", 21 month ago, "#739078", 20 month ago, "#709376", 19 month ago, "#6c9973", 18 month ago, "#6a9d73", 17 month ago, "#69a072", 16 month ago, "#68a272", 15 month ago, "#65a56f", 14 month ago, "#61a76d", 13 month ago, "#5caa69", 12 month ago, "#5aad68", 11 month ago, "#54af64", 10 month ago, "#54b664", 9 month ago, "#4bb75d", 8 month ago, "#4bbd5e", 7 month ago, "#45bf5a", 6 month ago, "#43c158", 5 month ago, "#34ca4d", 4 month ago, "#2dd249", 3 month ago, "#2ad446", 2 month ago, "#24d943", 1 month ago, "#20dd40", 3 weeks ago, "#1ee03f", 2 weeks ago, "#1ae23c", 1 week ago, "#18e53a"
+	highlightRecent = "#c4d5bb", 23 month ago, "#c3d6b9", 22 month ago, "#c2d6b6", 21 month ago, "#c0d7b4", 20 month ago, "#bfd8b1", 19 month ago, "#bed9af", 18 month ago, "#bcd9ac", 17 month ago, "#bbdaa9", 16 month ago, "#b9dba7", 15 month ago, "#b8dca4", 14 month ago, "#b6dca1", 13 month ago, "#b5dd9e", 12 month ago, "#b4de9c", 11 month ago, "#b2de99", 10 month ago, "#b1df96", 9 month ago, "#afe093", 8 month ago, "#aee090", 7 month ago, "#ace18d", 6 month ago, "#abe28a", 5 month ago, "#a9e287", 4 month ago, "#a1e576", 3 month ago, "#a6e480", 2 month ago, "#a1e576", 1 month ago, "#a3e57a", 3 weeks ago, "#a1e576", 2 weeks ago, "#a0e673", 1 week ago, "#9ee76f"
 [blame]
 	coloring = highlightRecent
 	date = human
 [credential]
 	helper = store
+[core]
+	untrackedCache = true
+[fetch]
+	prune = true
+[rebase]
+	autostash = true
+	autosquash = true
+[alias]
+	forcepush = push --force-with-lease --force-if-includes

@@ -105,7 +105,7 @@ augroup LazyLoadInsert
 augroup END
 
 " LSP
-let s:lsp_filetypes = ['python', 'toml', 'rust', 'c', 'cpp', 'vim', 'sh', 'yaml', 'html', 'css', 'lua']
+let s:lsp_filetypes = ['python', 'toml', 'rust', 'c', 'cpp', 'vim', 'sh', 'yaml', 'html', 'css', 'lua', 'text']
 
 augroup LazyLoadLsp
   autocmd!
@@ -145,6 +145,7 @@ let g:asyncomplete_popup_delay = 200
 
 " vim-lsp
 let g:lsp_settings = { 'typos-lsp': {'disabled': v:false} }
+let g:lsp_settings = { 'mozuku-lsp': {'disabled': v:false} }
 let g:lsp_diagnostics_echo_cursor = 1
 let g:lsp_diagnostics_echo_delay = 100
 let g:lsp_diagnostics_highlights_delay = 100
