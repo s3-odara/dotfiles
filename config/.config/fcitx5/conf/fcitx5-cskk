@@ -1,0 +1,33 @@
+# Rule
+Rule=default
+# InitialInputMode
+InitialInputMode=Hiragana
+# Period style
+Period style=。
+# Comma style
+Comma style=、
+# Candidates to show before showing in list
+Candidates to show before showing in list=3
+# Candidate list page size
+Candidate list page size=10
+# Candidate Layout
+Candidate Layout=Vertical
+# Candidate selection keys
+Candidate selection keys=QwertyCenter
+# Show Annotation when
+Show Annotation when=Always
+
+[CursorUp]
+0=Up
+
+[CursorDown]
+0=Down
+
+[CandidatesPageUpKey]
+0=Page_Up
+1=x
+
+[CandidatesPageDownKey]
+0=Next
+1=space
+

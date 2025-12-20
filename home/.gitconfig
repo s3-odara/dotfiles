@@ -20,7 +20,7 @@
 [pull]
     ff = only
 [color "blame"]
-	highlightRecent = "#c4d5bb", 23 month ago, "#c3d6b9", 22 month ago, "#c2d6b6", 21 month ago, "#c0d7b4", 20 month ago, "#bfd8b1", 19 month ago, "#bed9af", 18 month ago, "#bcd9ac", 17 month ago, "#bbdaa9", 16 month ago, "#b9dba7", 15 month ago, "#b8dca4", 14 month ago, "#b6dca1", 13 month ago, "#b5dd9e", 12 month ago, "#b4de9c", 11 month ago, "#b2de99", 10 month ago, "#b1df96", 9 month ago, "#afe093", 8 month ago, "#aee090", 7 month ago, "#ace18d", 6 month ago, "#abe28a", 5 month ago, "#a9e287", 4 month ago, "#a1e576", 3 month ago, "#a6e480", 2 month ago, "#a1e576", 1 month ago, "#a3e57a", 3 weeks ago, "#a1e576", 2 weeks ago, "#a0e673", 1 week ago, "#9ee76f"
+    highlightRecent = "#60655f", 4181 days ago, "#646d63", 2584 days ago, "#687566", 1597 days ago, "#6c7d69", 987 days ago, "#70856c", 610 days ago, "#738d70", 377 days ago, "#779673", 233 days ago, "#7b9e76", 144 days ago, "#7ea779", 89 days ago, "#82af7c", 55 days ago, "#86b87f", 34 days ago, "#89c082", 21 days ago, "#8dc985", 13 days ago, "#90d287", 8 days ago, "#94db8a", 5 days ago, "#97e48d", 3 days ago, "#9bed90", 2 days ago, "#9ef693", 1 days ago, "#a2ff95"
 [blame]
 	coloring = highlightRecent
 	date = human
