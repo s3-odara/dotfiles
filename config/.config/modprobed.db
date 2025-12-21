@@ -104,6 +104,8 @@ nft_masq
 nft_reject
 nft_reject_inet
 nft_reject_ipv4
+nls_ascii
+nls_cp437
 nls_utf8
 nvme
 nvme_auth
@@ -183,12 +185,14 @@ sp5100_tco
 sparse_keymap
 spd5118
 stp
+tap
 tee
 think_lmi
 thinkpad_acpi
 thunderbolt
 trusted
 ttm
+tun
 typec
 typec_ucsi
 uas
@@ -201,6 +205,7 @@ veth
 vfat
 vhost
 vhost_iotlb
+vhost_net
 vhost_vsock
 video
 videobuf2_common
