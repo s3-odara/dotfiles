@@ -23,10 +23,8 @@ riverctl input "*" tap-button-map left-right-middle
 riverctl spawn "fcitx5"
 riverctl spawn "wlr-randr --output eDP-1 --scale 1.5"
 
-riverctl spawn "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
-riverctl spawn "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=river"
-riverctl spawn "export XDG_RUNTIME_DIR=/run/user/$(id -u odara)\
-    systemctl --user restart xdg-desktop-portal"
+riverctl spawn "dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=river"
+riverctl spawn "pkill -f xdg-desktop-portal"
 
 riverctl spawn "waybar"
 riverctl spawn "udiskie &"
