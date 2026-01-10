@@ -237,20 +237,12 @@ augroup fcitx5_control_fn
   autocmd!
   function! s:FcitxOnInsertLeave()
     let w:im_name = trim(system('fcitx5-remote -n'))
-    if has('job')
-      call job_start(['fcitx5-remote', '-o'])
-    else
-      call system('fcitx5-remote -o')
-    endif
+    call job_start(['fcitx5-remote', '-c'])
   endfunction
 
   function! s:FcitxOnInsertEnter()
     if exists('w:im_name') && w:im_name != 'keyboard-us'
-      if has('job')
-        call job_start(['fcitx5-remote', '-c'])
-      else
-        call system('fcitx5-remote -c')
-      endif
+      call job_start(['fcitx5-remote', '-o'])
     endif
   endfunction
 

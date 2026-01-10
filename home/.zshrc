@@ -1,65 +1,66 @@
-# Created by newuser for 5.9
-source /usr/share/zsh/site-functions/zsh-autosuggestions.zsh
+# ~/.zshrc
+# Interactive shell configuration.
 
-fpath+=("/usr/share/zsh/site-functions")
+[[ -o interactive ]] || return
+
+# Completion
+fpath=(
+  /usr/share/zsh/site-functions
+  $fpath
+)
 
 autoload -Uz compinit
-compinit
+# Use XDG cache for compdump
+_compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+mkdir -p -- "${_compdump:h}" 2>/dev/null
+compinit -d "${_compdump}"
 
-autoload -Uz promptinit
-promptinit; prompt gentoo
-
-GPG_TTY=$(tty)
-export GPG_TTY
-
-alias ssh="gpg-connect-agent updatestartuptty /bye >/dev/null && ssh"
-gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
-gpgconf --launch gpg-agent
-
+# Key timeout (zsh: hundredths of a second)
 KEYTIMEOUT=5
 
-# --- vcs_info (Gitステータス表示) の設定 ---
- 
-# 1. vcs_infoモジュールの読み込みと、プロンプト内での変数展開を許可
+# History (XDG)
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
+mkdir -p -- "${HISTFILE:h}" 2>/dev/null
+HISTSIZE=10000
+SAVEHIST=10000
+setopt APPEND_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt SHARE_HISTORY
+
+# Hooks
+autoload -Uz add-zsh-hook
+
+# Keep GPG_TTY fresh and inform gpg-agent (safe for interactive)
+_gpg_update_tty() {
+  export GPG_TTY="${TTY:-$(tty 2>/dev/null)}"
+  command -v gpg-connect-agent >/dev/null 2>&1 || return 0
+  gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
+}
+add-zsh-hook precmd _gpg_update_tty
+
+# vcs_info for Git status in prompt
 autoload -Uz vcs_info
 setopt PROMPT_SUBST
- 
-# 2. プロンプトが表示される直前に vcs_info を実行する設定
-precmd() {
-  vcs_info
-}
- 
-# 3. vcs_info が Git を認識するように有効化
+
 zstyle ':vcs_info:*' enable git
- 
-# 4. 表示フォーマットを指定
-# ${vcs_info_msg_0_} という変数に結果が格納される
- 
-# 通常時のフォーマット: ' on (ブランチ名)(Staged変更)(Unstaged変更)'
-# %b: ブランチ名 (黄色)
-# %c: Staged変更 (zstyle stagedstr で指定した記号)
-# %u: Unstaged変更 (zstyle unstagedstr で指定した記号)
 zstyle ':vcs_info:git:*' formats       ' on %F{yellow}%b%f%c%u'
- 
-# マージ中などのアクションがある場合のフォーマット (例: ' on main (MERGING)')
-# %a: アクション名 (マゼンタ色)
 zstyle ':vcs_info:git:*' actionformats ' on %F{yellow}%b%f (%F{magenta}%a%f)'
- 
-# Staged 変更がある場合に %c の部分に表示する記号
-zstyle ':vcs_info:git:*' stagedstr   ' %F{green}●%f'  # (緑丸)
- 
-# Unstaged 変更がある場合に %u の部分に表示する記号
-zstyle ':vcs_info:git:*' unstagedstr ' %F{red}●%f'    # (赤丸)
- 
-# --- ここまで vcs_info の設定 ---
- 
- 
-# 5. 最終的なプロンプトの設定
-# 以前のプロンプト設定に ${vcs_info_msg_0_} を追加
-# (Gitリポジトリ以外では ${vcs_info_msg_0_} は空になります)
+zstyle ':vcs_info:git:*' stagedstr     ' %F{green}●%f'
+zstyle ':vcs_info:git:*' unstagedstr   ' %F{red}●%f'
+
+add-zsh-hook precmd vcs_info
+
 PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
 %# '
 
+# Plugins (guard with -r)
+if [[ -r /usr/share/zsh/site-functions/zsh-autosuggestions.zsh ]]; then
+  source /usr/share/zsh/site-functions/zsh-autosuggestions.zsh
+fi
 
+# zsh-syntax-highlighting should be sourced last
+if [[ -r /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh ]]; then
+  source /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh
+fi
 
-source /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh
