@@ -49,18 +49,6 @@ setopt PROMPT_SUBST
 export PURE_CMD_MAX_EXEC_TIME=1
 export PURE_PROMPT_SYMBOL="%%"
 
-# gcryptレポでgit pullを無効にする（Pure 用）
-typeset -g MY_SLOW_REPO_PATH="/home/odara/git/memo"
-
-_toggle_pure_git_display() {
-  if [[ "$PWD" == "$MY_SLOW_REPO_PATH"* ]]; then
-    export PURE_GIT_PULL=0
-  else
-    export PURE_GIT_PULL=0
-  fi
-}
-add-zsh-hook precmd _toggle_pure_git_display
-
 # Pure theme colors / options
 zstyle ':prompt:pure:user' color '#04b5b5'
 zstyle ':prompt:pure:host' color '#dd8364'
@@ -80,13 +68,18 @@ prompt pure
 RPROMPT+='%F{#8798e8}%T'
 # ---- Prompt (Pure) end ----
 
-# Plugins (guard with -r)
-if [[ -r /usr/share/zsh/site-functions/zsh-autosuggestions.zsh ]]; then
-  source /usr/share/zsh/site-functions/zsh-autosuggestions.zsh
-fi
+# zsh-autosuggestions (path varies by distro)
+for f in \
+  /usr/share/zsh/site-functions/zsh-autosuggestions.zsh \
+  /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+; do
+  [[ -r "$f" ]] && source "$f" && break
+done
 
-# zsh-syntax-highlighting should be sourced last
-if [[ -r /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh ]]; then
-  source /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh
-fi
-
+# zsh-syntax-highlighting should be last
+for f in \
+  /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+; do
+  [[ -r "$f" ]] && source "$f" && break
+done
