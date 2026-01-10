@@ -46,10 +46,31 @@ autoload -Uz vcs_info
 setopt PROMPT_SUBST
 
 zstyle ':vcs_info:*' enable git
-zstyle ':vcs_info:git:*' formats       ' on %F{yellow}%b%f%c%u'
-zstyle ':vcs_info:git:*' actionformats ' on %F{yellow}%b%f (%F{magenta}%a%f)'
+
+# %c/%u を出す
+zstyle ':vcs_info:git:*' check-for-changes true
+
+# formats / actionformats の両方に %c%u%m を入れる（action時に欠けないように）
+zstyle ':vcs_info:git:*' formats       ' on %F{yellow}%b%f%c%u%m'
+zstyle ':vcs_info:git:*' actionformats ' on %F{yellow}%b%f (%F{magenta}%a%f)%c%u%m'
+
 zstyle ':vcs_info:git:*' stagedstr     ' %F{green}●%f'
 zstyle ':vcs_info:git:*' unstagedstr   ' %F{red}●%f'
+
+# ★untracked を検出する hook
+zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
++vi-git-untracked() {
+  [[ "$1" == "1" ]] || return 0
+
+  local untracked
+  untracked=$(command git ls-files --others --exclude-standard 2>/dev/null | command head -n 1)
+
+  if [[ -n "$untracked" ]]; then
+    hook_com[misc]=' %F{magenta}●%f'   # ← untracked 
+  else
+    hook_com[misc]=''
+  fi
+}
 
 add-zsh-hook precmd vcs_info
 
