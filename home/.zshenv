@@ -1,15 +1,18 @@
-XMODIFIERS=@im=fcitx
-MOZ_ENABLE_WAYLAND='1 firefox'
-QT_QPA_PLATFORM=WAYLAND
-EDITOR=vim
+export XMODIFIERS=@im=fcitx
+export MOZ_ENABLE_WAYLAND='1 firefox'
+export QT_QPA_PLATFORM=WAYLAND
+export EDITOR=vim
 
-SSH_AGENT_PID=""
-SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh
+unset SSH_AGENT_PID
+if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
+    export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+fi
 
-PASSWORD_STORE_CHARACTER_SET=[:alnum:]!
-PASSWORD_STORE_GENERATED_LENGTH=22
-PASSWORD_STORE_CLIP_TIME=10
 
-PAGER=less
-LESS='-iMR --mouse'
+export PASSWORD_STORE_CHARACTER_SET=[:alnum:]!
+export PASSWORD_STORE_GENERATED_LENGTH=22
+export PASSWORD_STORE_CLIP_TIME=10
+
+export PAGER=less
+export LESS='-iMR --mouse'
 
