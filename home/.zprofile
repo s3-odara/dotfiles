@@ -23,9 +23,6 @@ export GPG_AGENT_EXTRA_SOCK="$(gpgconf --list-dirs agent-extra-socket)"
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM=wayland
 export XMODIFIERS=@im=fcitx
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export SDL_IM_MODULE=fcitx
 
 # Ensure gpg-agent is running (ssh-support is enabled in gpg-agent.conf)
 if command -v gpgconf >/dev/null 2>&1; then

@@ -1,0 +1,92 @@
+#! /usr/bin/env ruby
+# Based on https://gist.github.com/sardemff7/759cbf956bea20d382a6128c641d2746
+# Adapted for wofi.
+
+WOFI_BASE = %w( wofi --dmenu --password --cache-file /dev/null )
+
+def assuan_send(t)
+  $stdout.puts t
+  $stdout.flush
+end
+
+def percent_decode(s)
+  s.gsub(/%([0-9A-Fa-f]{2})/) { Regexp.last_match(1).to_i(16).chr }
+end
+
+prompt = nil
+desc   = nil
+
+assuan_send "OK Please go ahead"
+
+while (line = $stdin.readline)
+  ok = true
+
+  case line
+  when /^OPTION (.+)$/
+    # ignore
+  when /^GETINFO (.+)$/
+    info = Regexp.last_match(1)
+    case info
+    when "pid"
+      assuan_send "D #{Process.pid}"
+    end
+
+  when /^SETKEYINFO (.+)$/
+    # ignore
+
+  when /^SETDESC (.+)$/
+    # Decode %0A etc; wofi prompt can't show multi-line nicely, so squash whitespace.
+    desc = percent_decode(Regexp.last_match(1)).gsub(/\s+/, " ").strip
+
+  when /^SETPROMPT (.+)$/
+    prompt = Regexp.last_match(1).to_s.strip
+
+  when /^GETPIN$/
+    # Build a single prompt string (wofi has prompt, but no rofi-like message field).
+    base = (prompt && !prompt.empty?) ? prompt : "PIN:"
+    full_prompt =
+      if desc && !desc.empty?
+        "#{base} #{desc}"
+      else
+        base
+      end
+
+    cmd = WOFI_BASE + ["--prompt", full_prompt]
+
+    # IMPORTANT:
+    # - wofi dmenu reads entries from stdin; must NOT inherit Assuan stdin.
+    # - capture stderr so it doesn't pollute Assuan stdout.
+    pass = nil
+    err_r, err_w = IO.pipe
+
+    IO.popen(cmd, in: "/dev/null", err: err_w) do |io|
+      pass = io.read
+    end
+    status = $?
+    err_w.close
+    err_r.close rescue nil
+
+    pass = pass ? pass.chomp : ""
+
+    case status.exitstatus
+    when 0
+      assuan_send "D #{pass}" unless pass.empty?
+    when 1
+      assuan_send "ERR 83886179 Operation cancelled <wofi>"
+      ok = false
+    else
+      assuan_send "ERR 83886179 Pinentry failed <wofi>"
+      ok = false
+    end
+
+  when /^BYE(?= |$)/
+    exit(0)
+
+  else
+    assuan_send "BYE"
+    exit(1)
+  end
+
+  assuan_send "OK" if ok
+end
+

@@ -7,10 +7,10 @@ algif_aead
 algif_hash
 algif_skcipher
 amd_atl
-amdgpu
 amd_pmc
 amd_pmf
 amd_sfh
+amdgpu
 amdtee
 amdxcp
 amdxdna
@@ -45,6 +45,8 @@ drm_exec
 drm_panel_backlight_quirks
 drm_suballoc_helper
 drm_ttm_helper
+ecc
+ecdh_generic
 efivarfs
 encrypted_keys
 ext4
@@ -63,7 +65,18 @@ i2c_piix4
 i2c_smbus
 intel_rapl_common
 intel_rapl_msr
+ip6_tables
+ip6table_filter
+ip6table_mangle
+ip6table_nat
+ip6table_raw
+ip6table_security
 ip_tables
+iptable_filter
+iptable_mangle
+iptable_nat
+iptable_raw
+iptable_security
 irqbypass
 isofs
 joydev
@@ -81,6 +94,7 @@ mc
 md4
 mdio_bus
 mdio_devres
+mfd_core
 mhi
 michael_mic
 mousedev
@@ -90,10 +104,10 @@ nf_defrag_ipv4
 nf_defrag_ipv6
 nf_nat
 nf_nat_tftp
-nfnetlink
 nf_reject_ipv4
 nf_reject_ipv6
 nf_tables
+nfnetlink
 nft_chain_nat
 nft_ct
 nft_fib
@@ -127,6 +141,7 @@ rfkill
 roles
 sch_htb
 serio_raw
+sha1
 snd
 snd_acp_config
 snd_acp_legacy_common

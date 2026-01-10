@@ -1,0 +1,29 @@
+# --- Secrets  ---
+**/.ssh/id_*
+**/.ssh/known_hosts
+**/.ssh/authorized_keys
+**/.ssh/known_hosts.old
+
+**/.gnupg/private-keys-v1.d/
+**/.gnupg/crls.d/
+**/.gnupg/pubring.kbx
+**/.gnupg/pubring.kbx~
+**/.gnupg/trustdb.gpg
+**/.gnupg/tofu.db
+**/.gnupg/sshcontrol
+**/.gnupg/reader_*.status
+**/.gnupg/.#lk*
+
+# --- Machine/runtime state (do not track) ---
+**/.config/dconf/
+**/.config/incus/
+**/.config/pulse/
+**/.config/ibus/
+**/.config/fcitx/
+**/.config/fcitx5/conf/cached_layouts
+
+**/.local/state/
+**/.local/share/recently-used.xbel
+
+**/.vim/pack/
+
