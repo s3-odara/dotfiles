@@ -18,6 +18,13 @@ riverctl input "pointer-2-10-TPPS/2_Elan_TrackPoint" pointer-accel 0.3
 riverctl input "*" tap enabled
 riverctl input "*" tap-button-map left-right-middle
 
+# settings
+#
+riverctl xcursor-theme Adwaita 24
+
+riverctl spawn "brightnessctl set 35%"
+
+
 # 自動起動
 
 riverctl spawn "fcitx5"
@@ -26,20 +33,21 @@ riverctl spawn "wlr-randr --output eDP-1 --scale 1.5"
 riverctl spawn "dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=river"
 riverctl spawn "pkill -f xdg-desktop-portal"
 
+riverctl spawn "gentoo-pipewire-launcher &"
+
 riverctl spawn "waybar"
-riverctl spawn "udiskie &"
+riverctl spawn "mako"
 
 # ロック
 
-riverctl map normal Super M spawn "usbguard-and-lock.sh"
+riverctl map normal Super M spawn "waylock -ignore-empty-password -fork-on-lock"
 riverctl spawn "swayidle -w \
-    timeout 180 'systemctl suspend-then-hibernate'\
-    before-sleep 'usbguard-and-lock.sh'"
+    timeout 180 '/usr/local/bin/call-sleep.sh'"
 
 # スクリーンショット
 
 riverctl map normal Super P spawn "slurp | grim -g - - | wl-copy"
-riverctl map normal Super PrintScreen spawn "slurp | grim -g - ~/Pictures/Screenshots/$(date "+%Y%m%d-%H%M%S")'_print.png'"
+riverctl map normal None Print spawn "slurp | grim -g - ~/medias/Screenshots/$(date "+%Y%m%d-%H%M%S")'_print.png'"
 
 # 壁紙
 
