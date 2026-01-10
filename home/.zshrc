@@ -3,11 +3,13 @@
 
 [[ -o interactive ]] || return
 
-# Completion
-fpath=(
-  /usr/share/zsh/site-functions
-  $fpath
-)
+# fpath: add what exists (Arch/Gentoo differences are absorbed here)
+for d in \
+  /usr/share/zsh/site-functions \
+  /usr/share/zsh/plugins \
+; do
+  [[ -d "$d" ]] && fpath=("$d" $fpath)
+done
 
 autoload -Uz compinit
 # Use XDG cache for compdump
@@ -54,13 +56,18 @@ add-zsh-hook precmd vcs_info
 PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
 %# '
 
-# Plugins (guard with -r)
-if [[ -r /usr/share/zsh/site-functions/zsh-autosuggestions.zsh ]]; then
-  source /usr/share/zsh/site-functions/zsh-autosuggestions.zsh
-fi
+# zsh-autosuggestions (path varies by distro)
+for f in \
+  /usr/share/zsh/site-functions/zsh-autosuggestions.zsh \
+  /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+; do
+  [[ -r "$f" ]] && source "$f" && break
+done
 
-# zsh-syntax-highlighting should be sourced last
-if [[ -r /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh ]]; then
-  source /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh
-fi
-
+# zsh-syntax-highlighting should be last
+for f in \
+  /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+; do
+  [[ -r "$f" ]] && source "$f" && break
+done

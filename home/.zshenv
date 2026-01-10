@@ -20,5 +20,4 @@ export PASSWORD_STORE_CLIP_TIME=10
 
 # GnuPG / SSH agent socket (no gpgconf here)
 export GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg}"
-unset SSH_AGENT_PID
 

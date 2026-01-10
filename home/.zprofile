@@ -9,6 +9,11 @@ if [[ -z "${XDG_RUNTIME_DIR}" ]]; then
   fi
 fi
 
+# Wayland / IM (river 前提ならセッション単位で export してよい)
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM=wayland
+export XMODIFIERS=@im=fcitx
+
 # SSH_AUTH_SOCKの場所を取得
 if [ -z "${SSH_AUTH_SOCK:-}" ]; then
   gpg-connect-agent /bye >/dev/null 2>&1
@@ -19,12 +24,8 @@ fi
 export GPG_AGENT_EXTRA_SOCK="$(gpgconf --list-dirs agent-extra-socket)"
 
 
-# Wayland / IM (river 前提ならセッション単位で export してよい)
-export MOZ_ENABLE_WAYLAND=1
-export QT_QPA_PLATFORM=wayland
-export XMODIFIERS=@im=fcitx
-
 # Ensure gpg-agent is running (ssh-support is enabled in gpg-agent.conf)
+unset SSH_AGENT_PID
 if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --launch gpg-agent >/dev/null 2>&1
 fi
