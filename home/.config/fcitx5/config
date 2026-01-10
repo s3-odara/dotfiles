@@ -1,7 +1,9 @@
 [Hotkey]
-# Enumerate when press trigger key repeatedly
+# Enumerate when holding modifier of Toggle key
 EnumerateWithTriggerKeys=True
-# Temporally switch between first and current Input Method
+# Deactivate Input Method
+DeactivateKeys=
+# Temporarily Toggle Input Method
 AltTriggerKeys=
 # Enumerate Input Method Forward
 EnumerateForwardKeys=
@@ -13,11 +15,9 @@ EnumerateSkipFirst=False
 EnumerateGroupForwardKeys=
 # Enumerate Input Method Group Backward
 EnumerateGroupBackwardKeys=
-# Deactivate Input Method
-DeactivateKeys=
-# Default Previous page
+# Fallback Previous page
 PrevPage=
-# Default Next page
+# Fallback Next page
 NextPage=
 # Toggle embedded preedit
 TogglePreedit=
@@ -55,9 +55,9 @@ CompactInputMethodInformation=True
 ShowFirstInputMethodInformation=True
 # Default page size
 DefaultPageSize=5
-# Override Xkb Option
+# Override XKB Option
 OverrideXkbOption=False
-# Custom Xkb Option
+# Custom XKB Option
 CustomXkbOption=
 # Force Enabled Addons
 EnabledAddons=

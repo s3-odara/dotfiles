@@ -8,16 +8,16 @@ bootstrap:
 	@install -d -m 700 $(TARGET)/.gnupg
 
 stow-arch:
-	$(STOW) $(STOWFLAGS) -vt $(TARGET) arch common
+	$(STOW) $(STOWFLAGS) -vt $(TARGET) arch home
 
 stow-gentoo:
-	$(STOW) $(STOWFLAGS) -vt $(TARGET) gentoo common
+	$(STOW) $(STOWFLAGS) -vt $(TARGET) gentoo home
 
 	
-stow-arch:
-	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) arch common
+restow-arch:
+	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) arch home
 
-stow-gentoo:
-	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) gentoo common
+restow-gentoo:
+	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) gentoo home
 
 
