@@ -37,7 +37,8 @@ _gpg_update_tty() {
   command -v gpg-connect-agent >/dev/null 2>&1 || return 0
   gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
 }
-add-zsh-hook precmd _gpg_update_tty
+# disable gpg refresh on lxc
+#add-zsh-hook precmd _gpg_update_tty
 
 # ---- Prompt (Pure) : imported from zshrc2 ----
 autoload -Uz promptinit
