@@ -20,6 +20,9 @@ compinit -d "${_compdump}"
 # Key timeout (zsh: hundredths of a second)
 KEYTIMEOUT=5
 
+# setopt
+setopt interactivecomments
+
 # History (XDG)
 HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 mkdir -p -- "${HISTFILE:h}" 2>/dev/null

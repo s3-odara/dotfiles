@@ -46,7 +46,7 @@ riverctl spawn "swayidle -w \
 
 # スクリーンショット
 
-riverctl map normal Super P spawn "slurp | grim -g - - | wl-copy"
+riverctl map normal Super P spawn "slurp | grim -g - - | wl-copy --type image/png"
 riverctl map normal None Print spawn "slurp | grim -g - ~/medias/Screenshots/$(date "+%Y%m%d-%H%M%S")'_print.png'"
 
 # 壁紙
