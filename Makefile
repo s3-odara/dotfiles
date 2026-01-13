@@ -1,7 +1,7 @@
 STOW ?= stow
 TARGET ?= ~
 
-STOWFLAGS ?= --no-folding
+STOWFLAGS ?= --no-folding --dotfiles
 
 bootstrap:
 	@install -d -m 700 $(TARGET)/.ssh
@@ -19,5 +19,4 @@ restow-arch:
 
 restow-gentoo:
 	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) gentoo home
-
 
