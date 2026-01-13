@@ -13,6 +13,10 @@ export EDITOR="${EDITOR:-vim}"
 export PAGER="${PAGER:-less}"
 export LESS="${LESS:--iMR --mouse}"
 
+# incus
+export INCUS_SOCKET=/var/lib/incus/unix.socket.user
+export INCUS_PROJECT=user-1000
+
 # pass(1) / password-store
 export PASSWORD_STORE_CHARACTER_SET='[:alnum:]!'
 export PASSWORD_STORE_GENERATED_LENGTH=22

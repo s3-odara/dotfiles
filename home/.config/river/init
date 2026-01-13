@@ -23,6 +23,7 @@ riverctl input "*" tap-button-map left-right-middle
 riverctl xcursor-theme Adwaita 24
 
 riverctl spawn "brightnessctl set 35%"
+riverctl map normal None XF86VideoModeSwitch spawn "$HOME/.local/bin/toggle-hdmi-mode.sh"
 
 
 # 自動起動
@@ -31,9 +32,10 @@ riverctl spawn "fcitx5"
 riverctl spawn "wlr-randr --output eDP-1 --scale 1.5"
 
 riverctl spawn "dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=river"
-riverctl spawn "pkill -f xdg-desktop-portal"
+#riverctl spawn "pkill -f xdg-desktop-portal"
+riverctl spawn 'wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; rm -f "$wobpipe"; mkfifo "$wobpipe"; tail -f "$wobpipe" | wob'
 
-riverctl spawn "gentoo-pipewire-launcher &"
+# riverctl spawn "gentoo-pipewire-launcher &"
 
 riverctl spawn "waybar"
 riverctl spawn "mako"
@@ -175,8 +177,8 @@ do
     riverctl map $mode None XF86Eject spawn 'eject -T'
 
     # Control pulse audio volume with pamixer (https://github.com/cdemoulins/pamixer)
-    riverctl map $mode None XF86AudioRaiseVolume  spawn 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+'
-    riverctl map $mode None XF86AudioLowerVolume  spawn 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-'
+    riverctl map $mode None XF86AudioRaiseVolume  spawn '~/.local/bin/wob-volume 5%+'
+    riverctl map $mode None XF86AudioLowerVolume  spawn '~/.local/bin/wob-volume 5%-'
     riverctl map $mode None XF86AudioMute         spawn 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle'
     riverctl map $mode None XF86AudioMicMute      spawn 'wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle'
 
@@ -187,8 +189,8 @@ do
     riverctl map $mode None XF86AudioNext  spawn 'playerctl next'
 
     # Control screen backlight brightness with brightnessctl (https://github.com/Hummer12007/brightnessctl)
-    riverctl map $mode None XF86MonBrightnessUp   spawn 'brightnessctl set +5%'
-    riverctl map $mode None XF86MonBrightnessDown spawn 'brightnessctl set 5%-'
+    riverctl map $mode None XF86MonBrightnessUp   spawn 'brightnessctl set +5% && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
+    riverctl map $mode None XF86MonBrightnessDown spawn 'brightnessctl set 5%- && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
 done
 
 # Set background and border color

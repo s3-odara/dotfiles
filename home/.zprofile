@@ -30,3 +30,14 @@ if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --launch gpg-agent >/dev/null 2>&1
 fi
 
+# riverの自動起動(tty1, wayland sessionとssh以外でriverがないとき)
+local_tty="${TTY:-$(tty)}"
+
+if [[ "$local_tty" == "/dev/tty1" ]] \
+  && [[ -z "$WAYLAND_DISPLAY" && -z "$DISPLAY" ]] \
+  && [[ -z "$SSH_CONNECTION" && -z "$SSH_TTY" ]] \
+  && ! pgrep -x river >/dev/null 2>&1
+then
+  exec river
+fi
+
