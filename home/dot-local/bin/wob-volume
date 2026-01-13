@@ -1,0 +1,16 @@
+#!/bin/sh
+wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"
+
+# 例: 5%+ / 5%- を受け取る
+wpctl set-volume --limit 1.0 @DEFAULT_AUDIO_SINK@ "$1"
+
+# get-volume は音量(0.0–)とミュート状態を含むので、0–100整数にして出力
+wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '
+/MUTED/ { print 0; exit }
+{
+  for (i=1; i<=NF; i++) {
+    if ($i ~ /^[0-9]+(\.[0-9]+)?$/) { printf "%d\n", ($i*100)+0.5; exit }
+  }
+}
+' > "$wobpipe"
+
