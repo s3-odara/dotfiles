@@ -1,76 +1,298 @@
-#! /usr/bin/env ruby
-# Based on https://gist.github.com/sardemff7/759cbf956bea20d382a6128c641d2746
-# Adapted for wofi.
+#!/usr/bin/env ruby
+# pinentry-wofi.rb
+# Hardened Assuan pinentry shim for wofi (dmenu mode).
+#
+# Security notes (operational):
+# - Place this script in a directory writable only by you.
+# - chmod 0700 this script, and ensure directories are not group/world-writable.
+# - Use an absolute path for wofi (WOFI_BIN).
+#
+# This implementation:
+# - Assuan Data line escaping for %, CR, LF
+# - Byte-oriented percent decode for SETDESC/SETPROMPT/etc
+# - Correct line handling (chomp) and strict BYE matching
+# - No stderr pipe deadlock (stderr -> /dev/null)
+# - Absolute wofi path + optional strict permission checks (fail-closed)
 
-WOFI_BASE = %w( wofi --dmenu --password --cache-file /dev/null )
+require "open3"
 
-def assuan_send(t)
-  $stdout.puts t
-  $stdout.flush
+# -------- Configuration --------
+
+WOFI_BIN = "/usr/bin/wofi".freeze # adjust to your system; MUST be absolute for hardening
+
+WOFI_BASE_DMENU = [WOFI_BIN, "--dmenu", "--cache-file", "/dev/null"].freeze
+WOFI_BASE_PASS  = [WOFI_BIN, "--dmenu", "--password", "--cache-file", "/dev/null"].freeze
+
+# Assuan line length is typically around 1000; be conservative but allow some headroom.
+MAX_LINE_BYTES = 4096
+MAX_UI_BYTES   = 2048 # prompt/desc sanitization cap (avoid absurd argv sizes)
+
+# Fail-closed if file permissions look unsafe. Set to "0" to only warn (not recommended).
+STRICT_PERMS = (ENV.fetch("PINENTRY_WOFI_STRICT_PERMS", "1") != "0")
+
+# -------- Assuan helpers --------
+
+def assuan_send(line)
+  STDOUT.puts(line)
+  STDOUT.flush
 end
 
-def percent_decode(s)
-  s.gsub(/%([0-9A-Fa-f]{2})/) { Regexp.last_match(1).to_i(16).chr }
+# Assuan percent-unescape is byte-oriented.
+def assuan_unescape(s)
+  raw = s.to_s.b.gsub(/%([0-9A-Fa-f]{2})/) { [$1.hex].pack("C") }
+  # For UI usage, coerce to UTF-8 safely.
+  raw.force_encoding("UTF-8")
+  raw.encode("UTF-8", invalid: :replace, undef: :replace, replace: "\uFFFD")
 end
 
+# Assuan Data line: must escape %, CR, LF (use uppercase hex).
+def assuan_escape_data(s)
+  b = s.to_s.b
+  b = b.gsub("%", "%25")
+  b = b.gsub("\r", "%0D")
+  b.gsub("\n", "%0A")
+end
+
+def safe_strip_and_cap_utf8(s, max_bytes:)
+  t = s.to_s
+  t = t.encode("UTF-8", invalid: :replace, undef: :replace, replace: "\uFFFD")
+  # Cap by bytes (avoid breaking encoding by slicing at arbitrary boundary)
+  while t.bytesize > max_bytes
+    t = t.byteslice(0, max_bytes)
+    t = t.encode("UTF-8", invalid: :replace, undef: :replace, replace: "\uFFFD")
+  end
+  t
+end
+
+# Read an Assuan line; chomp LF/CRLF; enforce maximum length; handle simple continuation.
+def read_assuan_line(io)
+  line = io.gets
+  return nil unless line
+
+  # Normalize line endings
+  line = line.chomp("\n").chomp("\r")
+
+  # Continuation lines in Assuan may exist; handle trailing "\" continuation minimally.
+  buf = line
+  while buf.end_with?("\\")
+    buf = buf[0...-1]
+    nxt = io.gets
+    break unless nxt
+    nxt = nxt.chomp("\n").chomp("\r")
+    buf << nxt
+    if buf.bytesize > MAX_LINE_BYTES
+      return :too_long
+    end
+  end
+
+  return :too_long if buf.bytesize > MAX_LINE_BYTES
+  buf
+end
+
+# -------- Process hardening --------
+
+def ensure_safe_file(path, what)
+  st = File.stat(path)
+  mode = st.mode & 0o777
+  unsafe = ((mode & 0o022) != 0) # group/world writable
+  return true unless unsafe
+
+  msg = "#{what} has unsafe permissions (mode=%o): %s" % [mode, path]
+  if STRICT_PERMS
+    warn(msg)
+    exit(1)
+  else
+    warn("WARNING: #{msg}")
+    return false
+  end
+end
+
+def ensure_executable_file(path, what)
+  unless path.start_with?("/") && File.file?(path) && File.executable?(path)
+    warn("#{what} not found or not executable: #{path}")
+    exit(1)
+  end
+end
+
+begin
+  # Minimize accidental leaks
+  File.umask(0o077)
+  begin
+    Process.setrlimit(Process::RLIMIT_CORE, 0, 0)
+  rescue StandardError
+    # best-effort; ignore on platforms without RLIMIT_CORE
+  end
+
+  ensure_executable_file(WOFI_BIN, "wofi binary")
+  ensure_safe_file(WOFI_BIN, "wofi binary")
+  ensure_safe_file(__FILE__, "pinentry script")
+rescue StandardError => e
+  warn("pinentry-wofi: startup hardening failed: #{e.class}: #{e.message}")
+  exit(1)
+end
+
+# -------- wofi invocation --------
+
+def run_wofi_password(prompt_str)
+  prompt_str = safe_strip_and_cap_utf8(prompt_str, max_bytes: MAX_UI_BYTES)
+
+  # Unset common dynamic loader injection knobs for the subprocess.
+  env = {
+    "LD_PRELOAD" => nil,
+    "LD_LIBRARY_PATH" => nil,
+    "DYLD_INSERT_LIBRARIES" => nil,
+    "DYLD_LIBRARY_PATH" => nil,
+  }
+
+  out, status = Open3.capture2(
+    env,
+    *WOFI_BASE_PASS,
+    "--prompt", prompt_str,
+    stdin_data: "",         # do NOT inherit Assuan stdin
+    err: File::NULL
+  )
+
+  [out.to_s, status]
+rescue StandardError
+  ["", nil]
+end
+
+# Optional: confirm/message support (compat). wofi has no buttons; emulate with selection.
+def run_wofi_confirm(prompt_str, ok_label: "OK", cancel_label: "Cancel")
+  prompt_str = safe_strip_and_cap_utf8(prompt_str, max_bytes: MAX_UI_BYTES)
+  ok_label = safe_strip_and_cap_utf8(ok_label, max_bytes: 128)
+  cancel_label = safe_strip_and_cap_utf8(cancel_label, max_bytes: 128)
+
+  env = {
+    "LD_PRELOAD" => nil,
+    "LD_LIBRARY_PATH" => nil,
+    "DYLD_INSERT_LIBRARIES" => nil,
+    "DYLD_LIBRARY_PATH" => nil,
+  }
+
+  choices = "#{ok_label}\n#{cancel_label}\n"
+  out, status = Open3.capture2(
+    env,
+    *WOFI_BASE_DMENU,
+    "--prompt", prompt_str,
+    stdin_data: choices,
+    err: File::NULL
+  )
+
+  [out.to_s, status, ok_label, cancel_label]
+rescue StandardError
+  ["", nil, ok_label, cancel_label]
+end
+
+# -------- State --------
+
+state = {
+  title: nil,
+  prompt: nil,
+  desc: nil,
+  error: nil,
+  ok_label: "OK",
+  cancel_label: "Cancel",
+}.freeze
+
+# Mutable copies for session
+title = nil
 prompt = nil
-desc   = nil
+desc = nil
+error_msg = nil
+ok_label = "OK"
+cancel_label = "Cancel"
+
+reset = lambda do
+  title = nil
+  prompt = nil
+  desc = nil
+  error_msg = nil
+  ok_label = "OK"
+  cancel_label = "Cancel"
+end
+
+# -------- Main loop --------
 
 assuan_send "OK Please go ahead"
 
-while (line = $stdin.readline)
+loop do
+  line = read_assuan_line(STDIN)
+  break if line.nil?
+
+  if line == :too_long
+    assuan_send "ERR 67109139 Line too long"
+    next
+  end
+
   ok = true
 
   case line
-  when /^OPTION (.+)$/
-    # ignore
-  when /^GETINFO (.+)$/
-    info = Regexp.last_match(1)
+  when /\AOPTION\s+(.+)\z/
+    # ignore; options may include ttyname, lc-ctype, etc.
+  when /\AGETINFO\s+(.+)\z/
+    info = $1
     case info
     when "pid"
       assuan_send "D #{Process.pid}"
+    else
+      assuan_send "ERR 67109139 Unknown info"
+      ok = false
     end
 
-  when /^SETKEYINFO (.+)$/
+  when /\ASETKEYINFO\s+(.+)\z/
     # ignore
 
-  when /^SETDESC (.+)$/
-    # Decode %0A etc; wofi prompt can't show multi-line nicely, so squash whitespace.
-    desc = percent_decode(Regexp.last_match(1)).gsub(/\s+/, " ").strip
+  when /\ASETDESC\s+(.+)\z/
+    # Decode %xx as bytes; squash whitespace for wofi prompt field.
+    desc = assuan_unescape($1).gsub(/\s+/, " ").strip
+    desc = safe_strip_and_cap_utf8(desc, max_bytes: MAX_UI_BYTES)
 
-  when /^SETPROMPT (.+)$/
-    prompt = Regexp.last_match(1).to_s.strip
+  when /\ASETPROMPT\s+(.+)\z/
+    prompt = assuan_unescape($1).strip
+    prompt = safe_strip_and_cap_utf8(prompt, max_bytes: MAX_UI_BYTES)
 
-  when /^GETPIN$/
-    # Build a single prompt string (wofi has prompt, but no rofi-like message field).
+  when /\ASETTITLE\s+(.+)\z/
+    title = assuan_unescape($1).gsub(/\s+/, " ").strip
+    title = safe_strip_and_cap_utf8(title, max_bytes: MAX_UI_BYTES)
+
+  when /\ASETERROR\s+(.+)\z/
+    error_msg = assuan_unescape($1).gsub(/\s+/, " ").strip
+    error_msg = safe_strip_and_cap_utf8(error_msg, max_bytes: MAX_UI_BYTES)
+
+  when /\ASETOK\s+(.+)\z/
+    ok_label = assuan_unescape($1).strip
+    ok_label = safe_strip_and_cap_utf8(ok_label, max_bytes: 128)
+
+  when /\ASETCANCEL\s+(.+)\z/
+    cancel_label = assuan_unescape($1).strip
+    cancel_label = safe_strip_and_cap_utf8(cancel_label, max_bytes: 128)
+
+  when /\ARESET\z/
+    reset.call
+
+  when /\AGETPIN\z/
     base = (prompt && !prompt.empty?) ? prompt : "PIN:"
-    full_prompt =
-      if desc && !desc.empty?
-        "#{base} #{desc}"
-      else
-        base
-      end
+    parts = []
+    parts << title if title && !title.empty?
+    parts << base
+    parts << desc if desc && !desc.empty?
+    parts << "Error: #{error_msg}" if error_msg && !error_msg.empty?
+    full_prompt = parts.join(" — ")
 
-    cmd = WOFI_BASE + ["--prompt", full_prompt]
+    out, status = run_wofi_password(full_prompt)
+    pass = out.to_s
+    pass = pass.byteslice(0, 64 * 1024).to_s # defensive cap
+    pass = pass.chomp
 
-    # IMPORTANT:
-    # - wofi dmenu reads entries from stdin; must NOT inherit Assuan stdin.
-    # - capture stderr so it doesn't pollute Assuan stdout.
-    pass = nil
-    err_r, err_w = IO.pipe
-
-    IO.popen(cmd, in: "/dev/null", err: err_w) do |io|
-      pass = io.read
-    end
-    status = $?
-    err_w.close
-    err_r.close rescue nil
-
-    pass = pass ? pass.chomp : ""
-
-    case status.exitstatus
+    case status&.exitstatus
     when 0
-      assuan_send "D #{pass}" unless pass.empty?
+      # Always return a D line even if empty (empty passphrase is valid in some cases).
+      if pass.empty?
+        assuan_send "D"
+      else
+        assuan_send "D #{assuan_escape_data(pass)}"
+      end
     when 1
       assuan_send "ERR 83886179 Operation cancelled <wofi>"
       ok = false
@@ -79,14 +301,53 @@ while (line = $stdin.readline)
       ok = false
     end
 
-  when /^BYE(?= |$)/
-    exit(0)
+    # Best-effort zeroization (Ruby does not guarantee secure wiping; still reduce retention).
+    begin
+      pass.replace("\0" * pass.bytesize)
+    rescue StandardError
+      # ignore
+    end
 
+  when /\ACONFIRM\z/
+    # Basic compatibility: ask user OK/Cancel via dmenu selection.
+    base = (prompt && !prompt.empty?) ? prompt : "Confirm"
+    parts = []
+    parts << title if title && !title.empty?
+    parts << base
+    parts << desc if desc && !desc.empty?
+    full_prompt = parts.join(" — ")
+
+    out, status, ok_l, cancel_l = run_wofi_confirm(full_prompt, ok_label: ok_label, cancel_label: cancel_label)
+    choice = out.to_s.chomp
+
+    case status&.exitstatus
+    when 0
+      if choice == ok_l
+        # success
+      else
+        assuan_send "ERR 83886179 Operation cancelled <wofi>"
+        ok = false
+      end
+    when 1
+      assuan_send "ERR 83886179 Operation cancelled <wofi>"
+      ok = false
+    else
+      assuan_send "ERR 83886179 Pinentry failed <wofi>"
+      ok = false
+    end
+
+  when /\AMESSAGE\z/
+    # wofi has no native message dialog here; treat as no-op for compatibility.
+    # (You could emulate by CONFIRM with only OK, but that may be intrusive.)
+  when /\ABYE\z/
+    exit(0)
   else
-    assuan_send "BYE"
-    exit(1)
+    assuan_send "ERR 67109139 Unknown command"
+    ok = false
   end
 
   assuan_send "OK" if ok
 end
+
+exit(0)
 
