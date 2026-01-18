@@ -95,3 +95,8 @@ for f in \
 ; do
   [[ -r "$f" ]] && source "$f" && break
 done
+
+# tmux 外で、かつ対話シェルのときのみtmuxを起動
+if [[ -z "$TMUX" && -n "$PS1" ]]; then
+  tmux attach || tmux new
+fi

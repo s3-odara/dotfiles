@@ -161,7 +161,6 @@ let g:lightline = {
       \   'left': [ ['mode', 'paste'], ['gitbranch', 'readonly', 'absolutepath', 'modified'] ]
       \ },
       \ 'component_function':{ 'gitbranch': 'Gitbranch' },
-      \ 'separator': { 'left': "\ue0b0", 'right': "\ue0b2" },
       \ }
 
 function! Gitbranch()

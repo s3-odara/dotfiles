@@ -1,0 +1,8 @@
+#!/sbin/openrc-run
+
+description="Hibernate when battery is critically low (user service)"
+
+command="${HOME}/.local/bin/lowbat-hibernate.sh"
+command_background="yes"
+pidfile="${XDG_RUNTIME_DIR}/lowbat-hibernate.pid"
+

@@ -20,7 +20,7 @@ riverctl input "*" tap-button-map left-right-middle
 
 # settings
 #
-riverctl xcursor-theme Adwaita 24
+riverctl xcursor-theme Adwaita 32
 
 riverctl spawn "brightnessctl set 35%"
 riverctl map normal None XF86VideoModeSwitch spawn "$HOME/.local/bin/toggle-hdmi-mode.sh"
@@ -51,9 +51,18 @@ riverctl spawn "swayidle -w \
 riverctl map normal Super P spawn "slurp | grim -g - - | wl-copy --type image/png"
 riverctl map normal None Print spawn "slurp | grim -g - ~/medias/Screenshots/$(date "+%Y%m%d-%H%M%S")'_print.png'"
 
+# 環境変数書き込み
+
+umask 077
+cat > "$XDG_RUNTIME_DIR/river.env" <<EOF
+XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
+WAYLAND_DISPLAY=$WAYLAND_DISPLAY
+DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-}
+EOF
+
 # 壁紙
 
-riverctl spawn "swaybg -m fill -i /home/odara/medias/pictures/frieren.jpg &"
+riverctl spawn "swaybg -m fill -i /home/odara/medias/frieren.png &"
 
 
 # Note: the "Super" modifier is also known as Logo, GUI, Windows, Mod4, etc.
