@@ -1,2 +1,2 @@
 complete=true,encoding=euc-jp,file=/home/odara/.skk-jisyo,mode=readwrite,type=file
-complete=true,encoding=euc-jp,file=/home/odara/SKK-JISYO.odara,mode=readonly,type=file
+complete=true,encoding=euc-jp,file=/home/odara/SKK-JISYO.merge,mode=readonly,type=file

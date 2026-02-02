@@ -23,7 +23,7 @@ riverctl input "*" tap-button-map left-right-middle
 riverctl xcursor-theme Adwaita 32
 
 riverctl spawn "brightnessctl set 35%"
-riverctl map normal None XF86VideoModeSwitch spawn "$HOME/.local/bin/toggle-hdmi-mode.sh"
+riverctl map normal None XF86Display spawn "$HOME/.local/bin/toggle-hdmi-mode.sh"
 
 
 # 自動起動
@@ -42,9 +42,13 @@ riverctl spawn "mako"
 
 # ロック
 
-riverctl map normal Super M spawn "waylock -ignore-empty-password -fork-on-lock"
-riverctl spawn "swayidle -w \
-    timeout 180 '/usr/local/bin/call-sleep.sh'"
+riverctl map normal Super M spawn "$HOME/.local/bin/lock"
+riverctl map normal Super R spawn "$HOME/.local/bin/lock-and-suspend"
+riverctl spawn "swayidle \
+  timeout 60 'brightnessctl set 10%' resume 'brightnessctl set 30%' \
+  timeout 180 '$HOME/.local/bin/lock' \
+  timeout 190 'brightnessctl set 0%' resume 'brightnessctl set 30%' \
+  timeout 240 'wlopm --off \*' resume 'wlopm --on \*; brightnessctl set 30%'"
 
 # スクリーンショット
 
@@ -68,7 +72,7 @@ riverctl spawn "swaybg -m fill -i /home/odara/medias/frieren.png &"
 # Note: the "Super" modifier is also known as Logo, GUI, Windows, Mod4, etc.
 
 # Super+Shift+Return to start an instance of foot (https://codeberg.org/dnkl/foot)
-riverctl map normal Super+Shift Return spawn alacritty
+riverctl map normal Super+Shift Return spawn foot
 riverctl map normal Super S spawn "wofi --show=drun"
 
 

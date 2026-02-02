@@ -1,43 +1,123 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INTERNAL=${INTERNAL:-eDP-1}
-EXTERNAL=${EXTERNAL:-HDMI-A-1}
+# 使い分けたい場合は、実行時に WL_PRESENT_PIPE_NAME を指定
+# 例: WL_PRESENT_PIPE_NAME=present1 wl-present-toggle
+NAME="${WL_PRESENT_PIPE_NAME:-wl-present}"
 
-# river の keybind から起動される前提（環境変数は river セッション側のものを使う）
-: "${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set (run from your river session)}"
-: "${WAYLAND_DISPLAY:?WAYLAND_DISPLAY is not set (run from your river session)}"
+STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+PIDFILE="$STATE_DIR/wl-present-toggle.${NAME}.pids"
+ARGSFILE="$STATE_DIR/wl-present-toggle.${NAME}.args"
 
-# 接続状態（card番号固定を避ける）
-status_path="$(echo /sys/class/drm/*-"$EXTERNAL"/status | head -n1)"
-[[ -e "$status_path" ]] || exit 0
-status="$(<"$status_path")"
+# wl-mirror の --title に付与する識別子（この文字列でプロセスを特定して kill します）
+TITLE="wl-present:${NAME}"
 
-state_file="${XDG_RUNTIME_DIR}/river-display-mode"
-lock_file="${XDG_RUNTIME_DIR}/river-display-mode.lock"
+have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
-# 連打対策（util-linux の flock）
-exec 9>"$lock_file"
-flock 9
+# cmdline から PID を引く（pgrep があれば pgrep、なければ ps+awk）
+pids_by_cmdline() {
+  local pattern="$1"
+  if have_cmd pgrep; then
+    pgrep -f -- "$pattern" 2>/dev/null || true
+  else
+    ps -eo pid=,args= | awk -v pat="$pattern" '$0 ~ pat {print $1}' || true
+  fi
+}
 
-if [[ "$status" != "connected" ]]; then
-  # 抜かれているなら外部OFF＆状態リセット
-  wlr-randr --output "$EXTERNAL" --off
-  rm -f "$state_file"
-  exit 0
-fi
+is_running() {
+  # PIDFILE が生きていればそれを優先
+  if [[ -f "$PIDFILE" ]]; then
+    while IFS= read -r pid; do
+      [[ -n "${pid:-}" ]] || continue
+      if kill -0 "$pid" 2>/dev/null; then
+        return 0
+      fi
+    done < "$PIDFILE"
+  fi
 
-# 初回（state_file無し）は extend から開始
-current="none"
-[[ -f "$state_file" ]] && current="$(<"$state_file")"
+  # フォールバック: wl-mirror の title で生存確認
+  local mpids
+  mpids="$(pids_by_cmdline "wl-mirror.*--title(=|[[:space:]])${TITLE}")"
+  [[ -n "$mpids" ]]
+}
 
-if [[ "$current" == "extend" ]]; then
-  # 疑似ミラー：同一座標に重ねる（内部が 0,0 前提）
-  wlr-randr --output "$EXTERNAL" --on --pos 0,0
-  echo "mirror" > "$state_file"
-else
-  # 拡張（右に追加）
-  wlr-randr --output "$EXTERNAL" --on --right-of "$INTERNAL"
-  echo "extend" > "$state_file"
-fi
+stop_mirror() {
+  # wl-mirror を title で狙い撃ち
+  local mpids
+  mpids="$(pids_by_cmdline "wl-mirror.*--title(=|[[:space:]])${TITLE}")"
+  if [[ -n "$mpids" ]]; then
+    # shellcheck disable=SC2086
+    kill $mpids 2>/dev/null || true
+    sleep 0.2
+    # shellcheck disable=SC2086
+    kill -9 $mpids 2>/dev/null || true
+  fi
+
+  # wl-present（PIDFILE があればそれも止める）
+  if [[ -f "$PIDFILE" ]]; then
+    local pids
+    pids="$(tr '\n' ' ' < "$PIDFILE" | xargs -r echo || true)"
+    if [[ -n "${pids:-}" ]]; then
+      # shellcheck disable=SC2086
+      kill $pids 2>/dev/null || true
+      sleep 0.2
+      # shellcheck disable=SC2086
+      kill -9 $pids 2>/dev/null || true
+    fi
+  fi
+
+  rm -f "$PIDFILE"
+}
+
+start_mirror() {
+  local -a args=()
+
+  # 引数があれば「次回以降も同じ設定で ON できるように」保存
+  # （引数なしで ON したい場合は、wl-present が slurp 等で対話的に尋ねる挙動になります）
+  if (($#)); then
+    printf '%s\n' "$@" > "$ARGSFILE"
+  fi
+  if [[ -f "$ARGSFILE" ]]; then
+    mapfile -t args < "$ARGSFILE"
+  fi
+
+  # ユーザが --title を渡していない場合のみ、識別用 title を付与（トグル OFF の安定性が上がります）
+  local has_title=0
+  for a in "${args[@]}"; do
+    if [[ "$a" == "--title" || "$a" == --title=* ]]; then
+      has_title=1
+      break
+    fi
+  done
+  if [[ $has_title -eq 0 ]]; then
+    args+=(--title "$TITLE")
+  fi
+
+  # wl-present をバックグラウンド起動して PID を保存
+  WL_PRESENT_PIPE_NAME="$NAME" wl-present -n "$NAME" mirror "${args[@]}" &
+  local wlp_pid=$!
+  printf '%s\n' "$wlp_pid" > "$PIDFILE"
+
+  # 可能なら子プロセス（wl-mirror）も PIDFILE に追記（停止を速く・確実に）
+  sleep 0.2
+  if have_cmd pgrep; then
+    local child
+    child="$(pgrep -P "$wlp_pid" -x wl-mirror 2>/dev/null || true)"
+    if [[ -n "$child" ]]; then
+      printf '%s\n' "$child" >> "$PIDFILE"
+    fi
+  fi
+
+  disown "$wlp_pid" 2>/dev/null || true
+}
+
+main() {
+  if is_running; then
+    stop_mirror
+  else
+    start_mirror "$@"
+  fi
+}
+
+main "$@"
 

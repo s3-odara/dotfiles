@@ -7,7 +7,7 @@
 }
 
 window#waybar {
-    background-color: #e5efed;
+    background-color: #8f9896;
     color: black;
     transition-property: background-color;
     transition-duration: 0.5s;
@@ -33,6 +33,7 @@ button:disabled {
     min-width: 0;
     background: #0e1218;
     transition: none;
+    padding:0;
 }
 
 #tags button {
@@ -42,6 +43,9 @@ button:disabled {
     background: transparent;
     font-size: 16px;
     border-radius: 2px;
+    margin: 0;
+    padding: 2px 8px;    
+    min-height: 0;
 }
 
 #tags button.occupied {
@@ -53,8 +57,8 @@ button:disabled {
 
 #tags button.focused {
     color: #cc8a5e;
-    border-top: 2px solid #cc8a5e;
-    border-bottom: 2px solid #cc8a5e;
+    border-top: 1px solid #cc8a5e;
+    border-bottom: 1px solid #cc8a5e;
 }
 
 #tags button:hover {
@@ -87,9 +91,10 @@ button:disabled {
 #network,
 #wireplumber,
 #idle_inhibitor,
+#custom-autosuspend_inhibit,
 #custom-pacman,
 #tray {
-    padding: 0 15px;
+    padding: 0 12px;
 }
 
 /* Default margin for specific modules */
@@ -99,7 +104,7 @@ button:disabled {
 #disk,
 #network,
 #wireplumber {
-    margin: 2px 0px;
+    margin: 0px 0px;
 }
 
 /* --- Modules Specific --- */
@@ -129,7 +134,8 @@ button:disabled {
 
 
 
-#idle_inhibitor.activated {
+#idle_inhibitor.activated,
+#custom-autosuspend_inhibit.activated {
     background-color: #f2d8e9;
     color: #0b0b0b;
     border-radius: 5px;

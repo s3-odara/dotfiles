@@ -77,6 +77,62 @@ zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
 
 add-zsh-hook precmd vcs_info
 
+# ---- command duration on RPROMPT (>= 3s) ------------------------------------
+zmodload -F zsh/datetime b:EPOCHREALTIME 2>/dev/null || true
+
+typeset -gF __cmd_start=0.0
+
+_cmdtimer_preexec() {
+  if (( ${+EPOCHREALTIME} )); then
+    __cmd_start=$EPOCHREALTIME
+  else
+    __cmd_start=$SECONDS
+  fi
+}
+
+_cmdtimer_precmd() {
+  local -F elapsed=0.0
+  local out
+  local -i total h m s
+
+  # default: show nothing
+  RPROMPT=''
+
+  (( __cmd_start > 0 )) || return
+
+  if (( ${+EPOCHREALTIME} )); then
+    elapsed=$(( EPOCHREALTIME - __cmd_start ))
+  else
+    elapsed=$(( SECONDS - __cmd_start ))
+  fi
+  __cmd_start=0.0
+
+  (( elapsed >= 3.0 )) || return
+
+  total=$(( elapsed + 0.5 ))   # 四捨五入（切り捨てなら total=$(( elapsed ))
+
+  h=$(( total / 3600 ))
+  m=$(( (total % 3600) / 60 ))
+  s=$(( total % 60 ))
+
+  if (( h > 0 )); then
+    printf -v out '%dh%02dm%02ds' $h $m $s
+  elif (( m > 0 )); then
+    printf -v out '%dm%02ds' $m $s
+  else
+    printf -v out '%.1fs' $elapsed
+  fi
+
+  RPROMPT="%F{cyan}${out}%f"
+}
+
+add-zsh-hook preexec _cmdtimer_preexec
+add-zsh-hook precmd  _cmdtimer_precmd
+
+# コマンド行の右端に RPROMPT が「残る」のが嫌なら有効化（おすすめ）
+setopt transient_rprompt
+# -----------------------------------------------------------------------------
+
 PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
 %# '
 

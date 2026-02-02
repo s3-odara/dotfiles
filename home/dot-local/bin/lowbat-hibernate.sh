@@ -29,7 +29,7 @@ while :; do
     if [ "$cap" -le "$THRESHOLD" ]; then
       if [ ! -e "$LOCK" ]; then
         : > "$LOCK"
-        /usr/local/bin/call-hibernate || true
+        doas /usr/local/bin/suspend-then-hibernate.sh || true
       fi
     else
       rm -f "$LOCK"

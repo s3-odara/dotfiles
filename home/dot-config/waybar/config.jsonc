@@ -1,4 +1,5 @@
 {
+    "position": "bottom",
     "modules-left": [
         "clock",
         "river/tags"
@@ -6,6 +7,7 @@
     "modules-center": [],
     "modules-right": [
         "tray",
+        "custom/autosuspend_inhibit",
         "idle_inhibitor",
         "wireplumber",
         "wireplumber#source",
@@ -48,6 +50,7 @@
         "interval": 60,
         "format": " {:%H:%M}",
         "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "on-click": "notify-send -t 3000 'Time' \"$(date '+%H:%M:%S')\"",
         "format-alt": "{:%Y-%m-%d}"
     },
     "cpu": {
@@ -84,7 +87,15 @@
         "format-charging": "{capacity}% 󰂇",
         "format-plugged": "{capacity}% ",
         "format-alt": "{time} {icon}",
-        "format-icons": ["", "", "", "", ""]
+        "format-icons": ["", "", "", "", ""],
+
+        "menu": "on-click-middle",
+        "menu-file": "~/.config/waybar/power_profile_menu.xml",
+        "menu-actions": {
+          "balance": "~/.local/bin/power-profile-menu balance",
+          "performance": "~/.local/bin/power-profile-menu performance",
+          "lowpower": "~/.local/bin/power-profile-menu lowpower"
+        }
     },
     "network": {
         "interface": "wlan*",
@@ -96,6 +107,12 @@
         "tooltip-format": "{ifname}: {ipaddr}/{cidr}\n{essid}",
         "interval": 15
     },
+    "custom/autosuspend_inhibit": {
+        "return-type": "json",
+        "exec": "$HOME/.local/bin/waybar-suspend-inhibit status",
+        "interval": 60,
+        "on-click": "$HOME/.local/bin/waybar-suspend-inhibit toggle"
+      },
     "custom/pacman": {
         "format": "{} ",
         "interval": 3600, // every hour
