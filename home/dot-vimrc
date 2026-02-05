@@ -22,6 +22,8 @@ function! PackInit() abort
   call minpac#add('https://github.com/itchyny/vim-gitbranch.git')
   call minpac#add('https://github.com/mhinz/vim-signify.git')
   call minpac#add('https://github.com/ctrlpvim/ctrlp.vim.git', {'type': 'opt'})
+  call minpac#add('https://github.com/alvan/vim-closetag.git')
+  call minpac#add('https://github.com/mattn/emmet-vim.git')
   
   " Filer
   call minpac#add('https://github.com/lambdalisue/vim-fern.git', {'type': 'opt'})

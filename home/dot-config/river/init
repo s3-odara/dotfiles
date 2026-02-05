@@ -15,6 +15,7 @@ riverctl input "*" pointer-accel 0.4
 riverctl input "*" natural-scroll enabled
 riverctl input "pointer-2-10-TPPS/2_Elan_TrackPoint" natural-scroll disabled
 riverctl input "pointer-2-10-TPPS/2_Elan_TrackPoint" pointer-accel 0.3 
+riverctl input "pointer-14139-4123-Compx_ATK_Mouse_8K_Dongle" natural-scroll disabled
 riverctl input "*" tap enabled
 riverctl input "*" tap-button-map left-right-middle
 
