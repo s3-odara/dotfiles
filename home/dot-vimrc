@@ -25,10 +25,6 @@ function! PackInit() abort
   call minpac#add('https://github.com/alvan/vim-closetag.git')
   call minpac#add('https://github.com/mattn/emmet-vim.git')
   
-  " Filer
-  call minpac#add('https://github.com/lambdalisue/vim-fern.git', {'type': 'opt'})
-  call minpac#add('https://github.com/lambdalisue/vim-fern-git-status.git', {'type': 'opt'})
-  
   " LSP, Completion
   call minpac#add('https://github.com/prabirshrestha/vim-lsp.git')
   call minpac#add('https://github.com/mattn/vim-lsp-settings.git')
