@@ -28,6 +28,7 @@
 	helper = store
 [core]
 	untrackedCache = true
+	pager = less -R -iMFJ --mouse --wheel-lines=5
 [fetch]
 	prune = true
 [rebase]
@@ -36,4 +37,4 @@
 [alias]
 	forcepush = push --force-with-lease --force-if-includes
 [tag]
-	gpgSign = true
+	gpgsign = true
