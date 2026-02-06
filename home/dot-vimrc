@@ -22,6 +22,7 @@ function! PackInit() abort
   call minpac#add('https://github.com/itchyny/vim-gitbranch.git')
   call minpac#add('https://github.com/mhinz/vim-signify.git')
   call minpac#add('https://github.com/ctrlpvim/ctrlp.vim.git', {'type': 'opt'})
+  call minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
   call minpac#add('https://github.com/alvan/vim-closetag.git')
   call minpac#add('https://github.com/mattn/emmet-vim.git')
   
@@ -52,6 +53,7 @@ set ruler
 set showcmd
 set laststatus=2
 set wildmenu
+set wildoptions+=fuzzy
 set hlsearch
 set incsearch
 set ignorecase
@@ -78,7 +80,7 @@ filetype plugin indent on
 
 " キーマップ
 let mapleader = "\<Space>"
-xnoremap <silent> "+y :<C-u>call Osc52Copy()<CR>
+xnoremap <silent> "+y <Cmd>call Osc52Copy()<CR>
 nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap <F3> <Cmd>nohlsearch<CR>
@@ -143,45 +145,16 @@ function! Gitbranch()
 endfunction
 
 " ctrlp
-nnoremap <leader>p <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
+"nnoremap <leader>p <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
 
-" fern
-nnoremap <leader>t <cmd>packadd vim-fern \| packadd vim-fern-git-status \| Fern . -reveal=% -drawer -toggle -width=30<CR> 
-let g:fern#default_hidden = 1
-let g:netrw_liststyle = 1
+" fuzzbox
+let g:fuzzbox_mappings = 0
+nnoremap <silent> <leader>kf <cmd>FuzzyFiles<CR>
+nnoremap <silent> <leader>kb <cmd>FuzzyBuffers<CR>
+nnoremap <silent> <leader>kg <cmd>FuzzyGrep<CR>
+nnoremap <silent> <leader>kh <cmd>FuzzyHelp<CR>
+nnoremap <silent> <leader>ki <cmd>FuzzyInBuffer<CR>
 
-augroup fern-custom
-  autocmd! *
-  autocmd FileType fern call s:init_fern()
-augroup END
-
-function! s:init_fern() abort
-  nmap <buffer><expr>
-      \ <Plug>(fern-my-expand-or-collapse)
-      \ fern#smart#leaf(
-      \   "\<Plug>(fern-action-collapse)",
-      \   "\<Plug>(fern-action-expand)",
-      \   "\<Plug>(fern-action-collapse)"
-      \ )
-
-  nmap <buffer><expr>
-      \ <Plug>(fern-my-open-or-expand)
-      \ fern#smart#leaf(
-      \   "\<Plug>(fern-action-open)",
-      \   "\<Plug>(fern-action-expand)"
-      \ )
-  
-  nmap <buffer><expr>
-      \ <Plug>(fern-my-open-or-expand-or-collapse)
-      \ fern#smart#leaf(
-      \   "\<Plug>(fern-action-open)",
-      \   "\<Plug>(fern-action-expand)",
-      \   "\<Plug>(fern-action-collapse)"
-      \ )
-
-  nmap <buffer><nowait> <CR> <Plug>(fern-my-expand-or-collapse)
-  nmap <buffer> <LeftRelease> <Plug>(fern-my-open-or-expand-or-collapse)
-endfunction
 
 " --- ColorScheme (Habamax) ---
 function! DefineMyHighlights()
