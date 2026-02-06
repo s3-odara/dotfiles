@@ -80,7 +80,7 @@ filetype plugin indent on
 
 " キーマップ
 let mapleader = "\<Space>"
-xnoremap <silent> "+y <Cmd>call Osc52Copy()<CR>
+xnoremap <silent> "+y :<C-u>call Osc52Copy()<CR>
 nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap <F3> <Cmd>nohlsearch<CR>
