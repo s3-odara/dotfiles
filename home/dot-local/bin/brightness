@@ -1,26 +1,27 @@
 #!/bin/sh
 set -eu
 
-STATE_DIR="${XDG_STATE_HOME:?}/idle-suspend"
+command -v brightnessctl >/dev/null 2>&1 || {
+  echo "brightness: brightnessctl not found" >&2
+  exit 127
+}
+
+: "${XDG_STATE_HOME:=$HOME/.local/state}"
+STATE_DIR="$XDG_STATE_HOME/idle-suspend"
 BR_FILE="$STATE_DIR/brightness.saved"
 
 umask 077
 mkdir -p "$STATE_DIR"
 
-save_once() {
-  # まだ保存していなければ保存（同一アイドル区間で上書きしない）
-  if [ ! -s "$BR_FILE" ]; then
-    val="$(brightnessctl get)"
-    case "$val" in
-      ''|*[!0-9]*)
-        echo "brightness: unexpected value from brightnessctl get: $val" >&2
-        exit 1
-        ;;
-    esac
-    tmp="$BR_FILE.tmp.$$"
-    printf '%s\n' "$val" > "$tmp"
-    mv "$tmp" "$BR_FILE"
-  fi
+save() {
+  val="$(brightnessctl -r get)"
+  case "$val" in ''|*[!0-9]*) echo "brightness: unexpected value: $val" >&2; exit 1;; esac
+
+  tmp="$(mktemp "$BR_FILE.tmp.XXXXXXXX")"
+  trap 'rm -f "$tmp"' EXIT HUP INT TERM
+  printf '%s\n' "$val" >"$tmp"
+  mv -f "$tmp" "$BR_FILE"
+  trap - EXIT HUP INT TERM
 }
 
 do_set() {
@@ -36,14 +37,11 @@ do_restore() {
   fi
 
   [ -r "$BR_FILE" ] || exit 0
-  val="$(cat "$BR_FILE" || true)"
-  case "$val" in
-    ''|*[!0-9]*)
-      exit 0
-      ;;
-  esac
+  IFS= read -r val <"$BR_FILE" || exit 0
 
-  if brightnessctl set "$val" >/dev/null 2>&1; then
+  case "$val" in ''|*[!0-9]*) exit 0;; esac
+
+  if brightnessctl -r set "$val" >/dev/null 2>&1; then
     [ "$keep" -eq 1 ] || rm -f "$BR_FILE"
   fi
 }
@@ -66,13 +64,13 @@ shift || true
 
 case "$cmd" in
   save)
-    save_once
+    save
     ;;
   set)
     do_set "$@"
     ;;
   save-set|save_and_set|save-and-set)
-    save_once
+    save
     do_set "$@"
     ;;
   restore)

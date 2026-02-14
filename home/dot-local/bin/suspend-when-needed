@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR="${XDG_RUNTIME_DIR:?}/idle-suspend"
+INHIBIT_FILE="$STATE_DIR/inhibit"
+
+# inhibit 中は何もしない
+[ -e "$INHIBIT_FILE" ] && exit 0
+
+exec doas -n /usr/local/bin/suspend-then-hibernate.sh
+
