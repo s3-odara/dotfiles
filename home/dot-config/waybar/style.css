@@ -90,6 +90,7 @@ button:disabled {
 #backlight,
 #network,
 #wireplumber,
+#pulseaudio,
 #idle_inhibitor,
 #custom-autosuspend_inhibit,
 #custom-pacman,
@@ -103,6 +104,7 @@ button:disabled {
 #memory,
 #disk,
 #network,
+#pulseaudio,
 #wireplumber {
     margin: 0px 0px;
 }

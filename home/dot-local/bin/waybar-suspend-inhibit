@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR="${XDG_RUNTIME_DIR:?}/idle-suspend"
+INHIBIT_FILE="$STATE_DIR/inhibit"
+
+umask 077
+mkdir -p "$STATE_DIR"
+
+case "${1:-status}" in
+  toggle)
+    if [ -e "$INHIBIT_FILE" ]; then
+      rm -f "$INHIBIT_FILE"
+    else
+      : > "$INHIBIT_FILE"
+    fi
+    exit 0
+    ;;
+  status) : ;;
+  *) exit 2 ;;
+esac
+
+if [ -e "$INHIBIT_FILE" ]; then
+  printf '{"text":"󰒳","class":"activated","tooltip":"Auto suspend: inhibited (click to enable)"}\n'
+else
+  printf '{"text":"󰒲","class":"deactivated","tooltip":"Auto suspend: enabled (click to inhibit)"}\n'
+fi
+

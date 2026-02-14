@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+doas /usr/local/bin/usb-authorize-default.sh lock
+
+if waylock -ignore-empty-password; then
+    doas /usr/local/bin/usb-authorize-default.sh unlock
+fi

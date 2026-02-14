@@ -9,7 +9,7 @@
         "tray",
         "custom/autosuspend_inhibit",
         "idle_inhibitor",
-        "wireplumber",
+        "pulseaudio",
         "wireplumber#source",
         "cpu",
         "temperature",
@@ -35,6 +35,12 @@
         "format-muted": "",
         "on-click": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
     },
+	"pulseaudio": {
+	    "format": "{volume}% {icon}",
+	    "format-muted": "󰸈",
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "format-icons": ["", "", ""]
+	},
     "idle_inhibitor": {
         "format": "{icon}",
         "format-icons": {

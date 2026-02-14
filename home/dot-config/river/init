@@ -23,7 +23,7 @@ riverctl input "*" tap-button-map left-right-middle
 #
 riverctl xcursor-theme Adwaita 32
 
-riverctl spawn "brightnessctl set 35%"
+riverctl spawn "$HOME/.local/bin/brightness restore"
 riverctl map normal None XF86Display spawn "$HOME/.local/bin/toggle-hdmi-mode.sh"
 
 
@@ -46,10 +46,11 @@ riverctl spawn "mako"
 riverctl map normal Super M spawn "$HOME/.local/bin/lock"
 riverctl map normal Super R spawn "$HOME/.local/bin/lock-and-suspend"
 riverctl spawn "swayidle \
-  timeout 60 'brightnessctl set 10%' resume 'brightnessctl set 30%' \
-  timeout 180 '$HOME/.local/bin/lock' \
-  timeout 190 'brightnessctl set 0%' resume 'brightnessctl set 30%' \
-  timeout 240 'wlopm --off \*' resume 'wlopm --on \*; brightnessctl set 30%'"
+  timeout 60  '$HOME/.local/bin/brightness save-set 10%' resume '$HOME/.local/bin/brightness restore' \
+  timeout 180 '$HOME/.local/bin/brightness save-set 0%'  resume '$HOME/.local/bin/brightness restore' \
+  timeout 190 '$HOME/.local/bin/lock' \
+  timeout 210 'wlopm --off \*' resume 'wlopm --on \*; $HOME/.local/bin/brightness restore' \
+  timeout 220 '$HOME/.local/bin/suspend-when-needed'"
 
 # スクリーンショット
 
@@ -185,27 +186,27 @@ riverctl map passthrough Super F11 enter-mode normal
 
 # Various media key mapping examples for both normal and locked mode which do
 # not have a modifier
-for mode in normal locked
-do
-    # Eject the optical drive (well if you still have one that is)
-    riverctl map $mode None XF86Eject spawn 'eject -T'
+#
+# for mode in normal locked
+# do
+#     # Eject the optical drive (well if you still have one that is)
+#     riverctl map $mode None XF86Eject spawn 'eject -T'
+# done
 
-    # Control pulse audio volume with pamixer (https://github.com/cdemoulins/pamixer)
-    riverctl map $mode None XF86AudioRaiseVolume  spawn '~/.local/bin/wob-volume 5%+'
-    riverctl map $mode None XF86AudioLowerVolume  spawn '~/.local/bin/wob-volume 5%-'
-    riverctl map $mode None XF86AudioMute         spawn 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle'
-    riverctl map $mode None XF86AudioMicMute      spawn 'wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle'
+# Control pulse audio volume with pamixer (https://github.com/cdemoulins/pamixer)
+riverctl map normal None XF86AudioRaiseVolume  spawn '~/.local/bin/wob-volume 5%+'
+riverctl map normal None XF86AudioLowerVolume  spawn '~/.local/bin/wob-volume 5%-'
+riverctl map normal None XF86AudioMute         spawn 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle'
+riverctl map normal None XF86AudioMicMute      spawn 'wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle'
 
-    # Control MPRIS aware media players with playerctl (https://github.com/altdesktop/playerctl)
-    riverctl map $mode None XF86AudioMedia spawn 'playerctl play-pause'
-    riverctl map $mode None XF86AudioPlay  spawn 'playerctl play-pause'
-    riverctl map $mode None XF86AudioPrev  spawn 'playerctl previous'
-    riverctl map $mode None XF86AudioNext  spawn 'playerctl next'
+# Control MPRIS aware media players with playerctl (https://github.com/altdesktop/playerctl)
+riverctl map normal Super V spawn 'playerctl play-pause'
+riverctl map normal Super C spawn 'playerctl previous'
+riverctl map normal Super B spawn 'playerctl next'
 
-    # Control screen backlight brightness with brightnessctl (https://github.com/Hummer12007/brightnessctl)
-    riverctl map $mode None XF86MonBrightnessUp   spawn 'brightnessctl set +5% && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
-    riverctl map $mode None XF86MonBrightnessDown spawn 'brightnessctl set 5%- && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
-done
+# Control screen backlight brightness with brightnessctl (https://github.com/Hummer12007/brightnessctl)
+riverctl map normal None XF86MonBrightnessUp   spawn '$HOME/.local/bin/brightness save-set +5% && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
+riverctl map normal None XF86MonBrightnessDown spawn '$HOME/.local/bin/brightness save-set 5%- && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
 
 # Set background and border color
 riverctl background-color 0x002b36

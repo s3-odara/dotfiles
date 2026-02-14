@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+doas /usr/local/bin/usb-authorize-default.sh lock
+
+# ロックして、lock
+waylock -ignore-empty-password &
+lock_pid=$!
+
+sleep 1
+
+doas /usr/local/bin/suspend-then-hibernate.sh
+
+# 復帰後、ロック解除されたらusb unlock
+wait "$lock_pid"
+doas /usr/local/bin/usb-authorize-default.sh unlock
+makoctl reload

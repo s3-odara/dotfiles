@@ -1,0 +1,92 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR="${XDG_STATE_HOME:?}/idle-suspend"
+BR_FILE="$STATE_DIR/brightness.saved"
+
+umask 077
+mkdir -p "$STATE_DIR"
+
+save_once() {
+  # まだ保存していなければ保存（同一アイドル区間で上書きしない）
+  if [ ! -s "$BR_FILE" ]; then
+    val="$(brightnessctl get)"
+    case "$val" in
+      ''|*[!0-9]*)
+        echo "brightness: unexpected value from brightnessctl get: $val" >&2
+        exit 1
+        ;;
+    esac
+    tmp="$BR_FILE.tmp.$$"
+    printf '%s\n' "$val" > "$tmp"
+    mv "$tmp" "$BR_FILE"
+  fi
+}
+
+do_set() {
+  [ $# -eq 1 ] || { echo "brightness: set needs 1 arg (e.g. 10% / 0%)" >&2; exit 2; }
+  brightnessctl set "$1" >/dev/null
+}
+
+do_restore() {
+  keep=0
+  if [ "${1-}" = "--keep" ]; then
+    keep=1
+    shift
+  fi
+
+  [ -r "$BR_FILE" ] || exit 0
+  val="$(cat "$BR_FILE" || true)"
+  case "$val" in
+    ''|*[!0-9]*)
+      exit 0
+      ;;
+  esac
+
+  if brightnessctl set "$val" >/dev/null 2>&1; then
+    [ "$keep" -eq 1 ] || rm -f "$BR_FILE"
+  fi
+}
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  brightness save
+  brightness set <value>          # e.g. 10% / 0%
+  brightness save-set <value>
+  brightness restore [--keep]
+  brightness clear
+  brightness get
+EOF
+}
+
+cmd="${1-}"
+[ -n "$cmd" ] || { usage; exit 2; }
+shift || true
+
+case "$cmd" in
+  save)
+    save_once
+    ;;
+  set)
+    do_set "$@"
+    ;;
+  save-set|save_and_set|save-and-set)
+    save_once
+    do_set "$@"
+    ;;
+  restore)
+    do_restore "$@"
+    ;;
+  clear)
+    rm -f "$BR_FILE"
+    ;;
+  get)
+    brightnessctl get
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT="/usr/local/bin/cpu-scaling.sh"    # 本体スクリプトの配置先
+
+notify_ok() {
+  command -v notify-send >/dev/null 2>&1 || return 0
+  notify-send -a "Power Profile" -u normal -t 2000 "Power profile set" "Profile: $1"
+}
+
+notify_ng() {
+  command -v notify-send >/dev/null 2>&1 || return 0
+  # エラー文が長いと通知が読みにくいので先頭だけ
+  local msg="$2"
+  msg="${msg//$'\n'/ }"
+  notify-send -a "Power Profile" -u critical -t 4000 "Failed to set power profile" "Profile: $1  Error: ${msg:0:180}"
+}
+
+case "${1:-}" in
+  performance)
+    args=(--gov performance --epp performance --pp performance)
+    label="performance"
+    ;;
+  balance)
+    args=(--gov powersave --epp balance_performance --pp balanced)
+    label="balance"
+    ;;
+  lowpower)
+    args=(--gov powersave --epp power --pp low-power)
+    label="lowpower"
+    ;;
+  *)
+    echo "Usage: $0 {performance|balance|lowpower}" >&2
+    exit 2
+    ;;
+esac
+
+# sudo 実行の成否で通知
+if out=$(doas "$SCRIPT" "${args[@]}" 2>&1); then
+  notify_ok "$label"
+else
+  notify_ng "$label" "$out"
+  exit 1
+fi
+
