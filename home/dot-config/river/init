@@ -23,7 +23,7 @@ riverctl input "*" tap-button-map left-right-middle
 #
 riverctl xcursor-theme Adwaita 32
 
-riverctl spawn "$HOME/.local/bin/brightness restore"
+riverctl spawn "$HOME/.local/bin/brightness restore --keep"
 riverctl map normal None XF86Display spawn "$HOME/.local/bin/toggle-hdmi-mode.sh"
 
 
@@ -32,24 +32,23 @@ riverctl map normal None XF86Display spawn "$HOME/.local/bin/toggle-hdmi-mode.sh
 riverctl spawn "fcitx5"
 riverctl spawn "wlr-randr --output eDP-1 --scale 1.5"
 
-riverctl spawn "dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=river"
-#riverctl spawn "pkill -f xdg-desktop-portal"
+riverctl spawn "dbus-update-activation-environment WAYLAND_DISPLAY"
 riverctl spawn 'wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; rm -f "$wobpipe"; mkfifo "$wobpipe"; tail -f "$wobpipe" | wob'
 
 # riverctl spawn "gentoo-pipewire-launcher &"
 
 riverctl spawn "waybar"
-riverctl spawn "mako"
+riverctl spawn "fnott &"
 
 # ロック
 
 riverctl map normal Super M spawn "$HOME/.local/bin/lock"
 riverctl map normal Super R spawn "$HOME/.local/bin/lock-and-suspend"
 riverctl spawn "swayidle \
-  timeout 60  '$HOME/.local/bin/brightness save-set 10%' resume '$HOME/.local/bin/brightness restore' \
-  timeout 180 '$HOME/.local/bin/brightness save-set 0%'  resume '$HOME/.local/bin/brightness restore' \
-  timeout 190 '$HOME/.local/bin/lock' \
-  timeout 210 'wlopm --off \*' resume 'wlopm --on \*; $HOME/.local/bin/brightness restore' \
+  timeout 60  '$HOME/.local/bin/brightness set 10%' resume '$HOME/.local/bin/brightness restore --keep' \
+  timeout 180 '$HOME/.local/bin/lock' \
+  timeout 190 '$HOME/.local/bin/brightness set 0%' \
+  timeout 200 'wlopm --off \*' resume 'wlopm --on \*' \
   timeout 220 '$HOME/.local/bin/suspend-when-needed'"
 
 # スクリーンショット
@@ -187,11 +186,13 @@ riverctl map passthrough Super F11 enter-mode normal
 # Various media key mapping examples for both normal and locked mode which do
 # not have a modifier
 #
-# for mode in normal locked
-# do
-#     # Eject the optical drive (well if you still have one that is)
-#     riverctl map $mode None XF86Eject spawn 'eject -T'
-# done
+for mode in normal locked
+do
+    # Eject the optical drive (well if you still have one that is)
+    #riverctl map $mode None XF86Eject spawn 'eject -T'
+    riverctl map-switch $mode lid close spawn 'wlopm --off "*"; /home/odara/.local/bin/lock'
+    riverctl map-switch $mode lid open spawn 'wlopm --on "*"'
+done
 
 # Control pulse audio volume with pamixer (https://github.com/cdemoulins/pamixer)
 riverctl map normal None XF86AudioRaiseVolume  spawn '~/.local/bin/wob-volume 5%+'
@@ -203,6 +204,10 @@ riverctl map normal None XF86AudioMicMute      spawn 'wpctl set-mute @DEFAULT_AU
 riverctl map normal Super V spawn 'playerctl play-pause'
 riverctl map normal Super C spawn 'playerctl previous'
 riverctl map normal Super B spawn 'playerctl next'
+
+# bluetooth speaker
+riverctl map normal None XF86AudioPlay  spawn "playerctl play-pause"
+riverctl map normal None XF86AudioPause spawn "playerctl play-pause"
 
 # Control screen backlight brightness with brightnessctl (https://github.com/Hummer12007/brightnessctl)
 riverctl map normal None XF86MonBrightnessUp   spawn '$HOME/.local/bin/brightness save-set +5% && wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"; cur="$(brightnessctl g)"; max="$(brightnessctl m)"; printf "%d\n" "$((cur*100/max))" > "$wobpipe"'
@@ -218,7 +223,7 @@ riverctl set-repeat 25 300
 
 # Make all views with an app-id that starts with "float" and title "foo" start floating.
 riverctl rule-add -app-id 'float*' -title 'foo' float
-riverctl rule-add -app-id 'thunderbird' -title '予定*' float
+riverctl rule-add -app-id '*Thunderbird*' -title '*予定*' float
 
 # Make all views with app-id "bar" and any title use client-side decorations
 riverctl rule-add -app-id "bar" csd

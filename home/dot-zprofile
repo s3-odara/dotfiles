@@ -38,6 +38,9 @@ if [[ "$local_tty" == "/dev/tty1" ]] \
   && [[ -z "$SSH_CONNECTION" && -z "$SSH_TTY" ]] \
   && ! pgrep -x river >/dev/null 2>&1
 then
-  exec river
+  exec env \
+      XDG_CURRENT_DESKTOP=river \
+      XDG_SESSION_TYPE=wayland \
+      dbus-run-session -- river
 fi
 

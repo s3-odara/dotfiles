@@ -1,17 +1,38 @@
 #!/bin/sh
 set -eu
 
-doas /usr/local/bin/usb-authorize-default.sh lock
+USB_AUTH=/usr/local/bin/usb-authorize-default.sh
+SUSPEND=/usr/local/bin/suspend-then-hibernate.sh
 
-# ロックして、lock
-waylock -ignore-empty-password &
+doas "$USB_AUTH" lock
+
+ready_file="$(mktemp)"
+cleanup() { rm -f "$ready_file"; }
+trap cleanup EXIT INT TERM HUP
+
+: >"$ready_file"
+
+# ロック成立したら ready_file に改行が書かれる（-ready-fd はその FD を閉じる）:contentReference[oaicite:2]{index=2}
+waylock -ignore-empty-password -ready-fd 3 3>"$ready_file" &
 lock_pid=$!
 
-sleep 1
+# ロック成立 or waylock 早期終了 を待つ（sleep固定ではなく状態を見ます）
+while [ ! -s "$ready_file" ]; do
+    if ! kill -0 "$lock_pid" 2>/dev/null; then
+        # waylock がロック成立前に落ちた。USB は安全側でロック維持。
+        wait "$lock_pid" || true
+        echo "waylock exited before lock was confirmed; USB remains locked" >&2
+        exit 1
+    fi
+    sleep 0.1
+done
 
-doas /usr/local/bin/suspend-then-hibernate.sh
+doas "$SUSPEND"
 
-# 復帰後、ロック解除されたらusb unlock
-wait "$lock_pid"
-doas /usr/local/bin/usb-authorize-default.sh unlock
-makoctl reload
+# 復帰後、解除されて waylock が正常終了したら USB unlock
+if wait "$lock_pid"; then
+    doas "$USB_AUTH" unlock
+    # makoctl reload || true
+    # rc-service -U pipewire restart || true
+fi
+
