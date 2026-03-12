@@ -30,6 +30,11 @@ if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --launch gpg-agent >/dev/null 2>&1
 fi
 
+# LS_COLOR
+
+test -r ~/.config/dircolors/habamax &&
+  eval "$(dircolors -b ~/.config/dircolors/habamax)"
+
 # riverの自動起動(tty1, wayland sessionとssh以外でriverがないとき)
 local_tty="${TTY:-$(tty)}"
 

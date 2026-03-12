@@ -43,9 +43,8 @@ riverctl spawn "fnott &"
 # ロック
 
 riverctl map normal Super M spawn "$HOME/.local/bin/lock"
-riverctl map normal Super R spawn "$HOME/.local/bin/lock-and-suspend"
 riverctl spawn "swayidle \
-  timeout 60  '$HOME/.local/bin/brightness set 10%' resume '$HOME/.local/bin/brightness restore --keep' \
+  timeout 160  '$HOME/.local/bin/brightness set 10%' resume '$HOME/.local/bin/brightness restore --keep' \
   timeout 180 '$HOME/.local/bin/lock' \
   timeout 190 '$HOME/.local/bin/brightness set 0%' \
   timeout 200 'wlopm --off \*' resume 'wlopm --on \*' \
@@ -192,6 +191,7 @@ do
     #riverctl map $mode None XF86Eject spawn 'eject -T'
     riverctl map-switch $mode lid close spawn 'wlopm --off "*"; /home/odara/.local/bin/lock'
     riverctl map-switch $mode lid open spawn 'wlopm --on "*"'
+    riverctl map $mode Super R spawn "$HOME/.local/bin/lock-and-suspend"
 done
 
 # Control pulse audio volume with pamixer (https://github.com/cdemoulins/pamixer)
