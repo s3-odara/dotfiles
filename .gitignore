@@ -21,9 +21,9 @@
 **/.config/ibus/
 **/.config/fcitx/
 **/.config/fcitx5/conf/cached_layouts
+**/.config/secrets/
 
 **/.local/state/
 **/.local/share/recently-used.xbel
 
 **/.vim/pack/
-

@@ -30,6 +30,11 @@ if command -v gpgconf >/dev/null 2>&1; then
   gpgconf --launch gpg-agent >/dev/null 2>&1
 fi
 
+# Secret env is loaded at login time after decryption/sync has happened.
+if [[ -r "${XDG_CONFIG_HOME}/secrets/env" ]]; then
+  source "${XDG_CONFIG_HOME}/secrets/env"
+fi
+
 # LS_COLOR
 
 test -r ~/.config/dircolors/habamax &&
@@ -48,4 +53,3 @@ then
       XDG_SESSION_TYPE=wayland \
       dbus-run-session -- river
 fi
-
