@@ -1,0 +1,65 @@
+model = "gpt-5.4"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+model_reasoning_summary = "auto"
+model_verbosity = "medium"
+
+[sandbox_workspace_write]
+network_access = true
+writable_roots = ["/home/user"]
+
+[shell_environment_policy]
+inherit = "core"
+exclude = ["^AWS_", "^AZURE_", "^GCP_", "^OPENAI_API_KEY$"]
+
+[history]
+persistence = "save-all"
+max_bytes = 5242880
+
+[tui]
+alternate_screen = "auto"
+notifications = true
+notification_method = "auto"
+show_tooltips = false
+
+[tools]
+view_image = true
+
+[tools.web_search]
+context_size = "medium"
+
+[profiles.safe]
+model = "gpt-5.4"
+approval_policy = "untrusted"
+sandbox_mode = "read-only"
+model_reasoning_effort = "medium"
+
+[profiles.dev]
+model = "gpt-5.4"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+model_reasoning_summary = "auto"
+
+[profiles.review]
+model = "gpt-5.4"
+approval_policy = "never"
+sandbox_mode = "read-only"
+model_reasoning_effort = "high"
+model_reasoning_summary = "detailed"
+
+[profiles.oss]
+model_provider = "oss"
+oss_provider = "ollama"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[projects."/home/user"]
+trust_level = "trusted"
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
