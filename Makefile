@@ -3,7 +3,7 @@ SHELL := /bin/bash
 STOW ?= stow
 TARGET ?= $(HOME)
 
-STOWFLAGS ?= --no-folding --dotfiles
+STOWFLAGS ?= --dotfiles
 ENVFILE_DIR ?= ../envfile
 ENV_SNIPPET_DIR ?= $(ENVFILE_DIR)/env
 SECRET_FILE_DIR ?= $(ENVFILE_DIR)/files
