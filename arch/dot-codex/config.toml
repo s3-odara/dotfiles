@@ -1,6 +1,6 @@
 model = "gpt-5.4"
-approval_policy = "never"
-sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+sandbox_mode = "danger-full-access"
 model_reasoning_effort = "medium"
 model_reasoning_summary = "auto"
 model_verbosity = "medium"
