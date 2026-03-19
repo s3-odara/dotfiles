@@ -11,6 +11,8 @@ height=${3:-24}
 mode=${6:-preview}
 cell_width=${LF_PREVIEW_CELL_WIDTH:-40}
 cell_height=${LF_PREVIEW_CELL_HEIGHT:-18}
+pixel_width=$((width * cell_width))
+pixel_height=$((height * cell_height))
 
 if [ -z "$file_path" ]; then
     exit 1
@@ -34,7 +36,7 @@ show_text_preview() {
 }
 
 emit_sixel_from_stdin() {
-    img2sixel -w "${width}" -h "${height}" - 2>/dev/null || return 1
+    img2sixel -w "${pixel_width}" -h "${pixel_height}" - 2>/dev/null || return 1
 }
 
 ffmpeg_to_ppm() {
@@ -57,7 +59,7 @@ show_media_preview() {
 
     if ! ffmpeg_to_ppm "$1" >"$media_ppm" 2>/dev/null ||
         [ ! -s "$media_ppm" ] ||
-        ! img2sixel -w "${width}" -h "${height}" "$media_ppm" >"$media_out" 2>/dev/null ||
+        ! img2sixel -w "${pixel_width}" -h "${pixel_height}" "$media_ppm" >"$media_out" 2>/dev/null ||
         [ ! -s "$media_out" ]; then
         rm -f "$media_ppm" "$media_out"
         return 1
