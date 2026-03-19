@@ -14,16 +14,21 @@ bootstrap:
 
 stow-arch:
 	$(STOW) $(STOWFLAGS) -vt $(TARGET) arch home
+	make -C ~/.config/lf
 
 stow-gentoo:
 	$(STOW) $(STOWFLAGS) -vt $(TARGET) gentoo home
-
+	make -C ~/.config/lf
 	
 restow-arch:
 	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) arch home
+	make -C ~/.config/lf clean
+	make -C ~/.config/lf
 
 restow-gentoo:
 	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) gentoo home
+	make -C ~/.config/lf clean
+	make -C ~/.config/lf
 
 secret-files:
 	@command -v pass >/dev/null 2>&1 || { echo "pass command not found"; exit 1; }

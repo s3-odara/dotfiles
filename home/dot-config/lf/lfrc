@@ -1,0 +1,6 @@
+set preview true
+set dirpreviews true
+set drawbox
+set ratios 1:2:4
+set nopreload
+set previewer ~/.config/lf/previewSandbox.sh
