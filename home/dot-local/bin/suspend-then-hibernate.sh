@@ -19,8 +19,32 @@ get_bat_pct() {
   fi
 }
 
+stop_incus_before_hibernate() {
+  if ! command -v incus >/dev/null 2>&1; then
+    log "incus is not installed; skip stop before hibernate"
+    return 0
+  fi
+
+  local -a instances
+  mapfile -t instances < <(incus list --format csv -c ns 2>/dev/null | awk -F, '$2 == "RUNNING" { print $1 }')
+
+  if (( ${#instances[@]} == 0 )); then
+    log "No running incus instances; skip stop before hibernate"
+    return 0
+  fi
+
+  log "Stopping incus instances before hibernate: ${instances[*]}"
+  if ! incus stop "${instances[@]}" --timeout 30; then
+    log "Clean incus stop timed out or failed; forcing stop"
+    if ! incus stop "${instances[@]}" --force; then
+      log "Failed to force stop one or more incus instances; continue to hibernate"
+    fi
+  fi
+}
+
 force_hibernate_now() {
   log "Force hibernate now (reason: $1)"
+  stop_incus_before_hibernate
   sync
   # hibernate
   echo disk > /sys/power/state
@@ -75,4 +99,3 @@ main() {
 }
 
 main "$@"
-
