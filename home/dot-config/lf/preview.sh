@@ -9,6 +9,8 @@ file_path=${1:-}
 width=${2:-80}
 height=${3:-24}
 mode=${6:-preview}
+cell_width=${LF_PREVIEW_CELL_WIDTH:-40}
+cell_height=${LF_PREVIEW_CELL_HEIGHT:-18}
 
 if [ -z "$file_path" ]; then
     exit 1
@@ -40,7 +42,7 @@ ffmpeg_to_ppm() {
     ffmpeg -hide_banner -loglevel error \
         -i "$input_path" \
         -frames:v 1 \
-        -vf "scale='min(iw,${width}*8)':'min(ih,${height}*16)':force_original_aspect_ratio=decrease" \
+        -vf "scale='min(iw,${width}*${cell_width})':'min(ih,${height}*${cell_height})':force_original_aspect_ratio=decrease" \
         -f image2pipe \
         -vcodec ppm \
         -
