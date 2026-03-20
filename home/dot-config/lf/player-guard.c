@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -343,6 +344,17 @@ static void add_errno_rule(scmp_filter_ctx ctx, int syscall_nr)
     }
 }
 
+static void add_socket_domain_errno_rule(scmp_filter_ctx ctx, int domain)
+{
+    if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(socket), 1,
+                         SCMP_A0(SCMP_CMP_EQ, domain)) < 0) {
+        fprintf(stderr,
+                "player-guard: seccomp socket rule failed for domain %d\n",
+                domain);
+        exit(1);
+    }
+}
+
 static void install_seccomp(void)
 {
     scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW);
@@ -350,6 +362,22 @@ static void install_seccomp(void)
         fprintf(stderr, "player-guard: seccomp_init failed\n");
         exit(1);
     }
+
+    add_socket_domain_errno_rule(ctx, AF_INET);
+    add_socket_domain_errno_rule(ctx, AF_INET6);
+    add_socket_domain_errno_rule(ctx, AF_NETLINK);
+    add_socket_domain_errno_rule(ctx, AF_PACKET);
+#ifdef AF_BLUETOOTH
+    add_socket_domain_errno_rule(ctx, AF_BLUETOOTH);
+#endif
+#ifdef AF_VSOCK
+    add_socket_domain_errno_rule(ctx, AF_VSOCK);
+#endif
+
+    add_errno_rule(ctx, SCMP_SYS(bind));
+    add_errno_rule(ctx, SCMP_SYS(listen));
+    add_errno_rule(ctx, SCMP_SYS(accept));
+    add_errno_rule(ctx, SCMP_SYS(accept4));
 
     add_errno_rule(ctx, SCMP_SYS(mount));
     add_errno_rule(ctx, SCMP_SYS(umount2));

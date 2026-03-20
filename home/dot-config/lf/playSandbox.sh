@@ -25,6 +25,7 @@ runtime_dir=${XDG_RUNTIME_DIR:-}
 wayland_display=${WAYLAND_DISPLAY:-}
 pulse_server=${PULSE_SERVER:-}
 pipewire_runtime_dir=${PIPEWIRE_RUNTIME_DIR:-}
+pipewire_remote=${PIPEWIRE_REMOTE:-pipewire-0}
 player_choice=${LF_PLAYER:-auto}
 player_extra_args=${LF_PLAYER_ARGS:-}
 player_extra_rw_paths=/dev/shm
@@ -89,6 +90,82 @@ resolve_pipewire_runtime_dir() {
     esac
 
     resolve_runtime_dir "$runtime_dir/$path"
+}
+
+resolve_runtime_path() {
+    path=$1
+    base_dir=$2
+
+    if [ -z "$path" ] || [ -z "$base_dir" ]; then
+        return 1
+    fi
+
+    case "$path" in
+        /*)
+            candidate=$path
+            ;;
+        *)
+            candidate=$base_dir/$path
+            ;;
+    esac
+
+    if [ ! -e "$candidate" ]; then
+        return 1
+    fi
+
+    candidate_dir=$(dirname -- "$candidate")
+    candidate_name=$(basename -- "$candidate")
+
+    if ! resolved_dir=$(cd -- "$candidate_dir" 2>/dev/null && pwd -P); then
+        return 1
+    fi
+
+    resolved=$resolved_dir/$candidate_name
+    case "$resolved" in
+        "$base_dir"/*)
+            printf '%s\n' "$resolved"
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
+resolve_runtime_socket() {
+    path=$1
+    base_dir=$2
+
+    if ! resolved=$(resolve_runtime_path "$path" "$base_dir"); then
+        return 1
+    fi
+
+    if [ ! -S "$resolved" ]; then
+        return 1
+    fi
+
+    printf '%s\n' "$resolved"
+}
+
+append_unique_colon_path() {
+    list_value=$1
+    path_value=$2
+
+    if [ -z "$path_value" ]; then
+        printf '%s\n' "$list_value"
+        return 0
+    fi
+
+    case ":$list_value:" in
+        *:"$path_value":*)
+            printf '%s\n' "$list_value"
+            ;;
+        :)
+            printf '%s\n' "$path_value"
+            ;;
+        *)
+            printf '%s:%s\n' "$list_value" "$path_value"
+            ;;
+    esac
 }
 
 select_player() {
@@ -170,24 +247,56 @@ for bind_path in $bind_paths; do
 done
 IFS=$old_ifs
 
+runtime_env_enabled=
+
 if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); then
-    set -- "$@" --dir "$runtime_dir" --bind "$runtime_dir" "$runtime_dir"
-    set -- "$@" --setenv XDG_RUNTIME_DIR "$runtime_dir"
-    player_extra_rw_paths=$player_extra_rw_paths:$runtime_dir
-fi
+    if [ -n "$wayland_display" ] &&
+       wayland_socket=$(resolve_runtime_socket "$wayland_display" "$runtime_dir"); then
+        wayland_socket_dir=$(dirname -- "$wayland_socket")
+        player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$wayland_socket_dir")
+        set -- "$@" --dir "$runtime_dir" --dir "$wayland_socket_dir" --bind "$wayland_socket" "$wayland_socket"
+        set -- "$@" --setenv WAYLAND_DISPLAY "$(basename -- "$wayland_socket")"
+        runtime_env_enabled=1
+    fi
 
-if [ -n "$wayland_display" ]; then
-    set -- "$@" --setenv WAYLAND_DISPLAY "$wayland_display"
-fi
+    if [ -n "$pulse_server" ]; then
+        pulse_socket=
+        case "$pulse_server" in
+            unix:*)
+                pulse_candidate=${pulse_server#unix:}
+                if pulse_socket=$(resolve_runtime_socket "$pulse_candidate" "$runtime_dir"); then
+                    pulse_socket_dir=$(dirname -- "$pulse_socket")
+                    player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$pulse_socket_dir")
+                    set -- "$@" --dir "$runtime_dir" --dir "$pulse_socket_dir" --bind "$pulse_socket" "$pulse_socket"
+                    set -- "$@" --setenv PULSE_SERVER "unix:$pulse_socket"
+                    runtime_env_enabled=1
+                fi
+                ;;
+            *)
+                printf 'playSandbox.sh: non-unix PULSE_SERVER is not supported in sandbox mode: %s\n' "$pulse_server" >&2
+                exit 1
+                ;;
+        esac
+    fi
 
-if [ -n "$pulse_server" ]; then
-    set -- "$@" --setenv PULSE_SERVER "$pulse_server"
-fi
+    pipewire_base_dir=$runtime_dir
+    if [ -n "$pipewire_runtime_dir" ] &&
+       pipewire_runtime_dir=$(resolve_pipewire_runtime_dir "$pipewire_runtime_dir"); then
+        pipewire_base_dir=$pipewire_runtime_dir
+    fi
 
-if [ -n "$pipewire_runtime_dir" ]; then
-    if pipewire_runtime_dir=$(resolve_pipewire_runtime_dir "$pipewire_runtime_dir"); then
-        set -- "$@" --setenv PIPEWIRE_RUNTIME_DIR "$pipewire_runtime_dir"
-        player_extra_rw_paths=$player_extra_rw_paths:$pipewire_runtime_dir
+    if [ -n "$pipewire_remote" ] &&
+       pipewire_socket=$(resolve_runtime_socket "$pipewire_remote" "$pipewire_base_dir"); then
+        pipewire_socket_dir=$(dirname -- "$pipewire_socket")
+        player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$pipewire_socket_dir")
+        set -- "$@" --dir "$runtime_dir" --dir "$pipewire_base_dir" --dir "$pipewire_socket_dir" --bind "$pipewire_socket" "$pipewire_socket"
+        set -- "$@" --setenv PIPEWIRE_RUNTIME_DIR "$pipewire_base_dir"
+        set -- "$@" --setenv PIPEWIRE_REMOTE "$(basename -- "$pipewire_socket")"
+        runtime_env_enabled=1
+    fi
+
+    if [ -n "$runtime_env_enabled" ]; then
+        set -- "$@" --setenv XDG_RUNTIME_DIR "$runtime_dir"
     fi
 fi
 
@@ -209,6 +318,6 @@ if [ -n "$player_extra_args" ]; then
     set -- "$@" $player_extra_args
 fi
 
-set -- "$@" "$resolved_target"
+set -- "$@" -- "$resolved_target"
 
 exec "$@"

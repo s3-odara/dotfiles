@@ -18,21 +18,41 @@ if [ -z "$file_path" ]; then
     exit 1
 fi
 
+sanitize_terminal_text() {
+    perl -pe 's/[\x00-\x08\x0b-\x1f\x7f\x80-\x9f]//g'
+}
+
+sanitize_terminal_path_value() {
+    perl -0pe 's/\\/\\\\/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g; s/([\x00-\x08\x0b-\x1f\x7f\x80-\x9f])/sprintf("\\x%02X", ord($1))/ge'
+}
+
+sanitize_terminal_path_lines() {
+    perl -pe 's/\\/\\\\/g; s/\t/\\t/g; s/\r/\\r/g; s/([\x00-\x08\x0b-\x1f\x7f\x80-\x9f])/sprintf("\\x%02X", ord($1))/ge'
+}
+
 if [ ! -e "$file_path" ]; then
-    printf 'missing: %s\n' "$file_path"
+    printf 'missing: '
+    printf '%s' "$file_path" | sanitize_terminal_path_value
+    printf '\n'
     exit 0
 fi
 
 if [ -L "$file_path" ]; then
     link_target=$(readlink -- "$file_path" 2>/dev/null || printf '?')
-    printf 'symlink -> %s\n' "$link_target"
+    printf 'symlink -> '
+    printf '%s' "$link_target" | sanitize_terminal_path_value
+    printf '\n'
     exit 0
 fi
 
 mime=$(file --dereference --brief --mime-type -- "$file_path" 2>/dev/null || printf 'application/octet-stream')
 
 show_text_preview() {
-    sed -n "1,${height}p" -- "$1" 2>/dev/null || head -n "$height" -- "$1" 2>/dev/null || true
+    {
+        sed -n "1,${height}p" -- "$1" 2>/dev/null ||
+            head -n "$height" -- "$1" 2>/dev/null ||
+            true
+    } | sanitize_terminal_text
 }
 
 emit_sixel_from_stdin() {
@@ -74,7 +94,7 @@ show_pdf_preview() {
 
     if pdftotext -l 10 -nopgbrk -- "$1" "$pdf_text" 2>/dev/null &&
         [ -s "$pdf_text" ]; then
-        head -n "$height" -- "$pdf_text"
+        head -n "$height" -- "$pdf_text" | sanitize_terminal_text
         rm -f "$pdf_text"
         return 0
     fi
@@ -96,9 +116,13 @@ case "$mime" in
         ;;
     inode/directory)
         if [ "$mode" = "preview" ]; then
-            find "$file_path" -mindepth 1 -maxdepth 1 2>/dev/null | sed 's#^.*/##' | head -n "$height"
+            find "$file_path" -mindepth 1 -maxdepth 1 2>/dev/null |
+                sed 's#^.*/##' |
+                head -n "$height" |
+                sanitize_terminal_path_lines
         else
-            printf '%s\n' "$file_path"
+            printf '%s' "$file_path" | sanitize_terminal_path_value
+            printf '\n'
         fi
         ;;
     *)
