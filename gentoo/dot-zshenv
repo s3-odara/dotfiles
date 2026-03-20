@@ -13,6 +13,7 @@ export EDITOR="${EDITOR:-vim}"
 export PAGER="${PAGER:-less}"
 export LESS='-iMFJ --mouse --wheel-lines=5'
 export LESSSECURE=1
+export LF_PLAYER_GPU=1
 
 # incus
 export INCUS_SOCKET=/var/lib/incus/unix.socket.user
