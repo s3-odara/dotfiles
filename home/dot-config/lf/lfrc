@@ -3,3 +3,29 @@ set dirpreviews true
 set drawbox
 set ratios 1:2:4
 set previewer ~/.config/lf/previewSandbox.sh
+
+cmd firefox_open &{{
+    if ! command -v firefox >/dev/null 2>&1; then
+        lf -remote "send $id echoerr 'firefox not found in PATH'"
+        exit 1
+    fi
+
+    for f in $fx; do
+        firefox "$f" >/dev/null 2>&1 &
+    done
+}}
+
+map O firefox_open
+
+cmd player_open &{{
+    if ! command -v mpv >/dev/null 2>&1 && ! command -v ffplay >/dev/null 2>&1; then
+        lf -remote "send $id echoerr 'mpv or ffplay not found in PATH'"
+        exit 1
+    fi
+
+    for f in $fx; do
+        ~/.config/lf/playSandbox.sh "$f" >/dev/null 2>&1 &
+    done
+}}
+
+map P player_open

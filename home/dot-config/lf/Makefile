@@ -4,15 +4,17 @@ LDFLAGS ?=
 LDLIBS ?= -lseccomp
 
 PREFIX := $(HOME)/.config/lf
-TARGET := $(PREFIX)/preview-guard
-SOURCE := $(PREFIX)/preview-guard.c
+TARGETS := $(PREFIX)/preview-guard $(PREFIX)/player-guard
 
 .PHONY: all clean
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SOURCE)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCE) $(LDLIBS) -o $(TARGET)
+$(PREFIX)/preview-guard: $(PREFIX)/preview-guard.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $< $(LDLIBS) -o $@
+
+$(PREFIX)/player-guard: $(PREFIX)/player-guard.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $< $(LDLIBS) -o $@
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGETS)
