@@ -28,12 +28,12 @@
         .{
             .key = "m",
             .modifiers = .{ .mod4 = true },
-            .action = .{ .spawn = .{"/home/user/.local/bin/lock"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/lock"} },
         },
         .{
             .key = "r",
             .modifiers = .{ .mod4 = true },
-            .action = .{ .spawn = .{"/home/user/.local/bin/lock-and-suspend"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/lock-and-suspend"} },
         },
         .{
             .key = "r",
@@ -41,8 +41,8 @@
             .action = .reload_config,
         },
         .{
-            .key = "e",
-            .modifiers = .{ .mod4 = true, .shift = true },
+            .key = "Escape",
+            .modifiers = .{ .mod4 = true },
             .action = .exit,
         },
 
@@ -217,12 +217,12 @@
         .{
             .key = "p",
             .modifiers = .{ .mod4 = true },
-            .action = .{ .spawn = .{"/home/user/.local/bin/screenshot-copy"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/screenshot-copy"} },
         },
         .{
             .key = "p",
             .modifiers = .{ .mod4 = true, .shift = true },
-            .action = .{ .spawn = .{"/home/user/.local/bin/screenshot-save"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/screenshot-save"} },
         },
 
         .{
@@ -244,12 +244,12 @@
         .{
             .key = "XF86AudioRaiseVolume",
             .modifiers = .{},
-            .action = .{ .spawn = .{"/home/user/.local/bin/wob-volume", "5%+"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/wob-volume", "5%+"} },
         },
         .{
             .key = "XF86AudioLowerVolume",
             .modifiers = .{},
-            .action = .{ .spawn = .{"/home/user/.local/bin/wob-volume", "5%-"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/wob-volume", "5%-"} },
         },
         .{
             .key = "XF86AudioMute",
@@ -264,12 +264,12 @@
         .{
             .key = "XF86MonBrightnessUp",
             .modifiers = .{},
-            .action = .{ .spawn = .{"/home/user/.local/bin/brightness-wob", "+5%"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/brightness-wob", "+5%"} },
         },
         .{
             .key = "XF86MonBrightnessDown",
             .modifiers = .{},
-            .action = .{ .spawn = .{"/home/user/.local/bin/brightness-wob", "5%-"} },
+            .action = .{ .spawn = .{"/home/odara/.local/bin/brightness-wob", "5%-"} },
         },
     },
 }
