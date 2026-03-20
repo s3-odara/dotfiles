@@ -1,0 +1,58 @@
+#!/bin/sh
+set -eu
+
+runtime_dir="${XDG_RUNTIME_DIR:?wm-switch: XDG_RUNTIME_DIR is not set}"
+state_dir="$runtime_dir/wm-launch"
+current_file="$state_dir/current"
+pid_file="$state_dir/pid"
+
+wm="${1:-}"
+
+if [ -z "$wm" ]; then
+  if [ -f "$current_file" ] && [ -f "$pid_file" ]; then
+    current_pid="$(cat "$pid_file")"
+    if [ -n "$current_pid" ] && kill -0 "$current_pid" 2>/dev/null; then
+      cat "$current_file"
+      exit 0
+    fi
+  fi
+
+  if [ -f "$current_file" ]; then
+    cat "$current_file"
+    exit 0
+  fi
+
+  printf '%s\n' 'usage: wm-switch <wm>' >&2
+  exit 64
+fi
+
+if ! command -v "$wm" >/dev/null 2>&1; then
+  printf 'wm-switch: %s not found in PATH\n' "$wm" >&2
+  exit 1
+fi
+
+old_pid=
+if [ -f "$pid_file" ]; then
+  old_pid="$(cat "$pid_file")"
+  if [ -n "$old_pid" ] && ! kill -0 "$old_pid" 2>/dev/null; then
+    old_pid=
+  fi
+fi
+
+"$wm" &
+new_pid=$!
+
+sleep 0.1
+if ! kill -0 "$new_pid" 2>/dev/null; then
+  wait "$new_pid"
+  printf 'wm-switch: %s exited during startup\n' "$wm" >&2
+  exit 1
+fi
+
+mkdir -p "$state_dir"
+printf '%s\n' "$wm" > "$current_file"
+printf '%s\n' "$new_pid" > "$pid_file"
+
+if [ -n "$old_pid" ] && [ "$old_pid" != "$new_pid" ]; then
+  kill "$old_pid" 2>/dev/null || true
+fi

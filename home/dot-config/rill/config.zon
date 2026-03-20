@@ -1,0 +1,265 @@
+.{
+    .vertical_gap = 3,
+    .horizontal_gap = 3,
+    .window_width_proportion = 0.5,
+    .center_focused_window = .never,
+    .no_csd = false,
+    .animation_duration = 200,
+
+    .border = .{
+        .width = 3,
+        .focused_color = .{ .r = 147, .g = 161, .b = 161, .a = 1.0 },
+        .unfocused_color = .{ .r = 88, .g = 110, .b = 117, .a = 1.0 },
+    },
+
+    .spawn_at_startup = .{},
+
+    .keybindings = .{
+        .{
+            .key = "Return",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .spawn = .{"foot"} },
+        },
+        .{
+            .key = "s",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"wofi", "--show=drun"} },
+        },
+        .{
+            .key = "m",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"lock"} },
+        },
+        .{
+            .key = "r",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"lock-and-suspend"} },
+        },
+        .{
+            .key = "r",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .reload_config,
+        },
+        .{
+            .key = "e",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .exit,
+        },
+
+        .{
+            .key = "q",
+            .modifiers = .{ .mod4 = true },
+            .action = .close_window,
+        },
+        .{
+            .key = "f",
+            .modifiers = .{ .mod4 = true },
+            .action = .toggle_fullscreen,
+        },
+        .{
+            .key = "h",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_window_left,
+        },
+        .{
+            .key = "l",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_window_right,
+        },
+        .{
+            .key = "h",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .move_window_left,
+        },
+        .{
+            .key = "l",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .move_window_right,
+        },
+
+        .{
+            .key = ",",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_left,
+        },
+        .{
+            .key = ".",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_right,
+        },
+        .{
+            .key = "Left",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_left,
+        },
+        .{
+            .key = "Right",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_right,
+        },
+        .{
+            .key = "Up",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_up,
+        },
+        .{
+            .key = "Down",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_down,
+        },
+
+        .{
+            .key = "1",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 1 },
+        },
+        .{
+            .key = "2",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 2 },
+        },
+        .{
+            .key = "3",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 3 },
+        },
+        .{
+            .key = "4",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 4 },
+        },
+        .{
+            .key = "5",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 5 },
+        },
+        .{
+            .key = "6",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 6 },
+        },
+        .{
+            .key = "7",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 7 },
+        },
+        .{
+            .key = "8",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 8 },
+        },
+        .{
+            .key = "9",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .focus_workspace = 9 },
+        },
+        .{
+            .key = "1",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 1 },
+        },
+        .{
+            .key = "2",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 2 },
+        },
+        .{
+            .key = "3",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 3 },
+        },
+        .{
+            .key = "4",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 4 },
+        },
+        .{
+            .key = "5",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 5 },
+        },
+        .{
+            .key = "6",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 6 },
+        },
+        .{
+            .key = "7",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 7 },
+        },
+        .{
+            .key = "8",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 8 },
+        },
+        .{
+            .key = "9",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .move_window_to_workspace = 9 },
+        },
+        .{
+            .key = "`",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_previous_workspace,
+        },
+
+        .{
+            .key = "p",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"screenshot-copy"} },
+        },
+        .{
+            .key = "p",
+            .modifiers = .{ .mod4 = true, .shift = true },
+            .action = .{ .spawn = .{"screenshot-save"} },
+        },
+
+        .{
+            .key = "v",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"playerctl", "play-pause"} },
+        },
+        .{
+            .key = "c",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"playerctl", "previous"} },
+        },
+        .{
+            .key = "b",
+            .modifiers = .{ .mod4 = true },
+            .action = .{ .spawn = .{"playerctl", "next"} },
+        },
+
+        .{
+            .key = "XF86AudioRaiseVolume",
+            .modifiers = .{},
+            .action = .{ .spawn = .{"wob-volume", "5%+"} },
+        },
+        .{
+            .key = "XF86AudioLowerVolume",
+            .modifiers = .{},
+            .action = .{ .spawn = .{"wob-volume", "5%-"} },
+        },
+        .{
+            .key = "XF86AudioMute",
+            .modifiers = .{},
+            .action = .{ .spawn = .{"wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"} },
+        },
+        .{
+            .key = "XF86AudioMicMute",
+            .modifiers = .{},
+            .action = .{ .spawn = .{"wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"} },
+        },
+        .{
+            .key = "XF86MonBrightnessUp",
+            .modifiers = .{},
+            .action = .{ .spawn = .{"brightness-wob", "+5%"} },
+        },
+        .{
+            .key = "XF86MonBrightnessDown",
+            .modifiers = .{},
+            .action = .{ .spawn = .{"brightness-wob", "5%-"} },
+        },
+    },
+}

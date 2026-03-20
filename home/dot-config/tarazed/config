@@ -1,0 +1,48 @@
+# tarazed ships useful default bindings such as:
+# - S-x S-q: close
+# - S-x S-f: toggle fullscreen
+# - S-x m:   toggle maximized
+# - S-x S-c: exit river session
+#
+# This file only adds the bindings and theme bits needed to stay close
+# to the existing river/rill workflow.
+
+theme {
+    background-colour 0x002b36
+    window-border-size 3
+    window-shadow-size 0
+
+    window-border-focused-gradient {
+        0.00 0x93a1a1
+        1.00 0x839496
+    }
+
+    window-border-unfocused-gradient {
+        0.00 0x586e75
+        1.00 0x657b83
+    }
+}
+
+binds {
+    S-s-Return !spawn foot
+    S-s         !spawn wofi --show=drun
+    S-m         !spawn lock
+    S-r         !spawn lock-and-suspend
+
+    S-q         !close
+    S-f         !toggle-fullscreen
+
+    S-p         !spawn screenshot-copy
+    S-s-p       !spawn screenshot-save
+
+    S-v         !spawn playerctl play-pause
+    S-c         !spawn playerctl previous
+    S-b         !spawn playerctl next
+
+    XF86AudioRaiseVolume   !spawn wob-volume 5%+
+    XF86AudioLowerVolume   !spawn wob-volume 5%-
+    XF86AudioMute          !spawn wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+    XF86AudioMicMute       !spawn wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    XF86MonBrightnessUp    !spawn brightness-wob +5%
+    XF86MonBrightnessDown  !spawn brightness-wob 5%-
+}

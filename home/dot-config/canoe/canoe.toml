@@ -1,0 +1,42 @@
+# canoe currently reads a small subset of configuration:
+# - main_modifier
+# - launcher_cmd
+# - [ui]
+# - [[rules]]
+#
+# Keybindings mostly stay on upstream defaults for now.
+# This file aligns launcher/theme/rules with the existing river setup.
+
+main_modifier = "super"
+launcher_cmd = ["wofi", "--show=drun"]
+
+[ui]
+border_width = 3
+border_active = { outer = "#93a1a1", mid = "#839496", inner = "#93a1a1" }
+border_inactive = { outer = "#586e75", mid = "#657b83", inner = "#586e75" }
+titlebar_text_active = "#002b36"
+titlebar_text_inactive = "#93a1a1"
+titlebar_bg_active = "#93a1a1"
+titlebar_bg_inactive = "#073642"
+menu_bg = "#002b36"
+menu_text = "#eee8d5"
+menu_highlight_bg = "#93a1a1"
+menu_highlight_text = "#002b36"
+button_bg = "#073642"
+button_highlight = "#93a1a1"
+button_shadow = "#001f27"
+font_name = "monospace"
+font_size = 12
+desktop_background = "#002b36"
+
+[[rules]]
+match_app_id = "firefox"
+match_props = "toplevel"
+force_ssd = true
+swallow_top = 48
+
+[[rules]]
+match_app_id = "firefox-esr"
+match_props = "toplevel"
+force_ssd = true
+swallow_top = 48

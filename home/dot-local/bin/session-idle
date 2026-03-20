@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+exec swayidle \
+  timeout 160 "$HOME/.local/bin/brightness set 10%" resume "$HOME/.local/bin/brightness restore --keep" \
+  timeout 180 "$HOME/.local/bin/lock" \
+  timeout 190 "$HOME/.local/bin/brightness set 0%" \
+  timeout 200 "wlopm --off '*'" resume "wlopm --on '*'" \
+  timeout 220 "$HOME/.local/bin/suspend-when-needed"

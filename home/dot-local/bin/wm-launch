@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+runtime_dir="${XDG_RUNTIME_DIR:?wm-launch: XDG_RUNTIME_DIR is not set}"
+state_dir="$runtime_dir/wm-launch"
+current_file="$state_dir/current"
+pid_file="$state_dir/pid"
+
+wm="${1:-${WAYLAND_WM:-rill}}"
+
+if ! command -v "$wm" >/dev/null 2>&1; then
+  printf 'wm-launch: %s not found in PATH\n' "$wm" >&2
+  exit 1
+fi
+
+mkdir -p "$state_dir"
+printf '%s\n' "$wm" > "$current_file"
+printf '%s\n' "$$" > "$pid_file"
+
+exec "$wm"
