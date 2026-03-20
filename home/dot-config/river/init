@@ -2,4 +2,13 @@
 set -eu
 
 "$HOME/.local/bin/wayland-session-init"
-exec "$HOME/.local/bin/wm-launch"
+"$HOME/.local/bin/wm-launch" &
+wm_pid=$!
+
+if [ -f "$HOME/medias/frieren.png" ]; then
+  # Defer wallpaper startup until after the WM process has been launched.
+  sleep 0.2
+  swaybg -m fill -i "$HOME/medias/frieren.png" &
+fi
+
+wait "$wm_pid"

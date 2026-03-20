@@ -28,12 +28,12 @@
         .{
             .key = "m",
             .modifiers = .{ .mod4 = true },
-            .action = .{ .spawn = .{"lock"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/lock"} },
         },
         .{
             .key = "r",
             .modifiers = .{ .mod4 = true },
-            .action = .{ .spawn = .{"lock-and-suspend"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/lock-and-suspend"} },
         },
         .{
             .key = "r",
@@ -207,12 +207,12 @@
         .{
             .key = "p",
             .modifiers = .{ .mod4 = true },
-            .action = .{ .spawn = .{"screenshot-copy"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/screenshot-copy"} },
         },
         .{
             .key = "p",
             .modifiers = .{ .mod4 = true, .shift = true },
-            .action = .{ .spawn = .{"screenshot-save"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/screenshot-save"} },
         },
 
         .{
@@ -234,12 +234,12 @@
         .{
             .key = "XF86AudioRaiseVolume",
             .modifiers = .{},
-            .action = .{ .spawn = .{"wob-volume", "5%+"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/wob-volume", "5%+"} },
         },
         .{
             .key = "XF86AudioLowerVolume",
             .modifiers = .{},
-            .action = .{ .spawn = .{"wob-volume", "5%-"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/wob-volume", "5%-"} },
         },
         .{
             .key = "XF86AudioMute",
@@ -254,12 +254,12 @@
         .{
             .key = "XF86MonBrightnessUp",
             .modifiers = .{},
-            .action = .{ .spawn = .{"brightness-wob", "+5%"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/brightness-wob", "+5%"} },
         },
         .{
             .key = "XF86MonBrightnessDown",
             .modifiers = .{},
-            .action = .{ .spawn = .{"brightness-wob", "5%-"} },
+            .action = .{ .spawn = .{"/home/user/.local/bin/brightness-wob", "5%-"} },
         },
     },
 }

@@ -32,7 +32,8 @@
 ## 起動責務
 
 - `~/.config/river/init` は共通セッション初期化と WM ランチャ呼出しだけに絞ります
-- `~/.local/bin/wayland-session-init` が入力、通知、バー、壁紙、idle など WM 非依存な初期化を担当します
+- `~/.local/bin/wayland-session-init` が入力、通知、バー、idle など WM 非依存な初期化を担当します
+- 壁紙は `~/.config/river/init` から `wm-launch` の後段で起動します
 - `~/.local/bin/wm-launch` が初回の WM プロセス起動を担当します
 - `~/.local/bin/wm-switch <wm>` が新しい WM を起動してから現在の WM に終了を促します
 - WM 固有設定は各 WM の設定ファイルに書きます

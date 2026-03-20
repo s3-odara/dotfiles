@@ -39,7 +39,3 @@ DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-}
 EOF
 
 "$HOME/.local/bin/session-idle" &
-
-if [ -f "$HOME/medias/frieren.png" ]; then
-  swaybg -m fill -i "$HOME/medias/frieren.png" &
-fi
