@@ -146,6 +146,12 @@ resolve_runtime_socket() {
     printf '%s\n' "$resolved"
 }
 
+resolve_default_pulse_socket() {
+    base_dir=$1
+
+    resolve_runtime_socket pulse/native "$base_dir"
+}
+
 append_unique_colon_path() {
     list_value=$1
     path_value=$2
@@ -259,17 +265,13 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
         runtime_env_enabled=1
     fi
 
+    pulse_socket=
     if [ -n "$pulse_server" ]; then
-        pulse_socket=
         case "$pulse_server" in
             unix:*)
                 pulse_candidate=${pulse_server#unix:}
                 if pulse_socket=$(resolve_runtime_socket "$pulse_candidate" "$runtime_dir"); then
-                    pulse_socket_dir=$(dirname -- "$pulse_socket")
-                    player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$pulse_socket_dir")
-                    set -- "$@" --dir "$runtime_dir" --dir "$pulse_socket_dir" --bind "$pulse_socket" "$pulse_socket"
-                    set -- "$@" --setenv PULSE_SERVER "unix:$pulse_socket"
-                    runtime_env_enabled=1
+                    :
                 fi
                 ;;
             *)
@@ -277,6 +279,16 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
                 exit 1
                 ;;
         esac
+    elif pulse_socket=$(resolve_default_pulse_socket "$runtime_dir"); then
+        :
+    fi
+
+    if [ -n "$pulse_socket" ]; then
+        pulse_socket_dir=$(dirname -- "$pulse_socket")
+        player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$pulse_socket_dir")
+        set -- "$@" --dir "$runtime_dir" --dir "$pulse_socket_dir" --bind "$pulse_socket" "$pulse_socket"
+        set -- "$@" --setenv PULSE_SERVER "unix:$pulse_socket"
+        runtime_env_enabled=1
     fi
 
     pipewire_base_dir=$runtime_dir
