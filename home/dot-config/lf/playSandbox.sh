@@ -23,12 +23,12 @@ target_dir=$(dirname -- "$target")
 target_name=$(basename -- "$target")
 runtime_dir=${XDG_RUNTIME_DIR:-}
 wayland_display=${WAYLAND_DISPLAY:-}
-x11_display=${DISPLAY:-}
 pulse_server=${PULSE_SERVER:-}
 pipewire_runtime_dir=${PIPEWIRE_RUNTIME_DIR:-}
 player_choice=${LF_PLAYER:-auto}
 player_extra_args=${LF_PLAYER_ARGS:-}
 player_extra_rw_paths=/dev/shm
+runtime_uid=
 
 if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
     printf 'playSandbox.sh: cannot resolve target parent: %s\n' "$target_dir" >&2
@@ -36,6 +36,60 @@ if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
 fi
 
 resolved_target="$parent_dir/$target_name"
+
+resolve_runtime_dir() {
+    path=$1
+
+    if [ -z "$path" ] || [ "${path#/}" = "$path" ]; then
+        return 1
+    fi
+
+    if ! resolved=$(cd -- "$path" 2>/dev/null && pwd -P); then
+        return 1
+    fi
+
+    if [ "$resolved" = "/" ]; then
+        return 1
+    fi
+
+    if ! owner_uid=$(stat -Lc '%u' -- "$resolved" 2>/dev/null); then
+        return 1
+    fi
+
+    if [ "$owner_uid" != "$runtime_uid" ]; then
+        return 1
+    fi
+
+    printf '%s\n' "$resolved"
+    return 0
+}
+
+resolve_pipewire_runtime_dir() {
+    path=$1
+
+    if [ -z "$path" ]; then
+        return 1
+    fi
+
+    case "$path" in
+        /*)
+            resolve_runtime_dir "$path"
+            return $?
+            ;;
+    esac
+
+    if [ -z "$runtime_dir" ]; then
+        return 1
+    fi
+
+    case "$path" in
+        */*|.|..)
+            return 1
+            ;;
+    esac
+
+    resolve_runtime_dir "$runtime_dir/$path"
+}
 
 select_player() {
     case "$player_choice" in
@@ -70,6 +124,8 @@ if ! player=$(select_player); then
     printf 'playSandbox.sh: mpv or ffplay not found in PATH\n' >&2
     exit 1
 fi
+
+runtime_uid=$(id -u)
 
 player_bin=$(command -v -- "$player")
 player_bin_real=$(readlink -f -- "$player_bin")
@@ -114,7 +170,7 @@ for bind_path in $bind_paths; do
 done
 IFS=$old_ifs
 
-if [ -n "$runtime_dir" ] && [ -d "$runtime_dir" ]; then
+if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); then
     set -- "$@" --dir "$runtime_dir" --bind "$runtime_dir" "$runtime_dir"
     set -- "$@" --setenv XDG_RUNTIME_DIR "$runtime_dir"
     player_extra_rw_paths=$player_extra_rw_paths:$runtime_dir
@@ -124,21 +180,13 @@ if [ -n "$wayland_display" ]; then
     set -- "$@" --setenv WAYLAND_DISPLAY "$wayland_display"
 fi
 
-if [ -n "$x11_display" ]; then
-    set -- "$@" --setenv DISPLAY "$x11_display"
-    if [ -d /tmp/.X11-unix ]; then
-        set -- "$@" --dir /tmp/.X11-unix --bind /tmp/.X11-unix /tmp/.X11-unix
-        player_extra_rw_paths=$player_extra_rw_paths:/tmp/.X11-unix
-    fi
-fi
-
 if [ -n "$pulse_server" ]; then
     set -- "$@" --setenv PULSE_SERVER "$pulse_server"
 fi
 
 if [ -n "$pipewire_runtime_dir" ]; then
-    set -- "$@" --setenv PIPEWIRE_RUNTIME_DIR "$pipewire_runtime_dir"
-    if [ -d "$pipewire_runtime_dir" ]; then
+    if pipewire_runtime_dir=$(resolve_pipewire_runtime_dir "$pipewire_runtime_dir"); then
+        set -- "$@" --setenv PIPEWIRE_RUNTIME_DIR "$pipewire_runtime_dir"
         player_extra_rw_paths=$player_extra_rw_paths:$pipewire_runtime_dir
     fi
 fi

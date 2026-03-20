@@ -204,6 +204,14 @@ static void add_ro_rule_visitor(const char *path, void *userdata)
 static void print_ro_path_visitor(const char *path, void *userdata)
 {
     (void)userdata;
+
+    if (strchr(path, '\n') != NULL) {
+        fprintf(stderr,
+                "preview-guard: newline in bind path is not supported: %s\n",
+                path);
+        exit(1);
+    }
+
     puts(path);
 }
 

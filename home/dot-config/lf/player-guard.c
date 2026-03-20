@@ -71,8 +71,7 @@ static uint64_t ro_access(void)
 
 static uint64_t rw_access(int abi)
 {
-    uint64_t access = LANDLOCK_ACCESS_FS_EXECUTE |
-                      LANDLOCK_ACCESS_FS_READ_FILE |
+    uint64_t access = LANDLOCK_ACCESS_FS_READ_FILE |
                       LANDLOCK_ACCESS_FS_READ_DIR |
                       LANDLOCK_ACCESS_FS_WRITE_FILE;
 
@@ -252,6 +251,14 @@ static void add_ro_rule_visitor(const char *path, void *userdata)
 static void print_ro_path_visitor(const char *path, void *userdata)
 {
     (void)userdata;
+
+    if (strchr(path, '\n') != NULL) {
+        fprintf(stderr,
+                "player-guard: newline in bind path is not supported: %s\n",
+                path);
+        exit(1);
+    }
+
     puts(path);
 }
 
