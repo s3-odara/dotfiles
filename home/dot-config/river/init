@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
+export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
+
 "$HOME/.local/bin/wayland-session-init"
 "$HOME/.local/bin/wm-launch" &
 wm_pid=$!
