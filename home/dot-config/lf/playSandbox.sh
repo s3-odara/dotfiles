@@ -405,7 +405,7 @@ gpu_render_node_dir=
 if [ "$player_gpu" = "1" ] &&
    gpu_render_node=$(resolve_gpu_render_node "$player_gpu_render_node"); then
     gpu_render_node_dir=$(dirname -- "$gpu_render_node")
-    player_extra_ro_paths=$(append_unique_colon_path "$player_extra_ro_paths" "$gpu_render_node")
+    player_extra_ro_paths=$(append_unique_colon_path "$player_extra_ro_paths" "$gpu_render_node_dir")
 fi
 
 set -- \

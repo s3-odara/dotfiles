@@ -13,7 +13,6 @@ cell_width=${LF_PREVIEW_CELL_WIDTH:-40}
 cell_height=${LF_PREVIEW_CELL_HEIGHT:-18}
 pixel_width=$((width * cell_width))
 pixel_height=$((height * cell_height))
-needs_cleaner=0
 
 if [ -z "$file_path" ]; then
     exit 1
@@ -86,7 +85,6 @@ show_media_preview() {
         return 1
     fi
 
-    needs_cleaner=1
     cat -- "$media_out"
     rm -f "$media_ppm" "$media_out"
 }
@@ -131,7 +129,3 @@ case "$mime" in
         file --brief --dereference -- "$file_path"
         ;;
 esac
-
-if [ "$needs_cleaner" -eq 1 ]; then
-    exit 1
-fi
