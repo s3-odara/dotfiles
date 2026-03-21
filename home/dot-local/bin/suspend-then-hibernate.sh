@@ -63,7 +63,7 @@ stop_incus_before_hibernate() {
   fi
 
   local -a instances
-  mapfile -t instances < <(incus list --format csv -c ns 2>/dev/null | awk -F, '$2 == "RUNNING" { print $1 }')
+  mapfile -t instances < <(incus list --project user-1000 --format csv -c ns 2>/dev/null | awk -F, '$2 == "RUNNING" { print $1 }')
 
   if (( ${#instances[@]} == 0 )); then
     log "No running incus instances; skip stop before hibernate"
@@ -71,9 +71,9 @@ stop_incus_before_hibernate() {
   fi
 
   log "Stopping incus instances before hibernate: ${instances[*]}"
-  if ! incus stop "${instances[@]}" --timeout 30; then
+  if ! incus stop "${instances[@]}" --project user-1000 --timeout 30; then
     log "Clean incus stop timed out or failed; forcing stop"
-    if ! incus stop "${instances[@]}" --force; then
+    if ! incus stop "${instances[@]}" --project user-1000 --force; then
       log "Failed to force stop one or more incus instances; continue to hibernate"
     fi
   fi

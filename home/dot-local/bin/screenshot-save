@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+dir="$HOME/medias/Screenshots"
+mkdir -p "$dir"
+
+selection="$(slurp)"
+[ -n "$selection" ]
+
+file="$dir/$(date '+%Y%m%d-%H%M%S')_print.png"
+grim -g "$selection" "$file"

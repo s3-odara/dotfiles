@@ -14,21 +14,27 @@ bootstrap:
 
 stow-arch:
 	$(STOW) $(STOWFLAGS) -vt $(TARGET) arch home
-	make -C ~/.config/lf
+	$(MAKE) -C $(HOME)/.config/lf
+	$(MAKE) -C $(HOME)/.local/src/river-inputctl
 
 stow-gentoo:
 	$(STOW) $(STOWFLAGS) -vt $(TARGET) gentoo home
-	make -C ~/.config/lf
+	$(MAKE) -C $(HOME)/.config/lf
+	$(MAKE) -C $(HOME)/.local/src/river-inputctl
 	
 restow-arch:
 	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) arch home
-	make -C ~/.config/lf clean
-	make -C ~/.config/lf
+	$(MAKE) -C $(HOME)/.config/lf clean
+	$(MAKE) -C $(HOME)/.config/lf
+	$(MAKE) -C $(HOME)/.local/src/river-inputctl clean
+	$(MAKE) -C $(HOME)/.local/src/river-inputctl
 
 restow-gentoo:
 	$(STOW) $(STOWFLAGS) -Rvt $(TARGET) gentoo home
-	make -C ~/.config/lf clean
-	make -C ~/.config/lf
+	$(MAKE) -C $(HOME)/.config/lf clean
+	$(MAKE) -C $(HOME)/.config/lf
+	$(MAKE) -C $(HOME)/.local/src/river-inputctl clean
+	$(MAKE) -C $(HOME)/.local/src/river-inputctl
 
 secret-files:
 	@command -v pass >/dev/null 2>&1 || { echo "pass command not found"; exit 1; }

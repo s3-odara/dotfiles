@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+src_dir="$HOME/.local/src/river-inputctl"
+bin="$src_dir/river-inputctl.bin"
+
+[ -x "$bin" ] || {
+  echo "river-inputctl: $bin not found or not executable" >&2
+  echo "river-inputctl: run 'make -C $src_dir' after stow/restow" >&2
+  exit 127
+}
+
+exec "$bin" "$@"

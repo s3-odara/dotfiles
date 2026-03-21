@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+[ $# -eq 1 ] || {
+  echo "usage: brightness-wob <brightnessctl-value>" >&2
+  exit 2
+}
+
+wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"
+
+"$HOME/.local/bin/brightness" save-set "$1"
+
+cur="$(brightnessctl g)"
+max="$(brightnessctl m)"
+printf '%d\n' "$((cur * 100 / max))" > "$wobpipe"

@@ -1,8 +1,7 @@
 {
     "position": "bottom",
     "modules-left": [
-        "clock",
-        "river/tags"
+        "clock"
     ],
     "modules-center": [],
     "modules-right": [
@@ -18,11 +17,7 @@
         "battery",
         "network"
     ],
-
     // Modules Configuration
-    "river/tags": {
-        "num-tags": 9
-    },
     "wireplumber": {
         "format": "{volume}% {icon}",
         "format-muted": "󰸈",

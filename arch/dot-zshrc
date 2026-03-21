@@ -107,5 +107,9 @@ done
 
 # tmux 外で、かつ対話シェルのときのみtmuxを起動
 if [[ -z "$TMUX" && -n "$PS1" ]]; then
-  tmux attach || tmux new
+  if [[ -n "$TMUX_FORCE_NEW" ]]; then
+    tmux new-session
+  else
+    tmux attach || tmux new
+  fi
 fi

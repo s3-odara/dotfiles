@@ -13,6 +13,8 @@ fi
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM=wayland
 export XMODIFIERS=@im=fcitx
+export XCURSOR_THEME=Adwaita
+export XCURSOR_SIZE=32
 
 # SSH_AUTH_SOCKの場所を取得
 if [ -z "${SSH_AUTH_SOCK:-}" ]; then

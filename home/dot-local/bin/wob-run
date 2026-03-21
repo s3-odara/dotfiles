@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+wobpipe="${XDG_RUNTIME_DIR:-/tmp}/wobpipe"
+
+rm -f "$wobpipe"
+mkfifo "$wobpipe"
+
+tail -f "$wobpipe" | wob

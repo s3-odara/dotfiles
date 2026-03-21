@@ -3,17 +3,17 @@ CFLAGS ?= -O2 -Wall -Wextra -std=c11
 LDFLAGS ?=
 LDLIBS ?= -lseccomp
 
-PREFIX := $(HOME)/.config/lf
-TARGETS := $(PREFIX)/preview-guard $(PREFIX)/player-guard
+SRC_DIR := $(CURDIR)
+TARGETS := $(SRC_DIR)/preview-guard $(SRC_DIR)/player-guard
 
 .PHONY: all clean
 
 all: $(TARGETS)
 
-$(PREFIX)/preview-guard: $(PREFIX)/preview-guard.c
+$(SRC_DIR)/preview-guard: $(SRC_DIR)/preview-guard.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< $(LDLIBS) -o $@
 
-$(PREFIX)/player-guard: $(PREFIX)/player-guard.c
+$(SRC_DIR)/player-guard: $(SRC_DIR)/player-guard.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< $(LDLIBS) -o $@
 
 clean:
