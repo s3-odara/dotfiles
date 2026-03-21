@@ -1,9 +1,9 @@
 .{
     .vertical_gap = 3,
     .horizontal_gap = 3,
-    .window_width_proportion = 0.95,
+    .window_width_proportion = 0.99,
     .center_focused_window = .never,
-    .no_csd = false,
+    .no_csd = true,
     .animation_duration = 200,
 
     .border = .{
