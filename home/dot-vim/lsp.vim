@@ -132,6 +132,12 @@ function! s:RegisterLspServers() abort
   call s:AddLspServerIfExecutable(l:servers, 'bashls',
         \ ['sh', 'bash'],
         \ ['bash-language-server'], ['start'])
+  call s:AddLspServerIfExecutable(l:servers, 'basedpyright',
+        \ ['python'],
+        \ ['basedpyright-langserver'], ['--stdio'])
+  call s:AddLspServerIfExecutable(l:servers, 'ruff',
+        \ ['python'],
+        \ ['ruff'], ['server'])
   call s:AddLspServerIfExecutable(l:servers, 'taplo',
         \ ['toml'],
         \ ['taplo', 'taplo-lsp'], ['lsp', 'stdio'])

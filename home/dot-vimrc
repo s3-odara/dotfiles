@@ -11,6 +11,7 @@ command! PackUpdate call PackInit() | call minpac#update()
 command! PackClean  call PackInit() | call minpac#clean()
 command! PackStatus packadd minpac | call minpac#status()
 
+
 function! PackInit() abort
   packadd minpac
   call minpac#init()
@@ -53,7 +54,7 @@ set shiftwidth=0      " tabstopに従う
 set autoindent
 set autocomplete
 set autocompletedelay=200
-set completeopt=menuone,noinsert,noselect,fuzzy
+set completeopt=menuone,noinsert,noselect,fuzzy,popup
 set complete=o,k,Fvsnip#completefunc,.,w,b
 
 set number
@@ -107,10 +108,10 @@ nnoremap <leader>] <cmd>LspDiag next<CR>
 
 " プラグインロード
 " Insert Mode
-augroup LazyLoadInsert
-    autocmd!
-    autocmd InsertEnter * ++once packadd vim-lexiv
-augroup END
+"augroup LazyLoadInsert
+"    autocmd!
+"    autocmd InsertEnter * ++once packadd vim-lexiv | inoremap <BS> <BS>
+"augroup END
 
 " プラグイン設定
 
@@ -183,10 +184,10 @@ autocmd BufEnter * let s:root = finddir('.git', expand('%:p:h') . ';') |
 " Syntaxハイライトを利用したオムニ補完
 " https://vim-jp.org/vim-users-jp/2009/11/01/Hack-96.html
 " https://vim-jp.org/vimdoc-ja/insert.html#ft-syntax-omni
-augroup omni
-    autocmd!
-    autocmd FileType *
-    \   if &l:omnifunc == ''
-    \ |   setlocal omnifunc=syntaxcomplete#Complete
-    \ | endif
-augroup END
+"augroup omni
+"    autocmd!
+"    autocmd FileType *
+"    \   if &l:omnifunc == ''
+"    \ |   setlocal omnifunc=syntaxcomplete#Complete
+"    \ | endif
+"augroup END
