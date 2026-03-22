@@ -8,11 +8,16 @@ PROTO_DIR := $(SRC_DIR)/protocol
 GEN_DIR := $(SRC_DIR)/gen
 BINARY := $(SRC_DIR)/river-inputctl.bin
 
+HAVE_WAYLAND_CLIENT := $(shell pkg-config --exists wayland-client && printf yes)
+
+ifeq ($(HAVE_WAYLAND_CLIENT),yes)
 WAYLAND_CFLAGS := $(shell pkg-config --cflags wayland-client)
 WAYLAND_LIBS := $(shell pkg-config --libs wayland-client)
+endif
 
 .PHONY: all clean
 
+ifeq ($(HAVE_WAYLAND_CLIENT),yes)
 all: $(BINARY)
 
 $(GEN_DIR):
@@ -39,6 +44,10 @@ $(BINARY): \
 		$(GEN_DIR)/river-libinput-config-v1-protocol.c \
 		$(WAYLAND_CFLAGS) $(WAYLAND_LIBS) $(LDLIBS) \
 		-o $@
+else
+all:
+	@printf '%s\n' "Skipping river-inputctl build: wayland-client not found via pkg-config"
+endif
 
 clean:
 	rm -rf $(GEN_DIR) $(BINARY)
