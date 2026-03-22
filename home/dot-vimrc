@@ -22,7 +22,6 @@ function! PackInit() abort
   call minpac#add('https://github.com/itchyny/lightline.vim.git')
   call minpac#add('https://github.com/itchyny/vim-gitbranch.git')
   call minpac#add('https://github.com/mhinz/vim-signify.git')
-  call minpac#add('https://github.com/ctrlpvim/ctrlp.vim.git', {'type': 'opt'})
   call minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
   call minpac#add('https://github.com/alvan/vim-closetag.git')
   call minpac#add('https://github.com/mattn/emmet-vim.git')
@@ -126,10 +125,10 @@ xnoremap <leader>ss <cmd>LspSelectionShrink<CR>
 
 " プラグインロード
 " Insert Mode
-"augroup LazyLoadInsert
-"    autocmd!
-"    autocmd InsertEnter * ++once packadd vim-lexiv | inoremap <BS> <BS>
-"augroup END
+augroup LazyLoadInsert
+    autocmd!
+    autocmd InsertEnter * ++once packadd vim-lexiv | silent! iunmap <BS>
+augroup END
 
 " プラグイン設定
 
