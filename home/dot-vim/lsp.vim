@@ -93,15 +93,19 @@ function! s:FirstExecutable(candidates) abort
   return ''
 endfunction
 
-function! s:AddLspServerIfExecutable(servers, name, filetypes, executable_names, args) abort
+function! s:AddLspServerIfExecutable(servers, name, filetypes, executable_names, args, ...) abort
   let l:executable_name = s:FirstExecutable(a:executable_names)
   if !empty(l:executable_name)
-    call add(a:servers, #{
+    let l:server = #{
           \ name: a:name,
           \ filetype: a:filetypes,
           \ path: exepath(l:executable_name),
           \ args: a:args,
-          \ })
+          \ }
+    if a:0 >= 1 && type(a:1) == v:t_dict
+      call extend(l:server, a:1, 'force')
+    endif
+    call add(a:servers, l:server)
   endif
 endfunction
 
@@ -110,10 +114,26 @@ function! s:RegisterLspServers() abort
 
   call s:AddLspServerIfExecutable(l:servers, 'denols',
         \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'],
-        \ ['deno'], ['lsp'])
+        \ ['deno'], ['lsp'],
+        \ #{
+        \   rootSearch: ['deno.json', 'deno.jsonc', 'deps.ts', 'deps.js', 'import_map.json'],
+        \   runIfSearch: ['deno.json', 'deno.jsonc', 'deps.ts', 'deps.js', 'import_map.json'],
+        \ })
+  call s:AddLspServerIfExecutable(l:servers, 'vtsls',
+        \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'],
+        \ ['vtsls'], ['--stdio'],
+        \ #{
+        \   rootSearch: ['package.json', 'tsconfig.json', 'jsconfig.json'],
+        \   runUnlessSearch: ['deno.json', 'deno.jsonc', 'deps.ts', 'deps.js', 'import_map.json'],
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'clangd',
         \ ['c', 'cpp', 'objc', 'objcpp'],
-        \ ['clangd'], ['--background-index'])
+        \ ['clangd'], ['--background-index'],
+        \ #{rootSearch: ['compile_commands.json', 'compile_flags.txt', '.clangd', '.git']})
+  call s:AddLspServerIfExecutable(l:servers, 'gopls',
+        \ ['go', 'gomod', 'gowork', 'gotmpl'],
+        \ ['gopls'], [],
+        \ #{rootSearch: ['go.work', 'go.mod', '.git']})
   call s:AddLspServerIfExecutable(l:servers, 'yamlls',
         \ ['yaml'],
         \ ['yaml-language-server'], ['--stdio'])
@@ -123,9 +143,23 @@ function! s:RegisterLspServers() abort
   call s:AddLspServerIfExecutable(l:servers, 'vimls',
         \ ['vim'],
         \ ['vim-language-server'], ['--stdio'])
+  call s:AddLspServerIfExecutable(l:servers, 'lua_ls',
+        \ ['lua'],
+        \ ['lua-language-server', 'lua_ls'], [],
+        \ #{
+        \   workspaceConfig: #{
+        \     Lua: #{
+        \       runtime: #{version: 'LuaJIT'},
+        \       diagnostics: #{globals: ['vim']},
+        \       workspace: #{checkThirdParty: v:false},
+        \       telemetry: #{enable: v:false},
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'rust-analyzer',
         \ ['rust'],
-        \ ['rust-analyzer'], [])
+        \ ['rust-analyzer'], [],
+        \ #{rootSearch: ['Cargo.toml', 'rust-project.json', '.git']})
   call s:AddLspServerIfExecutable(l:servers, 'html',
         \ ['html'],
         \ ['vscode-html-language-server', 'vscode-html-languageserver'], ['--stdio'])
@@ -134,10 +168,25 @@ function! s:RegisterLspServers() abort
         \ ['bash-language-server'], ['start'])
   call s:AddLspServerIfExecutable(l:servers, 'basedpyright',
         \ ['python'],
-        \ ['basedpyright-langserver'], ['--stdio'])
+        \ ['basedpyright-langserver'], ['--stdio'],
+        \ #{
+        \   rootSearch: ['pyrightconfig.json', 'pyproject.toml', 'setup.py',
+        \                'setup.cfg', 'requirements.txt', '.git'],
+        \   workspaceConfig: #{
+        \     python: #{
+        \       analysis: #{
+        \         autoSearchPaths: v:true,
+        \         diagnosticMode: 'openFilesOnly',
+        \       },
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'ruff',
         \ ['python'],
-        \ ['ruff'], ['server'])
+        \ ['ruff'], ['server'],
+        \ #{rootSearch: ['pyrightconfig.json', 'pyproject.toml', 'ruff.toml',
+        \                '.ruff.toml', 'setup.py', 'setup.cfg',
+        \                'requirements.txt', '.git']})
   call s:AddLspServerIfExecutable(l:servers, 'taplo',
         \ ['toml'],
         \ ['taplo', 'taplo-lsp'], ['lsp', 'stdio'])

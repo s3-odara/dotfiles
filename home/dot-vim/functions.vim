@@ -68,3 +68,46 @@ function! Osc52Copy() abort
   redraw!
   echo "Copied to clipboard (OSC 52)"
 endfunction
+
+function! ScrollCompleteInfo(cmd, fallback) abort
+  let l:id = popup_findinfo()
+  if l:id > 0 && pumvisible()
+    let l:pos = popup_getpos(l:id)
+    let l:firstline = get(l:pos, 'firstline', 1)
+    if a:cmd ==# "\<C-e>"
+      call popup_setoptions(l:id, #{firstline: l:firstline + 1})
+    elseif a:cmd ==# "\<C-y>"
+      call popup_setoptions(l:id, #{firstline: max([1, l:firstline - 1])})
+    endif
+    return ''
+  endif
+  return a:fallback
+endfunction
+
+function! TyposCodeAction(...) abort
+  let l:query = get(a:, 1, '')
+  let l:lspserver = lsp#buffer#CurbufGetServerByName('typos-lsp')
+  if empty(l:lspserver)
+    echohl ErrorMsg
+    echo 'typos-lsp is not attached to this buffer'
+    echohl None
+    return
+  endif
+  if !get(l:lspserver, 'running', v:false)
+    echohl ErrorMsg
+    echo 'typos-lsp is not running'
+    echohl None
+    return
+  endif
+  if !get(l:lspserver, 'ready', v:false)
+    echohl ErrorMsg
+    echo 'typos-lsp is not ready'
+    echohl None
+    return
+  endif
+
+  let l:view = winsaveview()
+  call cursor(line('.'), 1)
+  call l:lspserver.codeAction(expand('%'), line('.'), line('.'), l:query)
+  call winrestview(l:view)
+endfunction

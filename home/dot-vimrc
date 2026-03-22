@@ -81,8 +81,12 @@ set diffopt=internal,filler,algorithm:patience,indent-heuristic
 
 " スペルチェック
 set spelllang=en_us,cjk
-set dictionary=~/.vim/dict/words
-set thesaurus=~/.vim/dict/thesaurus
+if filereadable('/usr/share/dict/words')
+  set dictionary=/usr/share/dict/words
+elseif filereadable(expand('~/.vim/dict/words'))
+  set dictionary=~/.vim/dict/words
+endif
+set thesaurus=~/.vim/dict/thesaurus.txt
 
 syntax on
 filetype plugin indent on
@@ -95,16 +99,29 @@ nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v
 nnoremap <F3> <Cmd>nohlsearch<CR>
 inoremap <C-x><C-d> <C-x><C-k>
 
-nnoremap <leader>d <cmd>LspGotoDefinition<CR>
-nnoremap <leader>c <cmd>LspDiag current<CR>
-nnoremap <leader>e <cmd>LspGotoDeclaration<CR>
-nnoremap <leader>r <cmd>LspShowReferences<CR>
+nnoremap <leader>df <cmd>LspGotoDefinition<CR>
+nnoremap <leader>pd <cmd>LspPeekDefinition<CR>
+nnoremap <leader>dic <cmd>LspDiag current<CR>
+nnoremap <leader>dc <cmd>LspGotoDeclaration<CR>
+nnoremap <leader>re <cmd>LspShowReferences<CR>
+nnoremap <leader>pr <cmd>LspPeekReferences<CR>
 nnoremap <leader>h  <cmd>LspHover<CR>
 nnoremap <leader>rn <cmd>LspRename<CR>
-nnoremap <leader>a <cmd>LspCodeAction<CR>
+nnoremap <leader>ac <cmd>LspCodeAction<CR>
+nnoremap <leader>at <cmd>call TyposCodeAction()<CR>
 nnoremap <leader>f  <cmd>LspFormat<CR>
 nnoremap <leader>[ <cmd>LspDiag prev<CR>
 nnoremap <leader>] <cmd>LspDiag next<CR>
+nnoremap <leader>dis <cmd>LspDiag show<CR>
+nnoremap <leader>ol <cmd>LspOutline<CR>
+nnoremap <leader>ds <cmd>LspDocumentSymbol<CR>
+nnoremap <leader>t <cmd>LspGotoTypeDef<CR>
+nnoremap <leader>im <cmd>LspGotoImpl<CR>
+nnoremap <leader>ih <cmd>LspInlayHints toggle<CR>
+nnoremap <leader>se <cmd>LspSelectionExpand<CR>
+xnoremap <leader>se <cmd>LspSelectionExpand<CR>
+nnoremap <leader>ss <cmd>LspSelectionShrink<CR>
+xnoremap <leader>ss <cmd>LspSelectionShrink<CR>
 
 " プラグインロード
 " Insert Mode
@@ -139,6 +156,9 @@ function! Gitbranch()
     endif
     return head
 endfunction
+
+inoremap <expr> <PageDown> ScrollCompleteInfo("\<C-e>", "\<PageDown>")
+inoremap <expr> <PageUp> ScrollCompleteInfo("\<C-y>", "\<PageUp>")
 
 " ctrlp
 "nnoremap <leader>p <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
@@ -176,10 +196,10 @@ augroup noindent
 augroup END
 
 " 開いているファイルにカレントディレクトリを移動
-autocmd BufEnter * let s:root = finddir('.git', expand('%:p:h') . ';') |
-      \ if !empty(s:root) |
-      \   execute 'cd ' . fnameescape(fnamemodify(s:root, ':h')) |
-      \ endif
+" autocmd BufEnter * let s:root = finddir('.git', expand('%:p:h') . ';') |
+"       \ if !empty(s:root) |
+"       \   execute 'cd ' . fnameescape(fnamemodify(s:root, ':h')) |
+"       \ endif
 
 " Syntaxハイライトを利用したオムニ補完
 " https://vim-jp.org/vim-users-jp/2009/11/01/Hack-96.html
