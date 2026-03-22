@@ -55,7 +55,7 @@ set autoindent
 set autocomplete
 set autocompletedelay=200
 set completeopt=menuone,noinsert,noselect,fuzzy,popup
-set complete=o,k,Fvsnip#completefunc,.,w,b
+set complete=o,Fvsnip#completefunc,k^2,.^5,w^5,b^5
 
 set number
 set ruler
@@ -98,6 +98,7 @@ nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap <F3> <Cmd>nohlsearch<CR>
 inoremap <C-x><C-d> <C-x><C-k>
+inoremap <C-t> <C-x><C-t>
 
 nnoremap <leader>df <cmd>LspGotoDefinition<CR>
 nnoremap <leader>pd <cmd>LspPeekDefinition<CR>

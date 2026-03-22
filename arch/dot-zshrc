@@ -3,20 +3,35 @@
 
 [[ -o interactive ]] || return
 
+# Helpers
+_prepend_fpath_if_dir() {
+  local dir="$1"
+  [[ -d "$dir" ]] || return 0
+  fpath=("$dir" $fpath)
+}
+
+_source_first_readable() {
+  local file
+  for file in "$@"; do
+    [[ -r "$file" ]] || continue
+    source "$file"
+    return 0
+  done
+  return 1
+}
+
 # Completion
-fpath=(
-  /usr/share/zsh/site-functions
-  $fpath
-)
+_prepend_fpath_if_dir /usr/share/zsh/site-functions
 
 autoload -Uz compinit
-# Use XDG cache for compdump
 _compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 mkdir -p -- "${_compdump:h}" 2>/dev/null
 compinit -d "${_compdump}"
 
 setopt COMPLETE_IN_WORD
+setopt AUTO_LIST
 setopt AUTO_MENU
+setopt AUTO_PARAM_SLASH
 
 zstyle ':completion:*' menu select
 zstyle ':completion:*' completer _complete _approximate
@@ -25,6 +40,7 @@ zstyle ':completion:*' insert-tab false
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' list-dirs-first true
 zstyle ':completion:*' show-ambiguity true
+zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' use-cache true
 zstyle ':completion:*' matcher-list \
     'r:|[._-/]=* r:|=*' \
@@ -32,45 +48,52 @@ zstyle ':completion:*' matcher-list \
 
 zstyle ':completion:*:approximate:*' max-errors 1 numeric
 
-# Key timeout (zsh: hundredths of a second)
+# Shell behavior
 KEYTIMEOUT=5
-
-# setopt
 setopt interactivecomments
+setopt PROMPT_SUBST
 
 # History (XDG)
 HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 mkdir -p -- "${HISTFILE:h}" 2>/dev/null
 HISTSIZE=10000
 SAVEHIST=10000
-setopt APPEND_HISTORY
-setopt HIST_IGNORE_DUPS
-setopt HIST_REDUCE_BLANKS
 setopt SHARE_HISTORY
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_REDUCE_BLANKS
 
 # Hooks
 autoload -Uz add-zsh-hook
 
-# Keep GPG_TTY fresh and inform gpg-agent (safe for interactive)
+# Key bindings
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+
+bindkey '^H' history-incremental-pattern-search-backward
+[[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
+[[ -n "${terminfo[kcud1]:-}" ]] && bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
+bindkey '^[[A' up-line-or-beginning-search
+bindkey '^[[B' down-line-or-beginning-search
+bindkey '^[OA' up-line-or-beginning-search
+bindkey '^[OB' down-line-or-beginning-search
+
+# Keep GPG_TTY fresh and inform gpg-agent.
+# Disabled by default because some LXC environments behave poorly here.
 _gpg_update_tty() {
   export GPG_TTY="${TTY:-$(tty 2>/dev/null)}"
   command -v gpg-connect-agent >/dev/null 2>&1 || return 0
   gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
 }
-# disable gpg refresh on lxc
 #add-zsh-hook precmd _gpg_update_tty
 
-# ---- Prompt (Pure) : imported from zshrc2 ----
+# Prompt (Pure)
 autoload -Uz promptinit
 promptinit
-
-# (optional) allow prompt command substitution etc.
-setopt PROMPT_SUBST
 
 export PURE_CMD_MAX_EXEC_TIME=1
 export PURE_PROMPT_SYMBOL="%%"
 
-# Pure theme colors / options
 zstyle ':prompt:pure:user' color '#04b5b5'
 zstyle ':prompt:pure:host' color '#dd8364'
 zstyle ':prompt:pure:git:branch' color '#a5a645'
@@ -82,31 +105,26 @@ zstyle ':prompt:pure:git:action' color '#d87fa2'
 zstyle ':prompt:pure:git:arrow' color '#33add6'
 zstyle ':prompt:pure:git:stash' show yes
 
-# Activate Pure prompt
 prompt pure
-
-# Right prompt: clock
 RPROMPT+='%F{#8798e8}%T'
-# ---- Prompt (Pure) end ----
 
-# zsh-autosuggestions (path varies by distro)
-for f in \
+# Plugins
+typeset -ga ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_HISTORY_IGNORE='?(#c50,)'
+
+_source_first_readable \
   /usr/share/zsh/site-functions/zsh-autosuggestions.zsh \
   /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
-; do
-  [[ -r "$f" ]] && source "$f" && break
-done
+  >/dev/null 2>&1
 
-# zsh-syntax-highlighting should be last
-for f in \
+# zsh-syntax-highlighting should stay last.
+_source_first_readable \
   /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
   /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
-; do
-  [[ -r "$f" ]] && source "$f" && break
-done
+  >/dev/null 2>&1
 
-# tmux 外で、かつ対話シェルのときのみtmuxを起動
-if [[ -z "$TMUX" && -n "$PS1" ]]; then
+# tmux
+if command -v tmux >/dev/null 2>&1 && [[ -z "$TMUX" && -n "$PS1" ]]; then
   if [[ -n "$TMUX_FORCE_NEW" ]]; then
     tmux new-session
   else

@@ -3,22 +3,36 @@
 
 [[ -o interactive ]] || return
 
-# fpath: add what exists (Arch/Gentoo differences are absorbed here)
-for d in \
-  /usr/share/zsh/site-functions \
-  /usr/share/zsh/plugins \
-; do
-  [[ -d "$d" ]] && fpath=("$d" $fpath)
-done
+# Helpers
+_prepend_fpath_if_dir() {
+  local dir="$1"
+  [[ -d "$dir" ]] || return 0
+  fpath=("$dir" $fpath)
+}
+
+_source_first_readable() {
+  local file
+  for file in "$@"; do
+    [[ -r "$file" ]] || continue
+    source "$file"
+    return 0
+  done
+  return 1
+}
+
+# Completion
+_prepend_fpath_if_dir /usr/share/zsh/site-functions
+_prepend_fpath_if_dir /usr/share/zsh/plugins
 
 autoload -Uz compinit
-# Use XDG cache for compdump
 _compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 mkdir -p -- "${_compdump:h}" 2>/dev/null
 compinit -d "${_compdump}"
 
 setopt COMPLETE_IN_WORD
+setopt AUTO_LIST
 setopt AUTO_MENU
+setopt AUTO_PARAM_SLASH
 
 zstyle ':completion:*' menu select
 zstyle ':completion:*' completer _complete _approximate
@@ -27,6 +41,7 @@ zstyle ':completion:*' insert-tab false
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' list-dirs-first true
 zstyle ':completion:*' show-ambiguity true
+zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' use-cache true
 zstyle ':completion:*' matcher-list \
     'r:|[._-/]=* r:|=*' \
@@ -34,26 +49,33 @@ zstyle ':completion:*' matcher-list \
 
 zstyle ':completion:*:approximate:*' max-errors 1 numeric
 
-# Key timeout (zsh: hundredths of a second)
+# Shell behavior
 KEYTIMEOUT=5
-
-# setopt
 setopt interactivecomments
+setopt PROMPT_SUBST
 
 # History (XDG)
 HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 mkdir -p -- "${HISTFILE:h}" 2>/dev/null
 HISTSIZE=10000
 SAVEHIST=10000
-setopt APPEND_HISTORY
-setopt HIST_IGNORE_DUPS
-setopt HIST_REDUCE_BLANKS
 setopt SHARE_HISTORY
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_REDUCE_BLANKS
 
 # Hooks
 autoload -Uz add-zsh-hook
 
-# Keep GPG_TTY fresh and inform gpg-agent (safe for interactive)
+# Key bindings
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+
+bindkey '^H' history-incremental-pattern-search-backward
+[[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
+[[ -n "${terminfo[kcud1]:-}" ]] && bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
+
+# Keep GPG_TTY fresh and inform gpg-agent.
 _gpg_update_tty() {
   export GPG_TTY="${TTY:-$(tty 2>/dev/null)}"
   command -v gpg-connect-agent >/dev/null 2>&1 || return 0
@@ -61,23 +83,18 @@ _gpg_update_tty() {
 }
 add-zsh-hook precmd _gpg_update_tty
 
-# vcs_info for Git status in prompt
+# Prompt
 autoload -Uz vcs_info
-setopt PROMPT_SUBST
 
 zstyle ':vcs_info:*' enable git
-
-# %c/%u を出す
 zstyle ':vcs_info:git:*' check-for-changes true
 
-# formats / actionformats の両方に %c%u%m を入れる（action時に欠けないように）
 zstyle ':vcs_info:git:*' formats       ' on %F{yellow}%b%f%c%u%m'
 zstyle ':vcs_info:git:*' actionformats ' on %F{yellow}%b%f (%F{magenta}%a%f)%c%u%m'
 
 zstyle ':vcs_info:git:*' stagedstr     ' %F{green}●%f'
 zstyle ':vcs_info:git:*' unstagedstr   ' %F{red}●%f'
 
-# ★untracked を検出する hook
 zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
 +vi-git-untracked() {
   [[ "$1" == "1" ]] || return 0
@@ -94,7 +111,7 @@ zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
 
 add-zsh-hook precmd vcs_info
 
-# ---- command duration on RPROMPT (>= 3s) ------------------------------------
+# Command duration on RPROMPT (>= 3s)
 zmodload -F zsh/datetime b:EPOCHREALTIME 2>/dev/null || true
 
 typeset -gF __cmd_start=0.0
@@ -146,9 +163,7 @@ _cmdtimer_precmd() {
 add-zsh-hook preexec _cmdtimer_preexec
 add-zsh-hook precmd  _cmdtimer_precmd
 
-# コマンド行の右端に RPROMPT が「残る」のが嫌なら有効化（おすすめ）
 setopt transient_rprompt
-# -----------------------------------------------------------------------------
 
 PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
 %# '
@@ -156,23 +171,22 @@ PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
 # alias
 alias ls='ls --color=auto'
 
-# zsh-autosuggestions (path varies by distro)
-for f in \
+# Plugins
+typeset -ga ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_HISTORY_IGNORE='?(#c50,)'
+
+_source_first_readable \
   /usr/share/zsh/site-functions/zsh-autosuggestions.zsh \
   /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
-; do
-  [[ -r "$f" ]] && source "$f" && break
-done
+  >/dev/null 2>&1
 
-# zsh-syntax-highlighting should be last
-for f in \
+# zsh-syntax-highlighting should stay last.
+_source_first_readable \
   /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
   /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
-; do
-  [[ -r "$f" ]] && source "$f" && break
-done
+  >/dev/null 2>&1
 
-# tmux 外で、かつ対話シェルのときのみtmuxを起動
+# tmux
 if [[ -z "$TMUX" && -n "$PS1" ]]; then
   if [[ -n "$TMUX_FORCE_NEW" ]]; then
     tmux new-session
