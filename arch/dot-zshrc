@@ -110,7 +110,7 @@ RPROMPT+='%F{#8798e8}%T'
 
 # Plugins
 typeset -ga ZSH_AUTOSUGGEST_STRATEGY=(history completion)
-ZSH_AUTOSUGGEST_HISTORY_IGNORE='?(#c50,)'
+ZSH_AUTOSUGGEST_HISTORY_IGNORE='?(#c100,)'
 
 _source_first_readable \
   /usr/share/zsh/site-functions/zsh-autosuggestions.zsh \
