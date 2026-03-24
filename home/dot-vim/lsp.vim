@@ -345,7 +345,6 @@ function! s:RegisterLspServers() abort
         \ ['sh', 'bash'],
         \ ['bash-language-server'], ['start'],
         \ #{
-        \   rootSearch: ['.git'],
         \   workspaceConfig: #{
         \     bashIde: #{
         \       shellcheckPath: exepath('shellcheck'),
