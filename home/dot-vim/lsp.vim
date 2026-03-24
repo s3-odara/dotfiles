@@ -123,6 +123,49 @@ function! s:RegisterLspServers() abort
         \     enable: v:true,
         \     lint: v:true,
         \   },
+        \   workspaceConfig: #{
+        \     deno: #{
+        \       enable: v:true,
+        \       lint: v:true,
+        \       unstable: v:true,
+        \       codeLens: #{
+        \         implementations: v:true,
+        \         references: v:true,
+        \         referencesAllFunctions: v:true,
+        \         test: v:true,
+        \         testArgs: ['--allow-all'],
+        \       },
+        \       suggest: #{
+        \         autoImports: v:true,
+        \         completeFunctionCalls: v:true,
+        \         names: v:true,
+        \         paths: v:true,
+        \         imports: #{
+        \           autoDiscover: v:false,
+        \           hosts: {
+        \             'https://deno.land/': v:true,
+        \             'https://jsr.io/': v:true,
+        \           },
+        \         },
+        \       },
+        \     },
+        \     typescript: #{
+        \       inlayHints: #{
+        \         parameterNames: #{
+        \           enabled: 'all',
+        \           suppressWhenArgumentMatchesName: v:true,
+        \         },
+        \         parameterTypes: #{enabled: v:true},
+        \         variableTypes: #{
+        \           enabled: v:true,
+        \           suppressWhenTypeMatchesName: v:true,
+        \         },
+        \         propertyDeclarationTypes: #{enabled: v:true},
+        \         functionLikeReturnTypes: #{enabled: v:true},
+        \         enumMemberValues: #{enabled: v:true},
+        \       },
+        \     },
+        \   },
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'vtsls',
         \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'],
@@ -130,6 +173,36 @@ function! s:RegisterLspServers() abort
         \ #{
         \   rootSearch: ['package.json', 'tsconfig.json', 'jsconfig.json'],
         \   runUnlessSearch: ['deno.json', 'deno.jsonc', 'deps.ts', 'deps.js', 'import_map.json'],
+        \   workspaceConfig: #{
+        \     vtsls: #{
+        \       autoUseWorkspaceTsdk: v:true,
+        \     },
+        \     typescript: #{
+        \       preferGoToSourceDefinition: v:true,
+        \       updateImportsOnFileMove: #{enabled: 'always'},
+        \       workspaceSymbols: #{scope: 'currentProject'},
+        \       suggest: #{completeFunctionCalls: v:true},
+        \       preferences: #{preferTypeOnlyAutoImports: v:true},
+        \     },
+        \     javascript: #{
+        \       updateImportsOnFileMove: #{enabled: 'always'},
+        \       suggest: #{completeFunctionCalls: v:true},
+        \       inlayHints: #{
+        \         parameterNames: #{
+        \           enabled: 'all',
+        \           suppressWhenArgumentMatchesName: v:true,
+        \         },
+        \         parameterTypes: #{enabled: v:true},
+        \         variableTypes: #{
+        \           enabled: v:true,
+        \           suppressWhenTypeMatchesName: v:true,
+        \         },
+        \         propertyDeclarationTypes: #{enabled: v:true},
+        \         functionLikeReturnTypes: #{enabled: v:true},
+        \         enumMemberValues: #{enabled: v:true},
+        \       },
+        \     },
+        \   },
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'clangd',
         \ ['c', 'cpp', 'objc', 'objcpp'],
@@ -142,33 +215,83 @@ function! s:RegisterLspServers() abort
         \   rootSearch: ['go.work', 'go.mod', '.git'],
         \   workspaceConfig: #{
         \     gopls: #{
+        \       completeUnimported: v:true,
+        \       usePlaceholders: v:true,
+        \       staticcheck: v:true,
+        \       gofumpt: v:true,
+        \       matcher: 'Fuzzy',
         \       hints: #{
         \         assignVariableTypes: v:true,
         \         compositeLiteralFields: v:true,
         \         compositeLiteralTypes: v:true,
         \         constantValues: v:true,
         \         functionTypeParameters: v:true,
+        \         ignoredError: v:true,
         \         parameterNames: v:true,
         \         rangeVariableTypes: v:true,
+        \       },
+        \       codelenses: #{
+        \         generate: v:true,
+        \         run_govulncheck: v:true,
+        \         tidy: v:true,
+        \         upgrade_dependency: v:true,
+        \         vendor: v:true,
         \       },
         \     },
         \   },
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'yamlls',
         \ ['yaml'],
-        \ ['yaml-language-server'], ['--stdio'])
+        \ ['yaml-language-server'], ['--stdio'],
+        \ #{
+        \   workspaceConfig: #{
+        \     yaml: #{
+        \       validate: v:true,
+        \       hover: v:true,
+        \       completion: v:true,
+        \       format: #{enable: v:true},
+        \       schemaStore: #{enable: v:true},
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'lemminx',
         \ ['xml', 'xsd', 'xsl', 'xslt', 'svg', 'xhtml'],
-        \ ['lemminx'], [])
+        \ ['lemminx'], [],
+        \ #{
+        \   workspaceConfig: #{
+        \     xml: #{
+        \       codeLens: #{enabled: v:true},
+        \       downloadExternalResources: #{enabled: v:true},
+        \       validation: #{
+        \         enabled: v:true,
+        \         namespaces: #{enabled: 'always'},
+        \         schema: #{enabled: 'always'},
+        \       },
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'vimls',
         \ ['vim'],
-        \ ['vim-language-server'], ['--stdio'])
+        \ ['vim-language-server'], ['--stdio'],
+        \ #{
+        \   initializationOptions: #{
+        \     isNeovim: has('nvim'),
+        \     iskeyword: &iskeyword,
+        \     runtimepath: &runtimepath,
+        \     diagnostic: #{enable: v:true},
+        \     indexes: #{runtimepath: v:true},
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'lua_ls',
         \ ['lua'],
         \ ['lua-language-server', 'lua_ls'], [],
         \ #{
         \   workspaceConfig: #{
         \     Lua: #{
+        \       completion: #{
+        \         autoRequire: v:true,
+        \         callSnippet: 'Both',
+        \       },
         \       hint: #{enable: v:true},
         \       runtime: #{version: 'LuaJIT'},
         \       diagnostics: #{globals: ['vim']},
@@ -188,13 +311,53 @@ function! s:RegisterLspServers() abort
         \       parameterHints: #{enable: v:true},
         \     },
         \   },
+        \   workspaceConfig: {
+        \     'rust-analyzer': #{
+        \       check: #{command: 'clippy'},
+        \       cargo: #{buildScripts: #{enable: v:true}},
+        \       procMacro: #{enable: v:true},
+        \       completion: #{autoimport: #{enable: v:true}},
+        \     },
+        \   },
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'html',
         \ ['html'],
-        \ ['vscode-html-language-server', 'vscode-html-languageserver'], ['--stdio'])
+        \ ['vscode-html-language-server', 'vscode-html-languageserver'], ['--stdio'],
+        \ #{
+        \   workspaceConfig: #{
+        \     html: #{
+        \       hover: #{
+        \         documentation: v:true,
+        \         references: v:true,
+        \       },
+        \       validate: #{
+        \         scripts: v:true,
+        \         styles: v:true,
+        \       },
+        \       format: #{
+        \         enable: v:true,
+        \         wrapLineLength: 120,
+        \       },
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'bashls',
         \ ['sh', 'bash'],
-        \ ['bash-language-server'], ['start'])
+        \ ['bash-language-server'], ['start'],
+        \ #{
+        \   rootSearch: ['.git'],
+        \   workspaceConfig: #{
+        \     bashIde: #{
+        \       shellcheckPath: exepath('shellcheck'),
+        \       shellcheckExternalSources: v:true,
+        \       shfmt: #{
+        \         path: exepath('shfmt'),
+        \         languageDialect: 'auto',
+        \         simplifyCode: v:true,
+        \       },
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'ty',
         \ ['python'],
         \ ['ty'], ['server'],
