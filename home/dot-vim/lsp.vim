@@ -5,6 +5,7 @@ augroup lsp_setup
         \ snippetSupport: v:true,
         \ vsnipSupport: v:true,
         \ condensedCompletionMenu: v:true,
+        \ usePopupInCodeAction: v:true,
         \ })
   autocmd User LspSetup call s:RegisterLspServers()
 augroup END
@@ -118,6 +119,10 @@ function! s:RegisterLspServers() abort
         \ #{
         \   rootSearch: ['deno.json', 'deno.jsonc', 'deps.ts', 'deps.js', 'import_map.json'],
         \   runIfSearch: ['deno.json', 'deno.jsonc', 'deps.ts', 'deps.js', 'import_map.json'],
+        \   initializationOptions: #{
+        \     enable: v:true,
+        \     lint: v:true,
+        \   },
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'vtsls',
         \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'],
@@ -128,17 +133,32 @@ function! s:RegisterLspServers() abort
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'clangd',
         \ ['c', 'cpp', 'objc', 'objcpp'],
-        \ ['clangd'], ['--background-index'],
+        \ ['clangd'], ['--background-index', '--clang-tidy'],
         \ #{rootSearch: ['compile_commands.json', 'compile_flags.txt', '.clangd', '.git']})
   call s:AddLspServerIfExecutable(l:servers, 'gopls',
         \ ['go', 'gomod', 'gowork', 'gotmpl'],
         \ ['gopls'], [],
-        \ #{rootSearch: ['go.work', 'go.mod', '.git']})
+        \ #{
+        \   rootSearch: ['go.work', 'go.mod', '.git'],
+        \   workspaceConfig: #{
+        \     gopls: #{
+        \       hints: #{
+        \         assignVariableTypes: v:true,
+        \         compositeLiteralFields: v:true,
+        \         compositeLiteralTypes: v:true,
+        \         constantValues: v:true,
+        \         functionTypeParameters: v:true,
+        \         parameterNames: v:true,
+        \         rangeVariableTypes: v:true,
+        \       },
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'yamlls',
         \ ['yaml'],
         \ ['yaml-language-server'], ['--stdio'])
   call s:AddLspServerIfExecutable(l:servers, 'lemminx',
-        \ ['xml', 'xsd', 'xsl', 'xslt', 'svg'],
+        \ ['xml', 'xsd', 'xsl', 'xslt', 'svg', 'xhtml'],
         \ ['lemminx'], [])
   call s:AddLspServerIfExecutable(l:servers, 'vimls',
         \ ['vim'],
@@ -149,6 +169,7 @@ function! s:RegisterLspServers() abort
         \ #{
         \   workspaceConfig: #{
         \     Lua: #{
+        \       hint: #{enable: v:true},
         \       runtime: #{version: 'LuaJIT'},
         \       diagnostics: #{globals: ['vim']},
         \       workspace: #{checkThirdParty: v:false},
@@ -159,34 +180,49 @@ function! s:RegisterLspServers() abort
   call s:AddLspServerIfExecutable(l:servers, 'rust-analyzer',
         \ ['rust'],
         \ ['rust-analyzer'], [],
-        \ #{rootSearch: ['Cargo.toml', 'rust-project.json', '.git']})
+        \ #{
+        \   rootSearch: ['Cargo.toml', 'rust-project.json', '.git'],
+        \   initializationOptions: #{
+        \     inlayHints: #{
+        \       typeHints: #{enable: v:true},
+        \       parameterHints: #{enable: v:true},
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'html',
         \ ['html'],
         \ ['vscode-html-language-server', 'vscode-html-languageserver'], ['--stdio'])
   call s:AddLspServerIfExecutable(l:servers, 'bashls',
         \ ['sh', 'bash'],
         \ ['bash-language-server'], ['start'])
-  call s:AddLspServerIfExecutable(l:servers, 'basedpyright',
+  call s:AddLspServerIfExecutable(l:servers, 'ty',
         \ ['python'],
-        \ ['basedpyright-langserver'], ['--stdio'],
+        \ ['ty'], ['server'],
         \ #{
-        \   rootSearch: ['pyrightconfig.json', 'pyproject.toml', 'setup.py',
-        \                'setup.cfg', 'requirements.txt', '.git'],
-        \   workspaceConfig: #{
-        \     python: #{
-        \       analysis: #{
-        \         autoSearchPaths: v:true,
-        \         diagnosticMode: 'openFilesOnly',
-        \       },
-        \     },
+        \   rootSearch: ['pyproject.toml', 'setup.py', 'setup.cfg',
+        \                'requirements.txt', '.git'],
+        \   features: #{
+        \     codeAction: v:false,
+        \     documentFormatting: v:false,
         \   },
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'ruff',
         \ ['python'],
         \ ['ruff'], ['server'],
-        \ #{rootSearch: ['pyrightconfig.json', 'pyproject.toml', 'ruff.toml',
+        \ #{
+        \   rootSearch: ['pyrightconfig.json', 'pyproject.toml', 'ruff.toml',
         \                '.ruff.toml', 'setup.py', 'setup.cfg',
-        \                'requirements.txt', '.git']})
+        \                'requirements.txt', '.git'],
+        \   features: #{
+        \     completion: v:false,
+        \     hover: v:false,
+        \     references: v:false,
+        \     rename: v:false,
+        \     documentSymbol: v:false,
+        \     semanticTokens: v:false,
+        \     signatureHelp: v:false,
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'taplo',
         \ ['toml'],
         \ ['taplo', 'taplo-lsp'], ['lsp', 'stdio'])
