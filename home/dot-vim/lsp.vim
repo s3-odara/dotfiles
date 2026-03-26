@@ -388,6 +388,39 @@ function! s:RegisterLspServers() abort
   call s:AddLspServerIfExecutable(l:servers, 'taplo',
         \ ['toml'],
         \ ['taplo', 'taplo-lsp'], ['lsp', 'stdio'])
+  call s:AddLspServerIfExecutable(l:servers, 'harper-ls',
+        \ ['gitcommit', 'markdown', 'text'],
+        \ ['harper-ls'], ['--stdio'],
+        \ #{
+        \   workspaceConfig: {
+        \     'harper-ls': {
+        \       'diagnosticSeverity': 'information',
+        \       'dialect': 'American',
+        \       'isolateEnglish': v:false,
+        \       'maxFileLength': 120000,
+        \       'excludePatterns': [],
+        \       'codeActions': {
+        \         'ForceStable': v:true,
+        \       },
+        \       'markdown': {
+        \         'IgnoreLinkTitle': v:true,
+        \       },
+        \       'linters': {
+        \         'SpellCheck': v:false,
+        \         'SentenceCapitalization': v:false,
+        \         'AnA': v:true,
+        \         'UnclosedQuotes': v:true,
+        \         'WrongQuotes': v:false,
+        \         'LongSentences': v:false,
+        \         'RepeatedWords': v:true,
+        \         'Spaces': v:true,
+        \         'Matcher': v:true,
+        \         'CorrectNumberSuffix': v:true,
+        \         'SpelledNumbers': v:false,
+        \       },
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'typos-lsp',
         \ ['c', 'cpp', 'gitcommit', 'html', 'javascript', 'javascriptreact',
         \  'markdown', 'python', 'rust', 'sh', 'text', 'toml', 'typescript',

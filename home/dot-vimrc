@@ -56,6 +56,18 @@ set autocompletedelay=200
 set completeopt=menuone,noinsert,noselect,fuzzy,popup
 set complete=o,Fvsnip#completefunc,k^2,.^5,w^5,b^5
 
+if !has('nvim') && has('patch-9.1.1576') && has('autocmd')
+  set wildmenu wildmode=noselect:lastused,full
+  " noselectを設定していない場合、補完が呼び出された時点で候補が自動選択される。
+  " これにより、コマンドを手動で編集できなくなる。
+
+  augroup MyCmdlineAutocomplete
+    au!
+    " コマンドラインの内容が変更されたときに、自動で補完を呼び出す。
+    autocmd CmdlineChanged [:/?] call wildtrigger()
+  augroup END
+endif
+
 set number
 set ruler
 set showcmd
@@ -97,6 +109,7 @@ nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap <F3> <Cmd>nohlsearch<CR>
 inoremap <C-x><C-d> <C-x><C-k>
+" thesaurus complete
 inoremap <C-t> <C-x><C-t>
 
 nnoremap <leader>df <cmd>LspGotoDefinition<CR>
