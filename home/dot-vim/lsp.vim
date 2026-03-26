@@ -58,7 +58,7 @@ function! s:MozukuInitOptions() abort
         \ adjacentParticles: v:true,
         \ conjunctionRepeat: v:true,
         \ raDropping: v:true,
-        \ commaLimitMax: 3,
+        \ commaLimitMax: 5,
         \ adversativeGaMax: 1,
         \ duplicateParticleSurfaceMaxRepeat: 1,
         \ adjacentParticlesMaxRepeat: 1,

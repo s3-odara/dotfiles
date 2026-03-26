@@ -1,0 +1,337 @@
+diff --git a/mozuku-lsp/CMakeLists.txt b/mozuku-lsp/CMakeLists.txt
+index 68e42f6e405ec38fbc9dfbc3806f6f18d3815309..e5253718b5c7c247de8ad6bd603cd30807b30ffe 100644
+--- a/mozuku-lsp/CMakeLists.txt
++++ b/mozuku-lsp/CMakeLists.txt
+@@ -10,6 +10,7 @@ include(GNUInstallDirs)
+ set(CMAKE_CXX_STANDARD 17)
+ 
+ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
++enable_testing()
+ 
+ find_package(nlohmann_json QUIET)
+ if(NOT nlohmann_json_FOUND)
+@@ -186,5 +187,26 @@ message(STATUS "  CURL: ${CURL_FOUND}")
+ install(TARGETS mozuku-lsp
+         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+ 
++add_executable(mozuku-grammar-tests
++  tests/grammar_checker_duplicate_particle_test.cpp
++  src/grammar_checker.cpp
++  src/utf16.cpp
++  src/pos_analyzer.cpp
++  src/text_processor.cpp
++  src/encoding_utils.cpp
++)
++target_include_directories(mozuku-grammar-tests PRIVATE include)
++target_link_libraries(mozuku-grammar-tests PRIVATE Threads::Threads)
++if(APPLE)
++    target_link_libraries(mozuku-grammar-tests PRIVATE "-liconv")
++elseif(WIN32)
++    target_link_libraries(mozuku-grammar-tests PRIVATE Iconv::Iconv)
++elseif(UNIX)
++    if(RT_LIBRARY)
++        target_link_libraries(mozuku-grammar-tests PRIVATE ${RT_LIBRARY})
++    endif()
++endif()
++add_test(NAME mozuku-grammar-tests COMMAND mozuku-grammar-tests)
++
+ message(STATUS "mozuku-lsp は 'cmake --install' で ${CMAKE_INSTALL_BINDIR} にインストールされます")
+ message(STATUS "注意: ターゲットシステムにMeCab/CaboCha/CURLライブラリのインストールが必要です")
+diff --git a/mozuku-lsp/src/grammar_checker.cpp b/mozuku-lsp/src/grammar_checker.cpp
+index eb51cf8863a4c4d68d8b422afbfd09b113e10687..2d7610937090c8a32d0b87eb021834ccaec8a936 100644
+--- a/mozuku-lsp/src/grammar_checker.cpp
++++ b/mozuku-lsp/src/grammar_checker.cpp
+@@ -3,6 +3,7 @@
+ #include "pos_analyzer.hpp"
+ #include "utf16.hpp"
+ #include <iostream>
++#include <string_view>
+ 
+ namespace MoZuku {
+ namespace grammar {
+@@ -59,6 +60,75 @@ bool inSentence(size_t bytePos, const SentenceBoundary &sentence) {
+   return bytePos >= sentence.start && bytePos < sentence.end;
+ }
+ 
++bool isDuplicateParticleSurfaceIgnored(const TokenData &token) {
++  DetailedPOS pos = parsePos(token.feature);
++  if (!pos.isParticle()) {
++    return false;
++  }
++
++  // textlint-rule-no-doubled-joshi に寄せて既定の例外を許容する。
++  if (pos.subPOS1 == "連体化" && token.surface == "の") {
++    return true;
++  }
++  if (pos.subPOS1 == "格助詞" && token.surface == "を") {
++    return true;
++  }
++  if (pos.subPOS1 == "接続助詞" && token.surface == "て") {
++    return true;
++  }
++  if (pos.subPOS1 == "並立助詞") {
++    return true;
++  }
++
++  // 誤検知が多い格助詞「が」は duplicateParticleSurface では検知しない。
++  if (pos.subPOS1 == "格助詞" && token.surface == "が") {
++    return true;
++  }
++
++  return false;
++}
++
++bool isKadoUkaException(const std::vector<TokenData> &tokens, size_t index,
++                        const TokenData &currentToken,
++                        const TokenData &lastToken) {
++  if (currentToken.surface != "か" || lastToken.surface != "か") {
++    return false;
++  }
++
++  DetailedPOS currentPos = parsePos(currentToken.feature);
++  DetailedPOS lastPos = parsePos(lastToken.feature);
++  if (!currentPos.isParticle() || !lastPos.isParticle()) {
++    return false;
++  }
++
++  if (index == 0) {
++    return false;
++  }
++
++  const auto &prevToken = tokens[index - 1];
++  return prevToken.surface == "どう";
++}
++
++bool containsDelimiterPunctuation(const std::string &text, size_t startByte,
++                                  size_t endByte) {
++  if (startByte >= endByte || startByte >= text.size()) {
++    return false;
++  }
++
++  const size_t safeEnd = std::min(endByte, text.size());
++  const std::string_view between(text.data() + startByte, safeEnd - startByte);
++
++  static const std::string punctuations[] = {"、", "。", "，", ",", "．", ".",
++                                             "？", "?", "！", "!"};
++  for (const auto &punctuation : punctuations) {
++    if (between.find(punctuation) != std::string_view::npos) {
++      return true;
++    }
++  }
++
++  return false;
++}
++
+ // 文中の読点「、」の出現回数を数える
+ size_t countCommas(const std::string &text) {
+   size_t count = 0;
+@@ -150,7 +220,9 @@ void checkDuplicateParticleSurface(const RuleContext &ctx,
+   for (const auto &sentence : ctx.sentences) {
+     std::string lastSurface;
+     std::string lastKey;
++    TokenData lastToken;
+     size_t lastStartByte = 0;
++    size_t lastEndByte = 0;
+     int streak = 1;
+     bool hasLast = false;
+ 
+@@ -165,9 +237,30 @@ void checkDuplicateParticleSurface(const RuleContext &ctx,
+         continue;
+       }
+ 
++      if (isDuplicateParticleSurfaceIgnored(token)) {
++        streak = 1;
++        hasLast = false;
++        continue;
++      }
++
+       std::string currentKey = pos::POSAnalyzer::particleKey(token.feature);
++      bool separatedByPunctuation =
++          hasLast && containsDelimiterPunctuation(ctx.text, lastEndByte, bytePos);
+ 
+-      if (hasLast && token.surface == lastSurface && currentKey == lastKey) {
++      if (hasLast && !separatedByPunctuation &&
++          isKadoUkaException(ctx.tokens, i, token, lastToken)) {
++        streak = 1;
++        lastStartByte = bytePos;
++        lastSurface = token.surface;
++        lastKey = currentKey;
++        lastToken = token;
++        lastEndByte = bytePos + token.surface.size();
++        hasLast = true;
++        continue;
++      }
++
++      if (hasLast && !separatedByPunctuation && token.surface == lastSurface &&
++          currentKey == lastKey) {
+         ++streak;
+         if (streak > maxRepeat) {
+           size_t currentEnd = bytePos + token.surface.size();
+@@ -190,6 +283,8 @@ void checkDuplicateParticleSurface(const RuleContext &ctx,
+ 
+       lastSurface = token.surface;
+       lastKey = currentKey;
++      lastToken = token;
++      lastEndByte = bytePos + token.surface.size();
+       hasLast = true;
+     }
+   }
+diff --git a/mozuku-lsp/tests/grammar_checker_duplicate_particle_test.cpp b/mozuku-lsp/tests/grammar_checker_duplicate_particle_test.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..756d2cc3f3ea0a42862cbfcf9946fa4589af4d98
+--- /dev/null
++++ b/mozuku-lsp/tests/grammar_checker_duplicate_particle_test.cpp
+@@ -0,0 +1,153 @@
++#include "grammar_checker.hpp"
++#include "mozuku/core/config.hpp"
++#include "text_processor.hpp"
++#include "utf16.hpp"
++
++#include <cstdlib>
++#include <iostream>
++#include <stdexcept>
++#include <string>
++#include <vector>
++
++namespace {
++
++size_t findNthOccurrence(const std::string &text, const std::string &needle,
++                         int occurrence) {
++  size_t pos = 0;
++  for (int i = 0; i <= occurrence; ++i) {
++    pos = text.find(needle, pos);
++    if (pos == std::string::npos) {
++      throw std::runtime_error("token surface not found: " + needle);
++    }
++    if (i != occurrence) {
++      pos += needle.size();
++    }
++  }
++  return pos;
++}
++
++TokenData makeToken(const std::string &text, const std::string &surface,
++                    const std::string &feature, int occurrence) {
++  size_t byteOffset = findNthOccurrence(text, surface, occurrence);
++  int startChar = static_cast<int>(utf8ToUtf16Length(text.substr(0, byteOffset)));
++  int endChar =
++      startChar + static_cast<int>(utf8ToUtf16Length(surface));
++
++  TokenData token;
++  token.line = 0;
++  token.startChar = startChar;
++  token.endChar = endChar;
++  token.surface = surface;
++  token.feature = feature;
++  return token;
++}
++
++MoZukuConfig makeTestConfig() {
++  MoZukuConfig config;
++  config.analysis.grammarCheck = true;
++  config.analysis.rules.commaLimit = false;
++  config.analysis.rules.adversativeGa = false;
++  config.analysis.rules.duplicateParticleSurface = true;
++  config.analysis.rules.adjacentParticles = false;
++  config.analysis.rules.conjunctionRepeat = false;
++  config.analysis.rules.raDropping = false;
++  config.analysis.rules.duplicateParticleSurfaceMaxRepeat = 1;
++  return config;
++}
++
++void expectDiagnosticCount(const std::string &name, const std::string &text,
++                           const std::vector<TokenData> &tokens,
++                           size_t expectedCount) {
++  std::vector<SentenceBoundary> sentences =
++      MoZuku::text::TextProcessor::splitIntoSentences(text);
++  std::vector<Diagnostic> diags;
++  MoZukuConfig config = makeTestConfig();
++
++  MoZuku::grammar::GrammarChecker::checkGrammar(text, tokens, sentences, diags,
++                                                &config);
++
++  if (diags.size() != expectedCount) {
++    std::cerr << name << ": expected " << expectedCount << " diagnostics, got "
++              << diags.size() << "\n";
++    for (const auto &diag : diags) {
++      std::cerr << "  - " << diag.message << "\n";
++    }
++    std::exit(1);
++  }
++}
++
++} // namespace
++
++int main() {
++  expectDiagnosticCount(
++      "連体化の例外", "既存のコードの利用",
++      {
++          makeToken("既存のコードの利用", "の", "助詞,連体化,*,*,*,*,の,ノ,ノ", 0),
++          makeToken("既存のコードの利用", "の", "助詞,連体化,*,*,*,*,の,ノ,ノ", 1),
++      },
++      0);
++
++  expectDiagnosticCount(
++      "格助詞を例外", "オブジェクトを返す関数を公開した",
++      {
++          makeToken("オブジェクトを返す関数を公開した", "を",
++                    "助詞,格助詞,一般,*,*,*,を,ヲ,ヲ", 0),
++          makeToken("オブジェクトを返す関数を公開した", "を",
++                    "助詞,格助詞,一般,*,*,*,を,ヲ,ヲ", 1),
++      },
++      0);
++
++  expectDiagnosticCount(
++      "格助詞が除外", "彼が私が好きだ",
++      {
++          makeToken("彼が私が好きだ", "が",
++                    "助詞,格助詞,一般,*,*,*,が,ガ,ガ", 0),
++          makeToken("彼が私が好きだ", "が",
++                    "助詞,格助詞,一般,*,*,*,が,ガ,ガ", 1),
++      },
++      0);
++
++  expectDiagnosticCount(
++      "かどうか例外", "これにするかどうか検討する",
++      {
++          makeToken("これにするかどうか検討する", "に",
++                    "助詞,格助詞,一般,*,*,*,に,ニ,ニ", 0),
++          makeToken("これにするかどうか検討する", "か",
++                    "助詞,副助詞／並立助詞／終助詞,*,*,*,*,か,カ,カ", 0),
++          makeToken("これにするかどうか検討する", "どう",
++                    "副詞,助詞類接続,*,*,*,*,どう,ドウ,ドー", 0),
++          makeToken("これにするかどうか検討する", "か",
++                    "助詞,副助詞／並立助詞／終助詞,*,*,*,*,か,カ,カ", 1),
++      },
++      0);
++
++  expectDiagnosticCount(
++      "句読点で区切れば非検知", "材料不足で、代替素材で製品を作った。",
++      {
++          makeToken("材料不足で、代替素材で製品を作った。", "で",
++                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 0),
++          makeToken("材料不足で、代替素材で製品を作った。", "で",
++                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 1),
++      },
++      0);
++
++  expectDiagnosticCount(
++      "通常の重複助詞", "私は彼は好きだ",
++      {
++          makeToken("私は彼は好きだ", "は", "助詞,係助詞,*,*,*,*,は,ハ,ワ", 0),
++          makeToken("私は彼は好きだ", "は", "助詞,係助詞,*,*,*,*,は,ハ,ワ", 1),
++      },
++      1);
++
++  expectDiagnosticCount(
++      "句読点なしは検知", "材料不足で代替素材で製品を作った。",
++      {
++          makeToken("材料不足で代替素材で製品を作った。", "で",
++                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 0),
++          makeToken("材料不足で代替素材で製品を作った。", "で",
++                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 1),
++      },
++      1);
++
++  return 0;
++}
