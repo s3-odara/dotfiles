@@ -2,6 +2,7 @@ augroup lsp_setup
   autocmd!
   autocmd User LspSetup call LspOptionsSet(#{
         \ autoComplete: v:false,
+        \ semanticHighlight: v:true,
         \ snippetSupport: v:true,
         \ vsnipSupport: v:true,
         \ condensedCompletionMenu: v:true,
@@ -84,6 +85,153 @@ function! s:MozukuInitOptions() abort
         \ }
 endfunction
 
+function! s:LtexPlusServerPath() abort
+  let l:path = exepath('ltex-ls-plus')
+  if !empty(l:path)
+    return l:path
+  endif
+
+  let l:candidates = [
+        \ expand('~/.local/bin/ltex-ls-plus'),
+        \ expand('~/.local/share/ltex-ls-plus/bin/ltex-ls-plus'),
+        \ expand('~/.local/opt/ltex-ls-plus/bin/ltex-ls-plus'),
+        \ ]
+  for l:candidate in l:candidates
+    if executable(l:candidate)
+      return l:candidate
+    endif
+  endfor
+
+  return ''
+endfunction
+
+function! s:LtexPlusWorkspaceConfig() abort
+  let l:enabled = get(g:, 'ltex_plus_enabled', ['gitcommit', 'markdown', 'text'])
+  let l:language = get(g:, 'ltex_plus_language', 'en-US')
+  let l:disabled_rules = get(g:, 'ltex_plus_disabled_rules', {})
+
+  if !has_key(l:disabled_rules, l:language)
+    let l:spelling_rule = 'MORFOLOGIK_RULE_' .. substitute(l:language, '-', '_', 'g')
+    let l:disabled_rules = extend(copy(l:disabled_rules), #{}, 'keep')
+    let l:disabled_rules[l:language] = [l:spelling_rule]
+  endif
+
+  return #{
+        \ ltex: #{
+        \   enabled: l:enabled,
+        \   language: l:language,
+        \   diagnosticSeverity: get(g:, 'ltex_plus_diagnostic_severity', 'information'),
+        \   completionEnabled: get(g:, 'ltex_plus_completion_enabled', v:true),
+        \   additionalRules: #{
+        \     enablePickyRules: get(g:, 'ltex_plus_enable_picky_rules', v:false),
+        \     motherTongue: get(g:, 'ltex_plus_mother_tongue', 'ja-JP'),
+        \   },
+        \   dictionary: get(g:, 'ltex_plus_dictionary', {}),
+        \   disabledRules: l:disabled_rules,
+        \   hiddenFalsePositives: get(g:, 'ltex_plus_hidden_false_positives', {}),
+        \   languageToolHttpServerUri: get(g:, 'ltex_plus_language_tool_http_server_uri', ''),
+        \ },
+        \ }
+endfunction
+
+function! s:KakehashiServerPath() abort
+  let l:path = exepath('kakehashi')
+  if !empty(l:path)
+    return l:path
+  endif
+
+  let l:local_path = expand('~/.local/bin/kakehashi')
+  if executable(l:local_path)
+    return l:local_path
+  endif
+
+  return ''
+endfunction
+
+function! s:AddKakehashiBridgeServer(servers, name, executable_names, args, languages) abort
+  let l:executable_name = s:FirstExecutable(a:executable_names)
+  if empty(l:executable_name)
+    return
+  endif
+
+  let a:servers[a:name] = #{
+        \ cmd: [exepath(l:executable_name)] + a:args,
+        \ languages: a:languages,
+        \ }
+endfunction
+
+function! s:KakehashiBridgeLanguageServers() abort
+  let l:servers = #{}
+
+  call s:AddKakehashiBridgeServer(l:servers, 'denols',
+        \ ['deno'], ['lsp'],
+        \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'])
+  call s:AddKakehashiBridgeServer(l:servers, 'vtsls',
+        \ ['vtsls'], ['--stdio'],
+        \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'])
+  call s:AddKakehashiBridgeServer(l:servers, 'clangd',
+        \ ['clangd'], ['--background-index', '--clang-tidy'],
+        \ ['c', 'cpp', 'objc', 'objcpp'])
+  call s:AddKakehashiBridgeServer(l:servers, 'gopls',
+        \ ['gopls'], [],
+        \ ['go', 'gomod', 'gowork', 'gotmpl'])
+  call s:AddKakehashiBridgeServer(l:servers, 'yamlls',
+        \ ['yaml-language-server'], ['--stdio'],
+        \ ['yaml'])
+  call s:AddKakehashiBridgeServer(l:servers, 'lemminx',
+        \ ['lemminx'], [],
+        \ ['xml', 'xsd', 'xsl', 'xslt', 'svg', 'xhtml'])
+  call s:AddKakehashiBridgeServer(l:servers, 'vimls',
+        \ ['vim-language-server'], ['--stdio'],
+        \ ['vim'])
+  call s:AddKakehashiBridgeServer(l:servers, 'lua_ls',
+        \ ['lua-language-server', 'lua_ls'], [],
+        \ ['lua'])
+  call s:AddKakehashiBridgeServer(l:servers, 'rust-analyzer',
+        \ ['rust-analyzer'], [],
+        \ ['rust'])
+  call s:AddKakehashiBridgeServer(l:servers, 'html',
+        \ ['vscode-html-language-server', 'vscode-html-languageserver'], ['--stdio'],
+        \ ['html'])
+  call s:AddKakehashiBridgeServer(l:servers, 'bashls',
+        \ ['bash-language-server'], ['start'],
+        \ ['bash', 'sh'])
+  call s:AddKakehashiBridgeServer(l:servers, 'ty',
+        \ ['ty'], ['server'],
+        \ ['python'])
+  call s:AddKakehashiBridgeServer(l:servers, 'taplo',
+        \ ['taplo', 'taplo-lsp'], ['lsp', 'stdio'],
+        \ ['toml'])
+
+  return extend(l:servers, get(g:, 'kakehashi_bridge_language_servers', {}), 'force')
+endfunction
+
+function! s:KakehashiBridgeLanguages() abort
+  return get(g:, 'kakehashi_bridge_languages', #{
+        \ markdown: #{
+        \   bridge: v:null,
+        \   },
+        \ })
+endfunction
+
+function! s:KakehashiInitOptions() abort
+  let l:defaults = #{
+        \ autoInstall: get(g:, 'kakehashi_auto_install', v:true),
+        \ }
+  let l:bridge_language_servers = s:KakehashiBridgeLanguageServers()
+  let l:bridge_languages = s:KakehashiBridgeLanguages()
+
+  if !empty(l:bridge_language_servers)
+    let l:defaults.languageServers = l:bridge_language_servers
+  endif
+  if !empty(l:bridge_languages)
+    let l:defaults.languages = l:bridge_languages
+  endif
+
+  let l:user_options = get(g:, 'kakehashi_init_options', {})
+  return extend(l:defaults, l:user_options, 'force')
+endfunction
+
 function! s:FirstExecutable(candidates) abort
   for l:candidate in a:candidates
     if executable(l:candidate)
@@ -112,6 +260,46 @@ endfunction
 
 function! s:RegisterLspServers() abort
   let l:servers = []
+  let l:kakehashi_path = s:KakehashiServerPath()
+
+  if !empty(l:kakehashi_path)
+    call add(l:servers, #{
+          \ name: 'kakehashi',
+          \ filetype: get(g:, 'kakehashi_filetypes', [
+          \   'bash', 'c', 'cpp', 'css', 'gitcommit', 'go', 'gomod', 'gowork',
+          \   'gotmpl', 'html', 'javascript', 'javascriptreact', 'json',
+          \   'jsonc', 'latex', 'lua', 'markdown', 'plaintex', 'python',
+          \   'rust', 'sh', 'sql', 'text', 'toml', 'tex', 'typescript',
+          \   'typescriptreact', 'vim', 'xml', 'yaml',
+          \ ]),
+          \ path: l:kakehashi_path,
+          \ initializationOptions: s:KakehashiInitOptions(),
+          \ features: #{
+          \   callHierarchy: v:false,
+          \   codeAction: v:false,
+          \   codeLens: v:false,
+          \   completion: v:false,
+          \   declaration: v:false,
+          \   definition: v:false,
+          \   diagnostics: v:false,
+          \   documentFormatting: v:false,
+          \   documentHighlight: v:false,
+          \   documentSymbol: v:false,
+          \   foldingRange: v:false,
+          \   hover: v:false,
+          \   implementation: v:false,
+          \   inlayHint: v:false,
+          \   references: v:false,
+          \   rename: v:false,
+          \   selectionRange: v:true,
+          \   semanticTokens: v:true,
+          \   signatureHelp: v:false,
+          \   typeDefinition: v:false,
+          \   typeHierarchy: v:false,
+          \   workspaceSymbol: v:false,
+          \ },
+          \ })
+  endif
 
   call s:AddLspServerIfExecutable(l:servers, 'denols',
         \ ['javascript', 'javascriptreact', 'typescript', 'typescriptreact'],
@@ -421,6 +609,15 @@ function! s:RegisterLspServers() abort
         \     },
         \   },
         \ })
+  let l:ltex_plus_path = s:LtexPlusServerPath()
+  if !empty(l:ltex_plus_path)
+    call add(l:servers, #{
+          \ name: 'ltex-ls-plus',
+          \ filetype: ['gitcommit', 'markdown', 'text'],
+          \ path: l:ltex_plus_path,
+          \ workspaceConfig: s:LtexPlusWorkspaceConfig(),
+          \ })
+  endif
   call s:AddLspServerIfExecutable(l:servers, 'typos-lsp',
         \ ['c', 'cpp', 'gitcommit', 'html', 'javascript', 'javascriptreact',
         \  'markdown', 'python', 'rust', 'sh', 'text', 'toml', 'typescript',
