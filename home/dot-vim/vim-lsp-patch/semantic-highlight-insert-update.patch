@@ -1,0 +1,19 @@
+diff --git a/autoload/lsp/semantichighlight.vim b/autoload/lsp/semantichighlight.vim
+index 4cdf347..9c0a6b3 100644
+--- a/autoload/lsp/semantichighlight.vim
++++ b/autoload/lsp/semantichighlight.vim
+@@ -314,6 +314,14 @@ export def BufferInit(lspserver: dict<any>, bnr: number)
+ 	      event: 'TextChanged',
+ 	      group: 'LSPBufferAutocmds',
+ 	      cmd: $'LspUpdateSemanticHighlight({bnr})'})
++  acmds->add({bufnr: bnr,
++	      event: 'TextChangedI',
++	      group: 'LSPBufferAutocmds',
++	      cmd: $'LspUpdateSemanticHighlight({bnr})'})
++  acmds->add({bufnr: bnr,
++	      event: 'InsertLeave',
++	      group: 'LSPBufferAutocmds',
++	      cmd: $'LspUpdateSemanticHighlight({bnr})'})
+   acmds->add({bufnr: bnr,
+ 	      event: 'BufUnload',
+ 	      group: 'LSPBufferAutocmds',

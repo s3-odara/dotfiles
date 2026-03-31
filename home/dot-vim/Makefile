@@ -7,18 +7,23 @@ KAKEHASHI_STAMP_DIR := $(HOME)/.cache/kakehashi-install/stamps
 KAKEHASHI_INSTALL_ROOT ?= $(HOME)/.local
 KAKEHASHI_INSTALL_CMD := cargo install --git https://github.com/atusy/kakehashi --root "$(KAKEHASHI_INSTALL_ROOT)" kakehashi
 PATCH_FILES := $(sort $(wildcard $(ROOT_DIR)/patch/*.patch))
+VIM_LSP_PATCH_FILES := $(sort $(wildcard $(ROOT_DIR)/vim-lsp-patch/*.patch))
 
 .PHONY: all install reinstall verify clean
 .PHONY: kakehashi-install kakehashi-reinstall kakehashi-verify kakehashi-clean
 
 all: install
 
-install: $(STAMP_DIR)/mozuku-installed
+install: $(STAMP_DIR)/vim-lsp-patched
 
 reinstall:
+	rm -rf \
+		"$(HOME)/.cache/mozuku-install/src/MoZuku" \
+		"$(HOME)/.cache/mozuku-install/build"
 	rm -f \
 		"$(STAMP_DIR)/mozuku-patches-applied" \
 		"$(STAMP_DIR)/mozuku-installed" \
+		"$(STAMP_DIR)/vim-lsp-patched" \
 		"$(STAMP_DIR)/verified"
 	$(MAKE) install
 
@@ -82,7 +87,11 @@ $(STAMP_DIR)/mozuku-installed: $(SCRIPT) $(STAMP_DIR)/cabocha-installed $(STAMP_
 	"$(SCRIPT)" install-mozuku
 	touch "$@"
 
-$(STAMP_DIR)/verified: $(SCRIPT) $(STAMP_DIR)/mozuku-installed | $(STAMP_DIR)
+$(STAMP_DIR)/vim-lsp-patched: $(SCRIPT) $(STAMP_DIR)/mozuku-installed $(VIM_LSP_PATCH_FILES) | $(STAMP_DIR)
+	"$(SCRIPT)" apply-vim-lsp-patches
+	touch "$@"
+
+$(STAMP_DIR)/verified: $(SCRIPT) $(STAMP_DIR)/vim-lsp-patched | $(STAMP_DIR)
 	"$(SCRIPT)" verify
 	touch "$@"
 

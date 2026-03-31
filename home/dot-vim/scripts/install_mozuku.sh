@@ -14,6 +14,8 @@ CABOCHA_SRC="$SRC_DIR/cabocha"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PATCH_DIR="$PROJECT_ROOT/patch"
+VIM_LSP_PATCH_DIR="$PROJECT_ROOT/vim-lsp-patch"
+VIM_LSP_SRC="${VIM_LSP_SRC:-$HOME/.vim/pack/minpac/start/lsp}"
 
 export PATH="$PREFIX/bin:$PATH"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
@@ -37,8 +39,17 @@ sync_repo() {
   local url="$1"
   local dir="$2"
 
+  if [[ -e "$dir" ]] && ! git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    log "Removing incomplete source tree: $dir"
+    rm -rf "$dir"
+  fi
+
   if [[ -d "$dir/.git" ]]; then
-    log "Using existing source: $dir"
+    log "Refreshing existing source: $dir"
+    run git -C "$dir" remote set-url origin "$url"
+    run git -C "$dir" fetch --depth 1 origin
+    run git -C "$dir" reset --hard FETCH_HEAD
+    run git -C "$dir" clean -fdx
     return
   fi
 
@@ -72,6 +83,7 @@ fetch_sources() {
   run git -C "$MOZUKU_SRC" \
   -c submodule.fetchJobs="$(nproc)" \
   submodule update --init \
+  --force \
   --depth 1 \
   --recommend-shallow \
   --jobs "$(nproc)" \
@@ -93,6 +105,8 @@ fetch_sources() {
     "$MOZUKU_SRC/mozuku-lsp/third-party/tree-sitter-rust" \
     "$MOZUKU_SRC/mozuku-lsp/third-party/tree-sitter-typescript" \
     "$MOZUKU_SRC/mozuku-lsp/third-party/tree-sitter-latex"; do
+    run git -C "$submodule_dir" reset --hard HEAD
+    run git -C "$submodule_dir" clean -fdx
     run git -C "$submodule_dir" checkout HEAD -- .
   done
 }
@@ -187,14 +201,7 @@ install_cabocha() {
 
 prepare_tree_sitter() {
   ensure_dirs
-  fetch_sources
-
-  local latex_dir="$MOZUKU_SRC/mozuku-lsp/third-party/tree-sitter-latex"
-
-  if [[ ! -f "$latex_dir/src/parser.c" ]]; then
-    cd "$latex_dir"
-    run tree-sitter generate
-  fi
+  log "Skipping tree-sitter parser generation; mozuku-lsp will build with available parsers"
 }
 
 apply_mozuku_patches() {
@@ -224,6 +231,38 @@ apply_mozuku_patches() {
 
   if [[ "$applied_any" == false ]]; then
     log "No new Mozuku patches to apply"
+  fi
+}
+
+apply_vim_lsp_patches() {
+  if [[ ! -d "$VIM_LSP_PATCH_DIR" ]]; then
+    log "No vim-lsp patch directory found: $VIM_LSP_PATCH_DIR"
+    return 0
+  fi
+
+  if [[ ! -d "$VIM_LSP_SRC/.git" ]]; then
+    log "Skipping vim-lsp patching; repository not found: $VIM_LSP_SRC"
+    return 0
+  fi
+
+  local patch_file
+  local applied_any=false
+  shopt -s nullglob
+
+  for patch_file in "$VIM_LSP_PATCH_DIR"/*.patch; do
+    if git -C "$VIM_LSP_SRC" apply --reverse --check "$patch_file" >/dev/null 2>&1; then
+      log "vim-lsp patch already applied: $(basename "$patch_file")"
+      continue
+    fi
+
+    run git -C "$VIM_LSP_SRC" apply "$patch_file"
+    applied_any=true
+  done
+
+  shopt -u nullglob
+
+  if [[ "$applied_any" == false ]]; then
+    log "No new vim-lsp patches to apply"
   fi
 }
 
@@ -282,6 +321,7 @@ main() {
     install-cabocha) install_cabocha ;;
     prepare-tree-sitter) prepare_tree_sitter ;;
     apply-mozuku-patches) apply_mozuku_patches ;;
+    apply-vim-lsp-patches) apply_vim_lsp_patches ;;
     install-mozuku) install_mozuku ;;
     verify) verify_installation ;;
     *)

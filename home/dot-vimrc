@@ -88,7 +88,7 @@ set ttimeoutlen=50
 " 色
 set termguicolors
 set background=dark
-set diffopt=internal,filler,algorithm:patience,indent-heuristic
+set diffopt=internal,filler,algorithm:patience,indent-heuristic,closeoff,inline:char,linematch:60
 
 " スペルチェック
 set spelllang=en_us,cjk
@@ -187,7 +187,7 @@ nnoremap <silent> <leader>ki <cmd>FuzzyInBuffer<CR>
 
 " --- ColorScheme (Habamax) ---
 function! DefineMyHighlights()
-    if g:colors_name is "habamax"
+    if g:colors_name is "orbit"
         highlight Normal ctermbg=NONE guibg=NONE
         highlight NonText ctermbg=NONE guibg=NONE
         highlight SpecialKey ctermbg=NONE guibg=NONE
@@ -200,7 +200,7 @@ augroup TransparentBG
     autocmd ColorScheme * call DefineMyHighlights()
 augroup END
 
-colorscheme habamax
+colorscheme orbit
 
 " 特定ファイルタイプ
 augroup noindent

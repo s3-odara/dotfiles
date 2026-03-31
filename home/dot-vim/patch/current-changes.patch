@@ -1,337 +1,1815 @@
 diff --git a/mozuku-lsp/CMakeLists.txt b/mozuku-lsp/CMakeLists.txt
-index 68e42f6e405ec38fbc9dfbc3806f6f18d3815309..e5253718b5c7c247de8ad6bd603cd30807b30ffe 100644
+index 68e42f6..c89d6af 100644
 --- a/mozuku-lsp/CMakeLists.txt
 +++ b/mozuku-lsp/CMakeLists.txt
-@@ -10,6 +10,7 @@ include(GNUInstallDirs)
- set(CMAKE_CXX_STANDARD 17)
+@@ -70,11 +70,19 @@ function(add_tree_sitter_language target_name source_root)
+     LINKER_LANGUAGE C)
+ endfunction()
  
- set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-+enable_testing()
+-function(add_tree_sitter_language_with_fallback target_name package_name source_root)
++function(add_tree_sitter_language_with_fallback target_name package_name source_root availability_var)
+   # 可能ならthird-partyのソースを静的リンクする
+   if(EXISTS "${source_root}/src/parser.c")
+     message(STATUS "third-partyから${package_name}をビルドします")
+     add_tree_sitter_language(${target_name} "${source_root}")
++    set(${availability_var} TRUE PARENT_SCOPE)
++    return()
++  endif()
++
++  if(package_name STREQUAL "tree-sitter-latex")
++    message(WARNING "${package_name}はparser.cが存在しないため無効化します。")
++    add_library(${target_name} INTERFACE IMPORTED GLOBAL)
++    set(${availability_var} FALSE PARENT_SCOPE)
+     return()
+   endif()
  
- find_package(nlohmann_json QUIET)
- if(NOT nlohmann_json_FOUND)
-@@ -186,5 +187,26 @@ message(STATUS "  CURL: ${CURL_FOUND}")
- install(TARGETS mozuku-lsp
-         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+@@ -86,6 +94,7 @@ function(add_tree_sitter_language_with_fallback target_name package_name source_
+     set_target_properties(${target_name} PROPERTIES
+       IMPORTED_LOCATION ${NIX_PARSER_PATH}
+     )
++    set(${availability_var} TRUE PARENT_SCOPE)
+     return()
+   endif()
  
-+add_executable(mozuku-grammar-tests
-+  tests/grammar_checker_duplicate_particle_test.cpp
-+  src/grammar_checker.cpp
-+  src/utf16.cpp
+@@ -98,21 +107,23 @@ function(add_tree_sitter_language_with_fallback target_name package_name source_
+     message(STATUS "システムの${package_name}を使用します: ${${target_name}_SYSTEM_LIB}")
+     add_library(${target_name} INTERFACE IMPORTED GLOBAL)
+     target_link_libraries(${target_name} INTERFACE ${${target_name}_SYSTEM_LIB})
++    set(${availability_var} TRUE PARENT_SCOPE)
+   else()
+     message(WARNING "${package_name}が見つかりません。システムにもthird-partyにもライブラリが存在しません。")
+     add_library(${target_name} INTERFACE IMPORTED GLOBAL)
++    set(${availability_var} FALSE PARENT_SCOPE)
+   endif()
+ endfunction()
+ 
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_c "tree-sitter-c" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-c")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_cpp "tree-sitter-cpp" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-cpp")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_html "tree-sitter-html" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-html")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_javascript "tree-sitter-javascript" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-javascript")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_python "tree-sitter-python" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-python")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_rust "tree-sitter-rust" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-rust")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_typescript "tree-sitter-typescript" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-typescript/typescript")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_tsx "tree-sitter-tsx" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-typescript/tsx")
+-add_tree_sitter_language_with_fallback(tree_sitter_lang_latex "tree-sitter-latex" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-latex")
++add_tree_sitter_language_with_fallback(tree_sitter_lang_c "tree-sitter-c" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-c" TREE_SITTER_LANG_C_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_cpp "tree-sitter-cpp" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-cpp" TREE_SITTER_LANG_CPP_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_html "tree-sitter-html" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-html" TREE_SITTER_LANG_HTML_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_javascript "tree-sitter-javascript" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-javascript" TREE_SITTER_LANG_JAVASCRIPT_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_python "tree-sitter-python" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-python" TREE_SITTER_LANG_PYTHON_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_rust "tree-sitter-rust" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-rust" TREE_SITTER_LANG_RUST_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_typescript "tree-sitter-typescript" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-typescript/typescript" TREE_SITTER_LANG_TYPESCRIPT_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_tsx "tree-sitter-tsx" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-typescript/tsx" TREE_SITTER_LANG_TSX_AVAILABLE)
++add_tree_sitter_language_with_fallback(tree_sitter_lang_latex "tree-sitter-latex" "${CMAKE_CURRENT_SOURCE_DIR}/third-party/tree-sitter-latex" TREE_SITTER_LANG_LATEX_AVAILABLE)
+ 
+ set(MOZUKU_SOURCES
+   src/main.cpp
+@@ -128,6 +139,7 @@ set(MOZUKU_SOURCES
+   src/comment_extractor.cpp
+   src/document_preprocessor.cpp
+   src/presenter.cpp
++  src/semantic_role_highlighter.cpp
+   src/tree_sitter_document.cpp
+ )
+ 
+@@ -149,11 +161,17 @@ target_link_libraries(mozuku-lsp PRIVATE
+   tree_sitter_lang_rust
+   tree_sitter_lang_typescript
+   tree_sitter_lang_tsx
+-  tree_sitter_lang_latex
+   mecab_system
+   CURL::libcurl
+ )
+ 
++if(TREE_SITTER_LANG_LATEX_AVAILABLE)
++  target_link_libraries(mozuku-lsp PRIVATE tree_sitter_lang_latex)
++  target_compile_definitions(mozuku-lsp PRIVATE MOZUKU_HAVE_TREE_SITTER_LATEX=1)
++else()
++  message(WARNING "tree-sitter-latex is unavailable; LaTeX tree-sitter support will be disabled.")
++endif()
++
+ target_link_libraries(mozuku-lsp PRIVATE cabocha_system ${CABOCHA_LIBRARIES})
+ target_include_directories(mozuku-lsp PRIVATE ${TREESITTER_INCLUDE_DIRS})
+ target_compile_options(mozuku-lsp PRIVATE ${TREESITTER_CFLAGS_OTHER})
+@@ -178,6 +196,44 @@ elseif(UNIX)
+     endif()
+ endif()
+ 
++include(CTest)
++
++add_executable(semantic_role_highlighter_test
++  tests/semantic_role_highlighter_test.cpp
++  src/semantic_role_highlighter.cpp
++  src/encoding_utils.cpp
 +  src/pos_analyzer.cpp
 +  src/text_processor.cpp
-+  src/encoding_utils.cpp
++  src/utf16.cpp
 +)
-+target_include_directories(mozuku-grammar-tests PRIVATE include)
-+target_link_libraries(mozuku-grammar-tests PRIVATE Threads::Threads)
-+if(APPLE)
-+    target_link_libraries(mozuku-grammar-tests PRIVATE "-liconv")
-+elseif(WIN32)
-+    target_link_libraries(mozuku-grammar-tests PRIVATE Iconv::Iconv)
-+elseif(UNIX)
-+    if(RT_LIBRARY)
-+        target_link_libraries(mozuku-grammar-tests PRIVATE ${RT_LIBRARY})
-+    endif()
-+endif()
-+add_test(NAME mozuku-grammar-tests COMMAND mozuku-grammar-tests)
++target_include_directories(semantic_role_highlighter_test PRIVATE include)
++target_link_libraries(semantic_role_highlighter_test PRIVATE
++  cabocha_system
++  ${CABOCHA_LIBRARIES}
++)
++add_test(NAME semantic_role_highlighter_test
++         COMMAND semantic_role_highlighter_test)
 +
- message(STATUS "mozuku-lsp は 'cmake --install' で ${CMAKE_INSTALL_BINDIR} にインストールされます")
- message(STATUS "注意: ターゲットシステムにMeCab/CaboCha/CURLライブラリのインストールが必要です")
-diff --git a/mozuku-lsp/src/grammar_checker.cpp b/mozuku-lsp/src/grammar_checker.cpp
-index eb51cf8863a4c4d68d8b422afbfd09b113e10687..2d7610937090c8a32d0b87eb021834ccaec8a936 100644
---- a/mozuku-lsp/src/grammar_checker.cpp
-+++ b/mozuku-lsp/src/grammar_checker.cpp
-@@ -3,6 +3,7 @@
- #include "pos_analyzer.hpp"
- #include "utf16.hpp"
- #include <iostream>
-+#include <string_view>
++add_executable(analyzer_semantic_highlight_test
++  tests/analyzer_semantic_highlight_test.cpp
++  src/analyzer.cpp
++  src/semantic_role_highlighter.cpp
++  src/encoding_utils.cpp
++  src/pos_analyzer.cpp
++  src/text_processor.cpp
++  src/utf16.cpp
++  src/mecab_manager.cpp
++  src/grammar_checker.cpp
++)
++target_include_directories(analyzer_semantic_highlight_test PRIVATE include)
++target_link_libraries(analyzer_semantic_highlight_test PRIVATE
++  mecab_system
++  cabocha_system
++  ${CABOCHA_LIBRARIES}
++)
++add_test(NAME analyzer_semantic_highlight_test
++         COMMAND analyzer_semantic_highlight_test)
++
+ message(STATUS "システムライブラリ統合:")
+ message(STATUS "  MeCab: ${MECAB_FOUND}")
+ message(STATUS "  CaboCha: ${CABOCHA_FOUND}")
+diff --git a/mozuku-lsp/include/analyzer.hpp b/mozuku-lsp/include/analyzer.hpp
+index 4146b06..9165877 100644
+--- a/mozuku-lsp/include/analyzer.hpp
++++ b/mozuku-lsp/include/analyzer.hpp
+@@ -30,6 +30,9 @@ public:
+   std::vector<TokenData> analyzeText(const std::string &text);
+   std::vector<Diagnostic> checkGrammar(const std::string &text);
+   std::vector<DependencyInfo> analyzeDependencies(const std::string &text);
++  std::vector<TokenData>
++  buildSemanticHighlightTokens(const std::string &text,
++                               const std::vector<TokenData> &baseTokens);
  
- namespace MoZuku {
- namespace grammar {
-@@ -59,6 +60,75 @@ bool inSentence(size_t bytePos, const SentenceBoundary &sentence) {
-   return bytePos >= sentence.start && bytePos < sentence.end;
+   bool isInitialized() const;
+   std::string getSystemCharset() const;
+diff --git a/mozuku-lsp/include/mozuku/core/types.hpp b/mozuku-lsp/include/mozuku/core/types.hpp
+index 73dc5ed..5cdec8b 100644
+--- a/mozuku-lsp/include/mozuku/core/types.hpp
++++ b/mozuku-lsp/include/mozuku/core/types.hpp
+@@ -85,6 +85,16 @@ struct DependencyInfo {
+   std::string text;
+ };
+ 
++struct ChunkDependencyInfo {
++  int chunkId{0};
++  int headId{0};
++  size_t tokenPos{0};
++  size_t tokenSize{0};
++  size_t headPos{0};
++  size_t funcPos{0};
++  std::string text;
++};
++
+ } // namespace MoZuku::core
+ 
+ using Position = MoZuku::core::Position;
+@@ -97,6 +107,7 @@ using DetailedPOS = MoZuku::core::DetailedPOS;
+ using ParticleInfo = MoZuku::core::ParticleInfo;
+ using SentenceBoundary = MoZuku::core::SentenceBoundary;
+ using DependencyInfo = MoZuku::core::DependencyInfo;
++using ChunkDependencyInfo = MoZuku::core::ChunkDependencyInfo;
+ 
+ namespace MoZukuModifiers {
+ static constexpr unsigned Proper = 1u << 0;
+diff --git a/mozuku-lsp/src/analyzer.cpp b/mozuku-lsp/src/analyzer.cpp
+index 7ea8045..7e22d58 100644
+--- a/mozuku-lsp/src/analyzer.cpp
++++ b/mozuku-lsp/src/analyzer.cpp
+@@ -4,6 +4,7 @@
+ #include "mecab_manager.hpp"
+ #include "mozuku/core/debug.hpp"
+ #include "pos_analyzer.hpp"
++#include "semantic_role_highlighter.hpp"
+ #include "text_processor.hpp"
+ #include "utf16.hpp"
+ 
+@@ -286,6 +287,23 @@ Analyzer::analyzeDependencies(const std::string &text) {
+   return dependencies;
  }
  
-+bool isDuplicateParticleSurfaceIgnored(const TokenData &token) {
-+  DetailedPOS pos = parsePos(token.feature);
-+  if (!pos.isParticle()) {
-+    return false;
++std::vector<TokenData>
++Analyzer::buildSemanticHighlightTokens(const std::string &text,
++                                       const std::vector<TokenData> &baseTokens) {
++  if (!mecab_manager_ || !mecab_manager_->isCaboChaAvailable()) {
++    return {};
 +  }
 +
-+  // textlint-rule-no-doubled-joshi に寄せて既定の例外を許容する。
-+  if (pos.subPOS1 == "連体化" && token.surface == "の") {
-+    return true;
-+  }
-+  if (pos.subPOS1 == "格助詞" && token.surface == "を") {
-+    return true;
-+  }
-+  if (pos.subPOS1 == "接続助詞" && token.surface == "て") {
-+    return true;
-+  }
-+  if (pos.subPOS1 == "並立助詞") {
-+    return true;
++  PreparedText prepared = prepareText(text, false);
++  if (prepared.cleanText.empty()) {
++    return {};
 +  }
 +
-+  // 誤検知が多い格助詞「が」は duplicateParticleSurface では検知しない。
-+  if (pos.subPOS1 == "格助詞" && token.surface == "が") {
-+    return true;
-+  }
-+
-+  return false;
++  return semantic::buildSemanticRoleTokens(prepared.cleanText, baseTokens,
++                                           mecab_manager_->getCaboChaParser(),
++                                           system_charset_);
 +}
 +
-+bool isKadoUkaException(const std::vector<TokenData> &tokens, size_t index,
-+                        const TokenData &currentToken,
-+                        const TokenData &lastToken) {
-+  if (currentToken.surface != "か" || lastToken.surface != "か") {
-+    return false;
-+  }
-+
-+  DetailedPOS currentPos = parsePos(currentToken.feature);
-+  DetailedPOS lastPos = parsePos(lastToken.feature);
-+  if (!currentPos.isParticle() || !lastPos.isParticle()) {
-+    return false;
-+  }
-+
-+  if (index == 0) {
-+    return false;
-+  }
-+
-+  const auto &prevToken = tokens[index - 1];
-+  return prevToken.surface == "どう";
-+}
-+
-+bool containsDelimiterPunctuation(const std::string &text, size_t startByte,
-+                                  size_t endByte) {
-+  if (startByte >= endByte || startByte >= text.size()) {
-+    return false;
-+  }
-+
-+  const size_t safeEnd = std::min(endByte, text.size());
-+  const std::string_view between(text.data() + startByte, safeEnd - startByte);
-+
-+  static const std::string punctuations[] = {"、", "。", "，", ",", "．", ".",
-+                                             "？", "?", "！", "!"};
-+  for (const auto &punctuation : punctuations) {
-+    if (between.find(punctuation) != std::string_view::npos) {
-+      return true;
-+    }
-+  }
-+
-+  return false;
-+}
-+
- // 文中の読点「、」の出現回数を数える
- size_t countCommas(const std::string &text) {
-   size_t count = 0;
-@@ -150,7 +220,9 @@ void checkDuplicateParticleSurface(const RuleContext &ctx,
-   for (const auto &sentence : ctx.sentences) {
-     std::string lastSurface;
-     std::string lastKey;
-+    TokenData lastToken;
-     size_t lastStartByte = 0;
-+    size_t lastEndByte = 0;
-     int streak = 1;
-     bool hasLast = false;
+ bool Analyzer::isInitialized() const {
+   return mecab_manager_ && mecab_manager_->getMeCabTagger() != nullptr;
+ }
+diff --git a/mozuku-lsp/src/lsp.cpp b/mozuku-lsp/src/lsp.cpp
+index 63c7560..dd382ef 100644
+--- a/mozuku-lsp/src/lsp.cpp
++++ b/mozuku-lsp/src/lsp.cpp
+@@ -41,9 +41,7 @@ bool readBoolOption(const json &obj, const char *key, bool &out) {
+ } // namespace
  
-@@ -165,9 +237,30 @@ void checkDuplicateParticleSurface(const RuleContext &ctx,
-         continue;
-       }
+ LSPServer::LSPServer(std::istream &in, std::ostream &out) : in_(in), out_(out) {
+-  tokenTypes_ = {"noun",     "verb",   "adjective",   "adverb",
+-                 "particle", "aux",    "conjunction", "symbol",
+-                 "interj",   "prefix", "suffix",      "unknown"};
++  tokenTypes_ = {"keyword", "function", "type"};
+   // 順序は MoZukuModifiers のビット位置と整合させる
+   tokenModifiers_ = {"proper", "numeric", "kana", "kanji"};
  
-+      if (isDuplicateParticleSurfaceIgnored(token)) {
-+        streak = 1;
-+        hasLast = false;
-+        continue;
-+      }
-+
-       std::string currentKey = pos::POSAnalyzer::particleKey(token.feature);
-+      bool separatedByPunctuation =
-+          hasLast && containsDelimiterPunctuation(ctx.text, lastEndByte, bytePos);
- 
--      if (hasLast && token.surface == lastSurface && currentKey == lastKey) {
-+      if (hasLast && !separatedByPunctuation &&
-+          isKadoUkaException(ctx.tokens, i, token, lastToken)) {
-+        streak = 1;
-+        lastStartByte = bytePos;
-+        lastSurface = token.surface;
-+        lastKey = currentKey;
-+        lastToken = token;
-+        lastEndByte = bytePos + token.surface.size();
-+        hasLast = true;
-+        continue;
-+      }
-+
-+      if (hasLast && !separatedByPunctuation && token.surface == lastSurface &&
-+          currentKey == lastKey) {
-         ++streak;
-         if (streak > maxRepeat) {
-           size_t currentEnd = bytePos + token.surface.size();
-@@ -190,6 +283,8 @@ void checkDuplicateParticleSurface(const RuleContext &ctx,
- 
-       lastSurface = token.surface;
-       lastKey = currentKey;
-+      lastToken = token;
-+      lastEndByte = bytePos + token.surface.size();
-       hasLast = true;
-     }
+@@ -673,8 +671,10 @@ void LSPServer::analyzeAndPublish(const std::string &uri) {
    }
-diff --git a/mozuku-lsp/tests/grammar_checker_duplicate_particle_test.cpp b/mozuku-lsp/tests/grammar_checker_duplicate_particle_test.cpp
+ 
+   bool isJapanese = isJapaneseLanguage(document);
++  std::vector<TokenData> semanticTokens =
++      analyzer_->buildSemanticHighlightTokens(prepared.analysisText, tokens);
+   notify("mozuku/semanticHighlights",
+-         presenter_.semanticHighlightsParams(uri, isJapanese, tokens));
++         presenter_.semanticHighlightsParams(uri, isJapanese, semanticTokens));
+ }
+ 
+ void LSPServer::analyzeChangedLines(const std::string &uri,
+@@ -715,7 +715,10 @@ json LSPServer::buildSemanticTokens(const std::string &uri) {
+   }
+ 
+   if (document->tokensCached) {
+-    return presenter_.semanticTokensData(document->tokens, tokenTypes_);
++    auto prepared = prepareDocument(*document);
++    auto semanticTokens = analyzer_->buildSemanticHighlightTokens(
++        prepared.analysisText, document->tokens);
++    return presenter_.semanticTokensData(semanticTokens, tokenTypes_);
+   }
+ 
+   if (!analyzer_->isInitialized()) {
+@@ -727,7 +730,10 @@ json LSPServer::buildSemanticTokens(const std::string &uri) {
+   document->tokens = tokens;
+   document->tokensCached = true;
+ 
+-  return presenter_.semanticTokensData(document->tokens, tokenTypes_);
++  auto semanticTokens =
++      analyzer_->buildSemanticHighlightTokens(prepared.analysisText,
++                                              document->tokens);
++  return presenter_.semanticTokensData(semanticTokens, tokenTypes_);
+ }
+ 
+ void LSPServer::cacheDiagnostics(DocumentState &document,
+diff --git a/mozuku-lsp/src/tree_sitter_document.cpp b/mozuku-lsp/src/tree_sitter_document.cpp
+index 00187b3..7084d61 100644
+--- a/mozuku-lsp/src/tree_sitter_document.cpp
++++ b/mozuku-lsp/src/tree_sitter_document.cpp
+@@ -15,7 +15,9 @@ const TSLanguage *tree_sitter_python();
+ const TSLanguage *tree_sitter_rust();
+ const TSLanguage *tree_sitter_typescript();
+ const TSLanguage *tree_sitter_tsx();
++#ifdef MOZUKU_HAVE_TREE_SITTER_LATEX
+ const TSLanguage *tree_sitter_latex();
++#endif
+ }
+ 
+ namespace {
+@@ -35,7 +37,10 @@ const std::unordered_map<std::string, LanguageFactory> &languageMap() {
+       {"tsx", tree_sitter_tsx},
+       {"python", tree_sitter_python},
+       {"rust", tree_sitter_rust},
+-      {"latex", tree_sitter_latex}};
++#ifdef MOZUKU_HAVE_TREE_SITTER_LATEX
++      {"latex", tree_sitter_latex},
++#endif
++  };
+   return map;
+ }
+ 
+diff --git a/mozuku-lsp/include/semantic_role_highlighter.hpp b/mozuku-lsp/include/semantic_role_highlighter.hpp
 new file mode 100644
-index 0000000000000000000000000000000000000000..756d2cc3f3ea0a42862cbfcf9946fa4589af4d98
+index 0000000..3db1ee2
 --- /dev/null
-+++ b/mozuku-lsp/tests/grammar_checker_duplicate_particle_test.cpp
-@@ -0,0 +1,153 @@
-+#include "grammar_checker.hpp"
-+#include "mozuku/core/config.hpp"
++++ b/mozuku-lsp/include/semantic_role_highlighter.hpp
+@@ -0,0 +1,30 @@
++#pragma once
++
++#include "mozuku/core/types.hpp"
++
++#include <string>
++#include <vector>
++
++typedef struct cabocha_t cabocha_t;
++
++namespace MoZuku::semantic {
++
++struct ChunkTokenInfo {
++  int chunkId{0};
++  int tokenIndex{0};
++  int tokenOffsetInChunk{0};
++  std::string surface;
++  DetailedPOS pos;
++};
++
++std::vector<TokenData>
++applySemanticRoles(const std::vector<TokenData> &baseTokens,
++                   const std::vector<ChunkDependencyInfo> &chunks,
++                   const std::vector<ChunkTokenInfo> &chunkTokens);
++
++std::vector<TokenData>
++buildSemanticRoleTokens(const std::string &text,
++                        const std::vector<TokenData> &baseTokens,
++                        cabocha_t *parser, const std::string &systemCharset);
++
++} // namespace MoZuku::semantic
+diff --git a/mozuku-lsp/src/semantic_role_highlighter.cpp b/mozuku-lsp/src/semantic_role_highlighter.cpp
+new file mode 100644
+index 0000000..f3689c9
+--- /dev/null
++++ b/mozuku-lsp/src/semantic_role_highlighter.cpp
+@@ -0,0 +1,797 @@
++#include "semantic_role_highlighter.hpp"
++
++#include "encoding_utils.hpp"
++#include "pos_analyzer.hpp"
 +#include "text_processor.hpp"
 +#include "utf16.hpp"
 +
++#include <algorithm>
++#include <cabocha.h>
++#include <unordered_map>
++#include <unordered_set>
++#include <utility>
++
++namespace {
++
++using MoZuku::core::ChunkDependencyInfo;
++using MoZuku::core::DetailedPOS;
++using MoZuku::core::TokenData;
++using MoZuku::semantic::ChunkTokenInfo;
++
++enum class SemanticRole {
++  None,
++  Subject,
++  Predicate,
++  Complement,
++};
++
++struct RoleAssignment {
++  SemanticRole role{SemanticRole::None};
++  int priority{0};
++};
++
++struct NormalizedCaseInfo {
++  std::string terminalParticle;
++  bool hasTopic{false};
++};
++
++bool isIndependentVerb(const DetailedPOS &pos) {
++  return pos.mainPOS == "動詞" && pos.subPOS1 != "非自立" && pos.subPOS1 != "接尾";
++}
++
++bool isVerbLike(const DetailedPOS &pos) { return pos.mainPOS == "動詞"; }
++
++bool isIndependentAdjective(const DetailedPOS &pos) {
++  return pos.mainPOS == "形容詞" && pos.subPOS1 != "非自立";
++}
++
++bool isCopulaAuxiliary(const ChunkTokenInfo &token) {
++  return token.pos.mainPOS == "助動詞" &&
++         (token.pos.baseForm == "だ" || token.pos.baseForm == "です");
++}
++
++bool isPredicateContent(const DetailedPOS &pos) {
++  return pos.mainPOS != "助詞" && pos.mainPOS != "助動詞" &&
++         pos.mainPOS != "記号";
++}
++
++bool containsSahenMarker(const std::string &value) {
++  return value.find("サ変") != std::string::npos;
++}
++
++bool isSahenNoun(const ChunkTokenInfo &token) {
++  if (token.pos.mainPOS != "名詞") {
++    return false;
++  }
++  return containsSahenMarker(token.pos.subPOS1) ||
++         containsSahenMarker(token.pos.subPOS2) ||
++         containsSahenMarker(token.pos.subPOS3);
++}
++
++bool isSuruLikeVerb(const ChunkTokenInfo &token) {
++  if (token.pos.mainPOS != "動詞") {
++    return false;
++  }
++  return token.pos.baseForm == "する" || token.pos.baseForm == "為る" ||
++         token.pos.baseForm == "できる" || token.pos.baseForm == "出来る";
++}
++
++bool isPredicateBridgeParticle(const ChunkTokenInfo &token) {
++  return token.pos.mainPOS == "助詞" && token.pos.subPOS1 == "接続助詞" &&
++         (token.surface == "て" || token.surface == "で");
++}
++
++bool isPredicateSuffixCandidate(const ChunkTokenInfo &token) {
++  if (token.pos.mainPOS == "助動詞") {
++    return true;
++  }
++  if (token.pos.mainPOS == "動詞") {
++    return token.pos.subPOS1 == "非自立" || isSuruLikeVerb(token);
++  }
++  if (token.pos.mainPOS == "形容詞") {
++    return token.pos.subPOS1 == "非自立" || token.pos.baseForm == "ない" ||
++           token.pos.baseForm == "無い" || token.pos.baseForm == "ほしい" ||
++           token.pos.baseForm == "欲しい" || token.pos.baseForm == "よい" ||
++           token.pos.baseForm == "良い";
++  }
++  return false;
++}
++
++bool isParallelMarker(const std::vector<std::string> &particles) {
++  return std::find(particles.begin(), particles.end(), "と") != particles.end() ||
++         std::find(particles.begin(), particles.end(), "や") != particles.end();
++}
++
++bool isExcludedCaseParticle(const std::string &particle) {
++  static const std::unordered_set<std::string> kExcluded = {
++      "で", "へ", "から", "より", "と"};
++  return kExcluded.find(particle) != kExcluded.end();
++}
++
++bool isNominalModifierParticle(const std::string &particle) {
++  return particle == "の" || particle == "な";
++}
++
++bool isAdverbLikeToken(const ChunkTokenInfo &token) {
++  return token.pos.mainPOS == "副詞" || token.pos.mainPOS == "感動詞";
++}
++
++bool isAdverbialNounLike(const ChunkTokenInfo &token) {
++  if (token.pos.mainPOS != "名詞") {
++    return false;
++  }
++  return token.pos.subPOS1 == "副詞可能" || token.pos.subPOS2 == "副詞可能" ||
++         token.pos.subPOS3 == "副詞可能";
++}
++
++bool isNonIndependentNounLike(const ChunkTokenInfo &token) {
++  return token.pos.mainPOS == "名詞" && token.pos.subPOS1 == "非自立";
++}
++
++std::vector<std::string>
++collectFunctionParticles(const ChunkDependencyInfo &chunk,
++                         const std::vector<ChunkTokenInfo> &tokens) {
++  std::vector<std::string> particles;
++  const size_t funcPos =
++      chunk.funcPos < chunk.tokenSize ? chunk.funcPos : chunk.tokenSize;
++
++  for (const auto &token : tokens) {
++    if (token.tokenOffsetInChunk < static_cast<int>(funcPos)) {
++      continue;
++    }
++    if (token.pos.mainPOS != "助詞") {
++      continue;
++    }
++    particles.push_back(token.surface);
++  }
++
++  return particles;
++}
++
++SemanticRole classifyRole(const std::vector<std::string> &particles) {
++  if (particles.empty()) {
++    return SemanticRole::None;
++  }
++
++  NormalizedCaseInfo normalized;
++  for (const auto &particle : particles) {
++    if (particle == "は") {
++      normalized.hasTopic = true;
++      continue;
++    }
++    if (particle == "が" || particle == "を" || particle == "に" ||
++        isExcludedCaseParticle(particle)) {
++      normalized.terminalParticle = particle;
++    }
++  }
++
++  if (normalized.terminalParticle == "が") {
++    return SemanticRole::Subject;
++  }
++  if (normalized.terminalParticle == "を") {
++    return SemanticRole::Complement;
++  }
++  if (normalized.terminalParticle == "に") {
++    return normalized.hasTopic ? SemanticRole::Subject
++                               : SemanticRole::Complement;
++  }
++  if (normalized.terminalParticle.empty() && normalized.hasTopic) {
++    return SemanticRole::Subject;
++  }
++  if (!normalized.terminalParticle.empty() &&
++      isExcludedCaseParticle(normalized.terminalParticle)) {
++    return SemanticRole::None;
++  }
++
++  return SemanticRole::None;
++}
++
++std::string tokenTypeForRole(SemanticRole role) {
++  switch (role) {
++  case SemanticRole::Subject:
++    return "keyword";
++  case SemanticRole::Predicate:
++    return "function";
++  case SemanticRole::Complement:
++    return "type";
++  case SemanticRole::None:
++    return "";
++  }
++
++  return "";
++}
++
++int priorityForRole(SemanticRole role) {
++  switch (role) {
++  case SemanticRole::Subject:
++    return 4;
++  case SemanticRole::Complement:
++    return 4;
++  case SemanticRole::Predicate:
++    return 3;
++  case SemanticRole::None:
++    return 0;
++  }
++
++  return 0;
++}
++
++int findPredicateHeadOffset(const std::vector<ChunkTokenInfo> &chunkTokenList,
++                            size_t predicateLimit);
++
++void assignChunkTokens(
++    int chunkId, SemanticRole role,
++    const std::unordered_map<int, std::vector<ChunkTokenInfo>> &tokensByChunk,
++    std::unordered_map<int, RoleAssignment> &assignments) {
++  auto tokensIt = tokensByChunk.find(chunkId);
++  if (tokensIt == tokensByChunk.end()) {
++    return;
++  }
++
++  const auto &chunkTokens = tokensIt->second;
++  for (const auto &token : chunkTokens) {
++    if (token.pos.mainPOS == "記号") {
++      continue;
++    }
++
++    auto &assignment = assignments[token.tokenIndex];
++    const int priority = priorityForRole(role);
++    if (priority >= assignment.priority) {
++      assignment = {role, priority};
++    }
++  }
++}
++
++bool chunkHasPredicateLikeCore(
++    const ChunkDependencyInfo &chunk,
++    const std::vector<ChunkTokenInfo> &chunkTokenList) {
++  return findPredicateHeadOffset(chunkTokenList, chunk.tokenSize) >= 0;
++}
++
++bool chunkHasOnlyAdverbialContent(
++    const std::vector<ChunkTokenInfo> &chunkTokenList) {
++  bool sawContent = false;
++  for (const auto &token : chunkTokenList) {
++    if (token.pos.mainPOS == "助詞" || token.pos.mainPOS == "助動詞" ||
++        token.pos.mainPOS == "記号") {
++      continue;
++    }
++    sawContent = true;
++    if (!isAdverbLikeToken(token)) {
++      return false;
++    }
++  }
++  return sawContent;
++}
++
++const ChunkTokenInfo *
++findArgumentHeadToken(const ChunkDependencyInfo &chunk,
++                      const std::vector<ChunkTokenInfo> &chunkTokenList) {
++  const size_t predicateLimit =
++      chunk.funcPos < chunk.tokenSize ? chunk.funcPos : chunk.tokenSize;
++  for (auto it = chunkTokenList.rbegin(); it != chunkTokenList.rend(); ++it) {
++    if (it->tokenOffsetInChunk >= static_cast<int>(predicateLimit)) {
++      continue;
++    }
++    if (it->pos.mainPOS == "助詞" || it->pos.mainPOS == "助動詞" ||
++        it->pos.mainPOS == "記号") {
++      continue;
++    }
++    return &*it;
++  }
++  return nullptr;
++}
++
++bool shouldTreatAsArgumentHead(const ChunkDependencyInfo &chunk,
++                               const std::vector<ChunkTokenInfo> &chunkTokenList,
++                               SemanticRole role) {
++  if (role == SemanticRole::None) {
++    return false;
++  }
++
++  const ChunkTokenInfo *headToken = findArgumentHeadToken(chunk, chunkTokenList);
++  if (!headToken) {
++    return false;
++  }
++  if (isAdverbLikeToken(*headToken) || isAdverbialNounLike(*headToken)) {
++    return false;
++  }
++  return true;
++}
++
++bool shouldExpandArgumentSpan(const ChunkDependencyInfo &chunk,
++                              const std::vector<ChunkTokenInfo> &chunkTokenList) {
++  const ChunkTokenInfo *headToken = findArgumentHeadToken(chunk, chunkTokenList);
++  if (!headToken) {
++    return false;
++  }
++  return !isNonIndependentNounLike(*headToken);
++}
++
++bool shouldIncludeDirectModifierChunk(
++    const ChunkDependencyInfo &chunk,
++    const std::vector<ChunkTokenInfo> &chunkTokenList) {
++  const auto particles = collectFunctionParticles(chunk, chunkTokenList);
++  if (isParallelMarker(particles)) {
++    return true;
++  }
++  if (particles.empty()) {
++    return !chunkHasOnlyAdverbialContent(chunkTokenList);
++  }
++
++  const bool hasOnlyNominalModifierParticles = std::all_of(
++      particles.begin(), particles.end(),
++      [](const std::string &particle) {
++        return isNominalModifierParticle(particle);
++      });
++  if (hasOnlyNominalModifierParticles) {
++    return true;
++  }
++
++  return chunkHasPredicateLikeCore(chunk, chunkTokenList);
++}
++
++void collectArgumentSpanChunks(
++    int chunkId,
++    const std::unordered_map<int, std::vector<int>> &childrenByHead,
++    const std::unordered_map<int, ChunkDependencyInfo> &chunksById,
++    const std::unordered_map<int, std::vector<ChunkTokenInfo>> &tokensByChunk,
++    std::unordered_set<int> &result, bool includeAllDescendants) {
++  if (!result.insert(chunkId).second) {
++    return;
++  }
++
++  auto childrenIt = childrenByHead.find(chunkId);
++  if (childrenIt == childrenByHead.end()) {
++    return;
++  }
++
++  for (int childId : childrenIt->second) {
++    auto chunkIt = chunksById.find(childId);
++    auto tokensIt = tokensByChunk.find(childId);
++    if (chunkIt == chunksById.end() || tokensIt == tokensByChunk.end()) {
++      continue;
++    }
++
++    const bool shouldInclude =
++        includeAllDescendants ||
++        shouldIncludeDirectModifierChunk(chunkIt->second, tokensIt->second);
++    if (!shouldInclude) {
++      continue;
++    }
++
++    collectArgumentSpanChunks(childId, childrenByHead, chunksById, tokensByChunk,
++                              result, true);
++  }
++}
++
++int findPredicateHeadOffset(const std::vector<ChunkTokenInfo> &chunkTokenList,
++                            size_t predicateLimit) {
++  int predicateTokenOffset = -1;
++
++  for (const auto &token : chunkTokenList) {
++    if (token.tokenOffsetInChunk >= static_cast<int>(predicateLimit)) {
++      break;
++    }
++    if (isIndependentVerb(token.pos)) {
++      predicateTokenOffset = token.tokenOffsetInChunk;
++    }
++  }
++  if (predicateTokenOffset >= 0) {
++    return predicateTokenOffset;
++  }
++
++  for (const auto &token : chunkTokenList) {
++    if (token.tokenOffsetInChunk >= static_cast<int>(predicateLimit)) {
++      break;
++    }
++    if (isIndependentAdjective(token.pos)) {
++      predicateTokenOffset = token.tokenOffsetInChunk;
++    }
++  }
++  if (predicateTokenOffset >= 0) {
++    return predicateTokenOffset;
++  }
++
++  for (const auto &token : chunkTokenList) {
++    if (token.tokenOffsetInChunk >= static_cast<int>(predicateLimit)) {
++      break;
++    }
++    if (isVerbLike(token.pos)) {
++      predicateTokenOffset = token.tokenOffsetInChunk;
++    }
++  }
++  if (predicateTokenOffset >= 0) {
++    return predicateTokenOffset;
++  }
++
++  int copulaOffset = -1;
++  for (const auto &token : chunkTokenList) {
++    if (isCopulaAuxiliary(token)) {
++      copulaOffset = token.tokenOffsetInChunk;
++      break;
++    }
++  }
++  if (copulaOffset < 0) {
++    return -1;
++  }
++
++  for (auto it = chunkTokenList.rbegin(); it != chunkTokenList.rend(); ++it) {
++    if (it->tokenOffsetInChunk >= copulaOffset) {
++      continue;
++    }
++    if (isPredicateContent(it->pos)) {
++      return it->tokenOffsetInChunk;
++    }
++  }
++
++  return -1;
++}
++
++std::pair<int, int>
++findPredicateSpanOffsets(const std::vector<ChunkTokenInfo> &chunkTokenList,
++                         size_t predicateLimit) {
++  const int headOffset =
++      findPredicateHeadOffset(chunkTokenList, predicateLimit);
++  if (headOffset < 0) {
++    return {-1, -1};
++  }
++
++  int headIndex = -1;
++  for (size_t i = 0; i < chunkTokenList.size(); ++i) {
++    if (chunkTokenList[i].tokenOffsetInChunk == headOffset) {
++      headIndex = static_cast<int>(i);
++      break;
++    }
++  }
++  if (headIndex < 0) {
++    return {-1, -1};
++  }
++
++  int startIndex = headIndex;
++  int endIndex = headIndex;
++  const auto &headToken = chunkTokenList[headIndex];
++
++  if (headIndex > 0 && isSuruLikeVerb(headToken) &&
++      isSahenNoun(chunkTokenList[headIndex - 1])) {
++    startIndex = headIndex - 1;
++  }
++
++  while (endIndex + 1 < static_cast<int>(chunkTokenList.size())) {
++    const auto &next = chunkTokenList[endIndex + 1];
++    if (next.pos.mainPOS == "記号") {
++      break;
++    }
++
++    if (isPredicateSuffixCandidate(next)) {
++      ++endIndex;
++      continue;
++    }
++
++    if (isPredicateBridgeParticle(next) &&
++        endIndex + 2 < static_cast<int>(chunkTokenList.size()) &&
++        isPredicateSuffixCandidate(chunkTokenList[endIndex + 2])) {
++      ++endIndex;
++      continue;
++    }
++
++    if (isPredicateBridgeParticle(next)) {
++      ++endIndex;
++      continue;
++    }
++
++    break;
++  }
++
++  return {startIndex, endIndex};
++}
++
++void assignPredicateSpan(
++    const std::vector<ChunkTokenInfo> &chunkTokenList,
++    std::pair<int, int> predicateSpan,
++    std::unordered_map<int, RoleAssignment> &assignments) {
++  if (predicateSpan.first < 0 || predicateSpan.second < predicateSpan.first) {
++    return;
++  }
++
++  const int priority = priorityForRole(SemanticRole::Predicate);
++  for (int i = predicateSpan.first;
++       i <= predicateSpan.second && i < static_cast<int>(chunkTokenList.size());
++       ++i) {
++    const auto &token = chunkTokenList[i];
++    if (token.pos.mainPOS == "記号") {
++      continue;
++    }
++    auto &assignment = assignments[token.tokenIndex];
++    if (priority >= assignment.priority) {
++      assignment = {SemanticRole::Predicate, priority};
++    }
++  }
++}
++
++void propagateParallelChunks(
++    int chunkId, SemanticRole role,
++    const std::unordered_map<int, std::vector<int>> &childrenByHead,
++    const std::unordered_map<int, ChunkDependencyInfo> &chunksById,
++    const std::unordered_map<int, std::vector<ChunkTokenInfo>> &tokensByChunk,
++    std::unordered_map<int, RoleAssignment> &assignments,
++    std::unordered_set<int> &visited) {
++  if (!visited.insert(chunkId).second) {
++    return;
++  }
++
++  auto childrenIt = childrenByHead.find(chunkId);
++  if (childrenIt == childrenByHead.end()) {
++    return;
++  }
++
++  for (int childId : childrenIt->second) {
++    auto chunkIt = chunksById.find(childId);
++    auto tokensIt = tokensByChunk.find(childId);
++    if (chunkIt == chunksById.end() || tokensIt == tokensByChunk.end()) {
++      continue;
++    }
++
++    const auto particles =
++        collectFunctionParticles(chunkIt->second, tokensIt->second);
++    if (!isParallelMarker(particles)) {
++      continue;
++    }
++
++    assignChunkTokens(childId, role, tokensByChunk, assignments);
++    propagateParallelChunks(childId, role, childrenByHead, chunksById,
++                            tokensByChunk, assignments, visited);
++  }
++}
++
++std::vector<ChunkDependencyInfo>
++extractChunks(const cabocha_tree_t *tree, const std::string &systemCharset) {
++  std::vector<ChunkDependencyInfo> chunks;
++  if (!tree) {
++    return chunks;
++  }
++
++  for (size_t i = 0;
++       i < cabocha_tree_chunk_size(const_cast<cabocha_tree_t *>(tree)); ++i) {
++    const cabocha_chunk_t *chunk =
++        cabocha_tree_chunk(const_cast<cabocha_tree_t *>(tree), i);
++    if (!chunk) {
++      continue;
++    }
++
++    ChunkDependencyInfo info;
++    info.chunkId = static_cast<int>(i);
++    info.headId = chunk->link;
++    info.tokenPos = chunk->token_pos;
++    info.tokenSize = chunk->token_size;
++    info.headPos = chunk->head_pos;
++    info.funcPos = chunk->func_pos >= 0 ? static_cast<size_t>(chunk->func_pos)
++                                        : chunk->token_size;
++
++    for (size_t j = info.tokenPos;
++         j < info.tokenPos + info.tokenSize &&
++         j < cabocha_tree_token_size(const_cast<cabocha_tree_t *>(tree));
++         ++j) {
++      const cabocha_token_t *token =
++          cabocha_tree_token(const_cast<cabocha_tree_t *>(tree), j);
++      if (!token || !token->surface) {
++        continue;
++      }
++      info.text += MoZuku::encoding::systemToUtf8(std::string(token->surface),
++                                                  systemCharset);
++    }
++
++    chunks.push_back(info);
++  }
++
++  return chunks;
++}
++
++std::vector<ChunkTokenInfo>
++extractChunkTokens(const cabocha_tree_t *tree, const std::string &systemCharset,
++                   const std::vector<TokenData> &baseTokens,
++                   const std::vector<ChunkDependencyInfo> &chunks) {
++  std::vector<ChunkTokenInfo> chunkTokens;
++  if (!tree) {
++    return chunkTokens;
++  }
++
++  size_t nextBaseIndex = 0;
++  for (const auto &chunk : chunks) {
++    for (size_t j = 0;
++         j < chunk.tokenSize &&
++         chunk.tokenPos + j <
++             cabocha_tree_token_size(const_cast<cabocha_tree_t *>(tree));
++         ++j) {
++      const cabocha_token_t *token = cabocha_tree_token(
++          const_cast<cabocha_tree_t *>(tree), chunk.tokenPos + j);
++      if (!token || !token->surface) {
++        continue;
++      }
++
++      const std::string surface =
++          MoZuku::encoding::systemToUtf8(std::string(token->surface),
++                                         systemCharset);
++      const std::string feature =
++          token->feature
++              ? MoZuku::encoding::systemToUtf8(std::string(token->feature),
++                                              systemCharset)
++              : "";
++
++      while (nextBaseIndex < baseTokens.size() &&
++             baseTokens[nextBaseIndex].surface != surface) {
++        ++nextBaseIndex;
++      }
++      if (nextBaseIndex >= baseTokens.size()) {
++        return {};
++      }
++
++      chunkTokens.push_back(
++          {chunk.chunkId,
++           static_cast<int>(nextBaseIndex),
++           static_cast<int>(j),
++           surface,
++           MoZuku::pos::POSAnalyzer::parseDetailedPOS(feature.c_str(), "UTF-8")});
++      ++nextBaseIndex;
++    }
++  }
++
++  return chunkTokens;
++}
++
++} // namespace
++
++namespace MoZuku::semantic {
++
++std::vector<TokenData>
++applySemanticRoles(const std::vector<TokenData> &baseTokens,
++                   const std::vector<ChunkDependencyInfo> &chunks,
++                   const std::vector<ChunkTokenInfo> &chunkTokens) {
++  std::unordered_map<int, ChunkDependencyInfo> chunksById;
++  std::unordered_map<int, std::vector<ChunkTokenInfo>> tokensByChunk;
++  std::unordered_map<int, std::vector<int>> childrenByHead;
++  for (const auto &chunk : chunks) {
++    chunksById[chunk.chunkId] = chunk;
++    childrenByHead[chunk.headId].push_back(chunk.chunkId);
++  }
++  for (const auto &token : chunkTokens) {
++    tokensByChunk[token.chunkId].push_back(token);
++  }
++  for (auto &[chunkId, groupedTokens] : tokensByChunk) {
++    std::sort(groupedTokens.begin(), groupedTokens.end(),
++              [](const ChunkTokenInfo &lhs, const ChunkTokenInfo &rhs) {
++                return lhs.tokenOffsetInChunk < rhs.tokenOffsetInChunk;
++              });
++  }
++
++  std::unordered_map<int, RoleAssignment> assignments;
++
++  for (const auto &chunk : chunks) {
++    auto tokensIt = tokensByChunk.find(chunk.chunkId);
++    if (tokensIt == tokensByChunk.end()) {
++      continue;
++    }
++
++    const auto &chunkTokenList = tokensIt->second;
++    const auto predicateSpan =
++        findPredicateSpanOffsets(chunkTokenList, chunk.tokenSize);
++    if (predicateSpan.first < 0) {
++      continue;
++    }
++
++    assignPredicateSpan(chunkTokenList, predicateSpan, assignments);
++
++    auto childrenIt = childrenByHead.find(chunk.chunkId);
++    if (childrenIt == childrenByHead.end()) {
++      continue;
++    }
++
++    for (int childId : childrenIt->second) {
++      auto childChunkIt = chunksById.find(childId);
++      auto childTokensIt = tokensByChunk.find(childId);
++      if (childChunkIt == chunksById.end() || childTokensIt == tokensByChunk.end()) {
++        continue;
++      }
++
++      const auto particles =
++          collectFunctionParticles(childChunkIt->second, childTokensIt->second);
++      const SemanticRole role = classifyRole(particles);
++      if (!shouldTreatAsArgumentHead(childChunkIt->second, childTokensIt->second,
++                                     role)) {
++        continue;
++      }
++
++      std::unordered_set<int> spanChunks;
++      if (shouldExpandArgumentSpan(childChunkIt->second, childTokensIt->second)) {
++        collectArgumentSpanChunks(childId, childrenByHead, chunksById,
++                                  tokensByChunk, spanChunks, false);
++      } else {
++        spanChunks.insert(childId);
++      }
++      for (int spanChunkId : spanChunks) {
++        assignChunkTokens(spanChunkId, role, tokensByChunk, assignments);
++      }
++
++      std::unordered_set<int> visited;
++      propagateParallelChunks(childId, role, childrenByHead, chunksById,
++                              tokensByChunk, assignments, visited);
++    }
++  }
++
++  std::vector<TokenData> result;
++  for (const auto &[tokenIndex, assignment] : assignments) {
++    if (tokenIndex < 0 ||
++        tokenIndex >= static_cast<int>(baseTokens.size()) ||
++        assignment.role == SemanticRole::None) {
++      continue;
++    }
++
++    TokenData token = baseTokens[tokenIndex];
++    token.tokenType = tokenTypeForRole(assignment.role);
++    result.push_back(std::move(token));
++  }
++
++  std::sort(result.begin(), result.end(),
++            [](const TokenData &lhs, const TokenData &rhs) {
++              return std::pair(lhs.line, lhs.startChar) <
++                     std::pair(rhs.line, rhs.startChar);
++            });
++  return result;
++}
++
++std::vector<TokenData>
++buildSemanticRoleTokens(const std::string &text,
++                        const std::vector<TokenData> &baseTokens,
++                        cabocha_t *parser, const std::string &systemCharset) {
++  if (!parser || text.empty() || baseTokens.empty()) {
++    return {};
++  }
++
++  std::vector<TokenData> result;
++  const auto sentences = MoZuku::text::TextProcessor::splitIntoSentences(text);
++  const TextOffsetMapper offsetMapper(text);
++
++  for (const auto &sentence : sentences) {
++    if (sentence.text.empty()) {
++      continue;
++    }
++
++    std::vector<TokenData> sentenceBaseTokens;
++    for (const auto &token : baseTokens) {
++      const size_t startByte = offsetMapper.tokenStartByteOffset(token);
++      if (startByte >= sentence.start && startByte < sentence.end) {
++        sentenceBaseTokens.push_back(token);
++      }
++    }
++    if (sentenceBaseTokens.empty()) {
++      continue;
++    }
++
++    const std::string systemText =
++        MoZuku::encoding::utf8ToSystem(sentence.text, systemCharset);
++    const cabocha_tree_t *tree = cabocha_sparse_totree(parser, systemText.c_str());
++    if (!tree) {
++      continue;
++    }
++
++    const auto chunks = extractChunks(tree, systemCharset);
++    const auto chunkTokens =
++        extractChunkTokens(tree, systemCharset, sentenceBaseTokens, chunks);
++    if (chunks.empty() || chunkTokens.empty()) {
++      continue;
++    }
++
++    auto sentenceResult =
++        applySemanticRoles(sentenceBaseTokens, chunks, chunkTokens);
++    result.insert(result.end(), sentenceResult.begin(), sentenceResult.end());
++  }
++
++  std::sort(result.begin(), result.end(),
++            [](const TokenData &lhs, const TokenData &rhs) {
++              return std::pair(lhs.line, lhs.startChar) <
++                     std::pair(rhs.line, rhs.startChar);
++            });
++  return result;
++}
++
++} // namespace MoZuku::semantic
+diff --git a/mozuku-lsp/tests/semantic_role_highlighter_test.cpp b/mozuku-lsp/tests/semantic_role_highlighter_test.cpp
+new file mode 100644
+index 0000000..cc9e7f2
+--- /dev/null
++++ b/mozuku-lsp/tests/semantic_role_highlighter_test.cpp
+@@ -0,0 +1,608 @@
++#include "semantic_role_highlighter.hpp"
++
 +#include <cstdlib>
 +#include <iostream>
-+#include <stdexcept>
 +#include <string>
++#include <utility>
 +#include <vector>
 +
 +namespace {
 +
-+size_t findNthOccurrence(const std::string &text, const std::string &needle,
-+                         int occurrence) {
-+  size_t pos = 0;
-+  for (int i = 0; i <= occurrence; ++i) {
-+    pos = text.find(needle, pos);
-+    if (pos == std::string::npos) {
-+      throw std::runtime_error("token surface not found: " + needle);
-+    }
-+    if (i != occurrence) {
-+      pos += needle.size();
-+    }
++using MoZuku::core::ChunkDependencyInfo;
++using MoZuku::core::DetailedPOS;
++using MoZuku::core::TokenData;
++using MoZuku::semantic::ChunkTokenInfo;
++
++DetailedPOS pos(const std::string &mainPOS, const std::string &subPOS1 = "") {
++  DetailedPOS result;
++  result.mainPOS = mainPOS;
++  result.subPOS1 = subPOS1;
++  return result;
++}
++
++DetailedPOS posWithBase(const std::string &mainPOS, const std::string &subPOS1,
++                        const std::string &baseForm) {
++  DetailedPOS result = pos(mainPOS, subPOS1);
++  result.baseForm = baseForm;
++  return result;
++}
++
++DetailedPOS posWithSub2(const std::string &mainPOS, const std::string &subPOS1,
++                        const std::string &subPOS2) {
++  DetailedPOS result = pos(mainPOS, subPOS1);
++  result.subPOS2 = subPOS2;
++  return result;
++}
++
++TokenData token(int startChar, const std::string &surface,
++                const std::string &tokenType) {
++  TokenData result;
++  result.line = 0;
++  result.startChar = startChar;
++  result.endChar = startChar + static_cast<int>(surface.size());
++  result.surface = surface;
++  result.tokenType = tokenType;
++  return result;
++}
++
++ChunkDependencyInfo chunk(int chunkId, int headId, size_t tokenPos,
++                          size_t tokenSize, size_t headPos, size_t funcPos) {
++  ChunkDependencyInfo result;
++  result.chunkId = chunkId;
++  result.headId = headId;
++  result.tokenPos = tokenPos;
++  result.tokenSize = tokenSize;
++  result.headPos = headPos;
++  result.funcPos = funcPos;
++  return result;
++}
++
++ChunkTokenInfo chunkToken(int chunkId, int tokenIndex, int tokenOffsetInChunk,
++                          const std::string &surface, const DetailedPOS &pos) {
++  ChunkTokenInfo result;
++  result.chunkId = chunkId;
++  result.tokenIndex = tokenIndex;
++  result.tokenOffsetInChunk = tokenOffsetInChunk;
++  result.surface = surface;
++  result.pos = pos;
++  return result;
++}
++
++bool expectRoles(const std::string &label, const std::vector<TokenData> &base,
++                 const std::vector<ChunkDependencyInfo> &chunks,
++                 const std::vector<ChunkTokenInfo> &chunkTokens,
++                 const std::vector<std::pair<std::string, std::string>> &expected) {
++  const auto actual = MoZuku::semantic::applySemanticRoles(base, chunks, chunkTokens);
++  std::vector<std::pair<std::string, std::string>> actualBySurface;
++  for (const auto &token : actual) {
++    actualBySurface.emplace_back(token.surface, token.tokenType);
 +  }
-+  return pos;
-+}
 +
-+TokenData makeToken(const std::string &text, const std::string &surface,
-+                    const std::string &feature, int occurrence) {
-+  size_t byteOffset = findNthOccurrence(text, surface, occurrence);
-+  int startChar = static_cast<int>(utf8ToUtf16Length(text.substr(0, byteOffset)));
-+  int endChar =
-+      startChar + static_cast<int>(utf8ToUtf16Length(surface));
-+
-+  TokenData token;
-+  token.line = 0;
-+  token.startChar = startChar;
-+  token.endChar = endChar;
-+  token.surface = surface;
-+  token.feature = feature;
-+  return token;
-+}
-+
-+MoZukuConfig makeTestConfig() {
-+  MoZukuConfig config;
-+  config.analysis.grammarCheck = true;
-+  config.analysis.rules.commaLimit = false;
-+  config.analysis.rules.adversativeGa = false;
-+  config.analysis.rules.duplicateParticleSurface = true;
-+  config.analysis.rules.adjacentParticles = false;
-+  config.analysis.rules.conjunctionRepeat = false;
-+  config.analysis.rules.raDropping = false;
-+  config.analysis.rules.duplicateParticleSurfaceMaxRepeat = 1;
-+  return config;
-+}
-+
-+void expectDiagnosticCount(const std::string &name, const std::string &text,
-+                           const std::vector<TokenData> &tokens,
-+                           size_t expectedCount) {
-+  std::vector<SentenceBoundary> sentences =
-+      MoZuku::text::TextProcessor::splitIntoSentences(text);
-+  std::vector<Diagnostic> diags;
-+  MoZukuConfig config = makeTestConfig();
-+
-+  MoZuku::grammar::GrammarChecker::checkGrammar(text, tokens, sentences, diags,
-+                                                &config);
-+
-+  if (diags.size() != expectedCount) {
-+    std::cerr << name << ": expected " << expectedCount << " diagnostics, got "
-+              << diags.size() << "\n";
-+    for (const auto &diag : diags) {
-+      std::cerr << "  - " << diag.message << "\n";
-+    }
-+    std::exit(1);
++  if (actualBySurface == expected) {
++    return true;
 +  }
++
++  std::cerr << "[FAIL] " << label << "\n";
++  std::cerr << "  expected:";
++  for (const auto &[surface, type] : expected) {
++    std::cerr << " " << surface << "=" << type;
++  }
++  std::cerr << "\n";
++  std::cerr << "  actual:";
++  for (const auto &[surface, type] : actualBySurface) {
++    std::cerr << " " << surface << "=" << type;
++  }
++  std::cerr << "\n";
++  return false;
 +}
 +
 +} // namespace
 +
 +int main() {
-+  expectDiagnosticCount(
-+      "連体化の例外", "既存のコードの利用",
-+      {
-+          makeToken("既存のコードの利用", "の", "助詞,連体化,*,*,*,*,の,ノ,ノ", 0),
-+          makeToken("既存のコードの利用", "の", "助詞,連体化,*,*,*,*,の,ノ,ノ", 1),
-+      },
-+      0);
++  bool ok = true;
 +
-+  expectDiagnosticCount(
-+      "格助詞を例外", "オブジェクトを返す関数を公開した",
-+      {
-+          makeToken("オブジェクトを返す関数を公開した", "を",
-+                    "助詞,格助詞,一般,*,*,*,を,ヲ,ヲ", 0),
-+          makeToken("オブジェクトを返す関数を公開した", "を",
-+                    "助詞,格助詞,一般,*,*,*,を,ヲ,ヲ", 1),
-+      },
-+      0);
++  ok &= expectRoles(
++      "私がご飯を食べる",
++      {token(0, "私", "noun"), token(1, "が", "particle"),
++       token(2, "ご飯", "noun"), token(4, "を", "particle"),
++       token(5, "食べる", "verb"), token(8, "。", "symbol")},
++      {chunk(0, 2, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, -1, 4, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "私", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "ご飯", pos("名詞")),
++       chunkToken(1, 3, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(2, 4, 0, "食べる", posWithBase("動詞", "自立", "食べる")),
++       chunkToken(2, 5, 1, "。", pos("記号"))},
++      {{"私", "keyword"},
++       {"が", "keyword"},
++       {"ご飯", "type"},
++       {"を", "type"},
++       {"食べる", "function"}});
 +
-+  expectDiagnosticCount(
-+      "格助詞が除外", "彼が私が好きだ",
-+      {
-+          makeToken("彼が私が好きだ", "が",
-+                    "助詞,格助詞,一般,*,*,*,が,ガ,ガ", 0),
-+          makeToken("彼が私が好きだ", "が",
-+                    "助詞,格助詞,一般,*,*,*,が,ガ,ガ", 1),
-+      },
-+      0);
++  ok &= expectRoles(
++      "駅に行く",
++      {token(0, "駅", "noun"), token(1, "に", "particle"),
++       token(2, "行く", "verb"), token(4, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, -1, 2, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "駅", pos("名詞")),
++       chunkToken(0, 1, 1, "に", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "行く", posWithBase("動詞", "自立", "行く")),
++       chunkToken(1, 3, 1, "。", pos("記号"))},
++      {{"駅", "type"}, {"に", "type"}, {"行く", "function"}});
 +
-+  expectDiagnosticCount(
-+      "かどうか例外", "これにするかどうか検討する",
-+      {
-+          makeToken("これにするかどうか検討する", "に",
-+                    "助詞,格助詞,一般,*,*,*,に,ニ,ニ", 0),
-+          makeToken("これにするかどうか検討する", "か",
-+                    "助詞,副助詞／並立助詞／終助詞,*,*,*,*,か,カ,カ", 0),
-+          makeToken("これにするかどうか検討する", "どう",
-+                    "副詞,助詞類接続,*,*,*,*,どう,ドウ,ドー", 0),
-+          makeToken("これにするかどうか検討する", "か",
-+                    "助詞,副助詞／並立助詞／終助詞,*,*,*,*,か,カ,カ", 1),
-+      },
-+      0);
++  ok &= expectRoles(
++      "私が駅に行く",
++      {token(0, "私", "noun"), token(1, "が", "particle"),
++       token(2, "駅", "noun"), token(3, "に", "particle"),
++       token(4, "行く", "verb"), token(6, "。", "symbol")},
++      {chunk(0, 2, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, -1, 4, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "私", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "駅", pos("名詞")),
++       chunkToken(1, 3, 1, "に", pos("助詞", "格助詞")),
++       chunkToken(2, 4, 0, "行く", posWithBase("動詞", "自立", "行く")),
++       chunkToken(2, 5, 1, "。", pos("記号"))},
++      {{"私", "keyword"},
++       {"が", "keyword"},
++       {"駅", "type"},
++       {"に", "type"},
++       {"行く", "function"}});
 +
-+  expectDiagnosticCount(
-+      "句読点で区切れば非検知", "材料不足で、代替素材で製品を作った。",
-+      {
-+          makeToken("材料不足で、代替素材で製品を作った。", "で",
-+                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 0),
-+          makeToken("材料不足で、代替素材で製品を作った。", "で",
-+                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 1),
-+      },
-+      0);
++  ok &= expectRoles(
++      "小学生の時に本を読んだ",
++      {token(0, "小学生", "noun"), token(3, "の", "particle"),
++       token(4, "時", "noun"), token(5, "に", "particle"),
++       token(6, "本", "noun"), token(7, "を", "particle"),
++       token(8, "読ん", "verb"), token(10, "だ", "aux"),
++       token(11, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, 3, 2, 2, 0, 1),
++       chunk(2, 3, 4, 2, 0, 1), chunk(3, -1, 6, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "小学生", pos("名詞")),
++       chunkToken(0, 1, 1, "の", pos("助詞", "連体化")),
++       chunkToken(1, 2, 0, "時", posWithSub2("名詞", "非自立", "副詞可能")),
++       chunkToken(1, 3, 1, "に", pos("助詞", "格助詞")),
++       chunkToken(2, 4, 0, "本", pos("名詞")),
++       chunkToken(2, 5, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(3, 6, 0, "読ん", posWithBase("動詞", "自立", "読む")),
++       chunkToken(3, 7, 1, "だ", posWithBase("助動詞", "", "だ")),
++       chunkToken(3, 8, 2, "。", pos("記号"))},
++      {{"本", "type"},
++       {"を", "type"},
++       {"読ん", "function"},
++       {"だ", "function"}});
 +
-+  expectDiagnosticCount(
-+      "通常の重複助詞", "私は彼は好きだ",
-+      {
-+          makeToken("私は彼は好きだ", "は", "助詞,係助詞,*,*,*,*,は,ハ,ワ", 0),
-+          makeToken("私は彼は好きだ", "は", "助詞,係助詞,*,*,*,*,は,ハ,ワ", 1),
-+      },
-+      1);
++  ok &= expectRoles(
++      "年の離れた兄がいた",
++      {token(0, "年", "noun"), token(1, "の", "particle"),
++       token(2, "離れ", "verb"), token(4, "た", "aux"),
++       token(5, "兄", "noun"), token(6, "が", "particle"),
++       token(7, "い", "verb"), token(8, "た", "aux"),
++       token(9, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, 3, 4, 2, 0, 1), chunk(3, -1, 6, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "年", pos("名詞")),
++       chunkToken(0, 1, 1, "の", pos("助詞", "連体化")),
++       chunkToken(1, 2, 0, "離れ", posWithBase("動詞", "自立", "離れる")),
++       chunkToken(1, 3, 1, "た", posWithBase("助動詞", "", "た")),
++       chunkToken(2, 4, 0, "兄", pos("名詞")),
++       chunkToken(2, 5, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(3, 6, 0, "い", posWithBase("動詞", "自立", "いる")),
++       chunkToken(3, 7, 1, "た", posWithBase("助動詞", "", "た")),
++       chunkToken(3, 8, 2, "。", pos("記号"))},
++      {{"年", "keyword"},
++       {"の", "keyword"},
++       {"離れ", "keyword"},
++       {"た", "keyword"},
++       {"兄", "keyword"},
++       {"が", "keyword"},
++       {"い", "function"},
++       {"た", "function"}});
 +
-+  expectDiagnosticCount(
-+      "句読点なしは検知", "材料不足で代替素材で製品を作った。",
-+      {
-+          makeToken("材料不足で代替素材で製品を作った。", "で",
-+                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 0),
-+          makeToken("材料不足で代替素材で製品を作った。", "で",
-+                    "助詞,格助詞,一般,*,*,*,で,デ,デ", 1),
-+      },
-+      1);
++  ok &= expectRoles(
++      "物心ついた頃からアニメを観ることが多かった",
++      {token(0, "物心", "noun"), token(2, "つい", "verb"),
++       token(4, "た", "aux"), token(5, "頃", "noun"),
++       token(6, "から", "particle"), token(7, "アニメ", "noun"),
++       token(11, "を", "particle"), token(12, "観る", "verb"),
++       token(14, "こと", "noun"), token(16, "が", "particle"),
++       token(17, "多かっ", "adjective"), token(20, "た", "aux"),
++       token(21, "。", "symbol")},
++      {chunk(0, 1, 0, 3, 1, 2), chunk(1, 3, 3, 2, 0, 1),
++       chunk(2, 3, 5, 2, 0, 1), chunk(3, 4, 7, 1, 0, 1),
++       chunk(4, 5, 8, 2, 0, 1), chunk(5, -1, 10, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "物心", pos("名詞")),
++       chunkToken(0, 1, 1, "つい", posWithBase("動詞", "自立", "つく")),
++       chunkToken(0, 2, 2, "た", posWithBase("助動詞", "", "た")),
++       chunkToken(1, 3, 0, "頃", posWithSub2("名詞", "非自立", "副詞可能")),
++       chunkToken(1, 4, 1, "から", pos("助詞", "格助詞")),
++       chunkToken(2, 5, 0, "アニメ", pos("名詞")),
++       chunkToken(2, 6, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(3, 7, 0, "観る", posWithBase("動詞", "自立", "観る")),
++       chunkToken(4, 8, 0, "こと", pos("名詞", "非自立")),
++       chunkToken(4, 9, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(5, 10, 0, "多かっ", posWithBase("形容詞", "自立", "多い")),
++       chunkToken(5, 11, 1, "た", posWithBase("助動詞", "", "た")),
++       chunkToken(5, 12, 2, "。", pos("記号"))},
++      {{"つい", "function"},
++       {"た", "function"},
++       {"アニメ", "type"},
++       {"を", "type"},
++       {"観る", "function"},
++       {"こと", "keyword"},
++       {"が", "keyword"},
++       {"多かっ", "function"},
++       {"た", "function"}});
 +
-+  return 0;
++  ok &= expectRoles(
++      "太郎が走る",
++      {token(0, "太郎", "noun"), token(2, "が", "particle"),
++       token(3, "走る", "verb"), token(5, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, -1, 2, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "太郎", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "走る", pos("動詞", "自立")),
++       chunkToken(1, 3, 1, "。", pos("記号"))},
++      {{"太郎", "keyword"}, {"が", "keyword"}, {"走る", "function"}});
++
++  ok &= expectRoles(
++      "太郎は走る",
++      {token(0, "太郎", "noun"), token(2, "は", "particle"),
++       token(3, "走る", "verb"), token(5, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, -1, 2, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "太郎", pos("名詞")),
++       chunkToken(0, 1, 1, "は", pos("助詞", "係助詞")),
++       chunkToken(1, 2, 0, "走る", pos("動詞", "自立")),
++       chunkToken(1, 3, 1, "。", pos("記号"))},
++      {{"太郎", "keyword"}, {"は", "keyword"}, {"走る", "function"}});
++
++  ok &= expectRoles(
++      "太郎には本がある",
++      {token(0, "太郎", "noun"), token(2, "に", "particle"),
++       token(3, "は", "particle"), token(4, "本", "noun"),
++       token(5, "が", "particle"), token(6, "ある", "verb"),
++       token(8, "。", "symbol")},
++      {chunk(0, 2, 0, 3, 0, 1), chunk(1, 2, 3, 2, 0, 1),
++       chunk(2, -1, 5, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "太郎", pos("名詞")),
++       chunkToken(0, 1, 1, "に", pos("助詞", "格助詞")),
++       chunkToken(0, 2, 2, "は", pos("助詞", "係助詞")),
++       chunkToken(1, 3, 0, "本", pos("名詞")),
++       chunkToken(1, 4, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(2, 5, 0, "ある", pos("動詞", "自立")),
++       chunkToken(2, 6, 1, "。", pos("記号"))},
++      {{"太郎", "keyword"},
++       {"に", "keyword"},
++       {"は", "keyword"},
++       {"本", "keyword"},
++       {"が", "keyword"},
++       {"ある", "function"}});
++
++  ok &= expectRoles(
++      "太郎が花子に本を渡した",
++      {token(0, "太郎", "noun"), token(2, "が", "particle"),
++       token(3, "花子", "noun"), token(5, "に", "particle"),
++       token(6, "本", "noun"), token(7, "を", "particle"),
++       token(8, "渡し", "verb"), token(10, "た", "aux"),
++       token(11, "。", "symbol")},
++      {chunk(0, 3, 0, 2, 0, 1), chunk(1, 3, 2, 2, 0, 1),
++       chunk(2, 3, 4, 2, 0, 1), chunk(3, -1, 6, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "太郎", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "花子", pos("名詞")),
++       chunkToken(1, 3, 1, "に", pos("助詞", "格助詞")),
++       chunkToken(2, 4, 0, "本", pos("名詞")),
++       chunkToken(2, 5, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(3, 6, 0, "渡し", pos("動詞", "自立")),
++       chunkToken(3, 7, 1, "た", pos("助動詞")),
++       chunkToken(3, 8, 2, "。", pos("記号"))},
++      {{"太郎", "keyword"},
++       {"が", "keyword"},
++       {"花子", "type"},
++       {"に", "type"},
++       {"本", "type"},
++       {"を", "type"},
++       {"渡し", "function"},
++       {"た", "function"}});
++
++  ok &= expectRoles(
++      "彼が書いた本を読んだ",
++      {token(0, "彼", "noun"), token(1, "が", "particle"),
++       token(2, "書い", "verb"), token(4, "た", "aux"),
++       token(5, "本", "noun"), token(6, "を", "particle"),
++       token(7, "読ん", "verb"), token(9, "だ", "aux"),
++       token(10, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, 3, 4, 2, 0, 1), chunk(3, -1, 6, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "彼", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "書い", pos("動詞", "自立")),
++       chunkToken(1, 3, 1, "た", pos("助動詞")),
++       chunkToken(2, 4, 0, "本", pos("名詞")),
++       chunkToken(2, 5, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(3, 6, 0, "読ん", pos("動詞", "自立")),
++       chunkToken(3, 7, 1, "だ", pos("助動詞")),
++       chunkToken(3, 8, 2, "。", pos("記号"))},
++      {{"彼", "type"},
++       {"が", "type"},
++       {"書い", "type"},
++       {"た", "type"},
++       {"本", "type"},
++       {"を", "type"},
++       {"読ん", "function"},
++       {"だ", "function"}});
++
++  ok &= expectRoles(
++      "AとBが来た",
++      {token(0, "A", "noun"), token(1, "と", "particle"),
++       token(2, "B", "noun"), token(3, "が", "particle"),
++       token(4, "来", "verb"), token(5, "た", "aux"),
++       token(6, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, -1, 4, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "A", pos("名詞")),
++       chunkToken(0, 1, 1, "と", pos("助詞", "並立助詞")),
++       chunkToken(1, 2, 0, "B", pos("名詞")),
++       chunkToken(1, 3, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(2, 4, 0, "来", pos("動詞", "自立")),
++       chunkToken(2, 5, 1, "た", pos("助動詞")),
++       chunkToken(2, 6, 2, "。", pos("記号"))},
++      {{"A", "keyword"},
++       {"と", "keyword"},
++       {"B", "keyword"},
++       {"が", "keyword"},
++       {"来", "function"},
++       {"た", "function"}});
++
++  ok &= expectRoles(
++      "東京では雨が降る",
++      {token(0, "東京", "noun"), token(2, "で", "particle"),
++       token(3, "は", "particle"), token(4, "雨", "noun"),
++       token(5, "が", "particle"), token(6, "降る", "verb"),
++       token(8, "。", "symbol")},
++      {chunk(0, 2, 0, 3, 0, 1), chunk(1, 2, 3, 2, 0, 1),
++       chunk(2, -1, 5, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "東京", pos("名詞")),
++       chunkToken(0, 1, 1, "で", pos("助詞", "格助詞")),
++       chunkToken(0, 2, 2, "は", pos("助詞", "係助詞")),
++       chunkToken(1, 3, 0, "雨", pos("名詞")),
++       chunkToken(1, 4, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(2, 5, 0, "降る", pos("動詞", "自立")),
++       chunkToken(2, 6, 1, "。", pos("記号"))},
++      {{"雨", "keyword"}, {"が", "keyword"}, {"降る", "function"}});
++
++  ok &= expectRoles(
++      "空が青い",
++      {token(0, "空", "noun"), token(1, "が", "particle"),
++       token(2, "青い", "adjective"), token(4, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, -1, 2, 2, 0, 1)},
++      {chunkToken(0, 0, 0, "空", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "青い", posWithBase("形容詞", "自立", "青い")),
++       chunkToken(1, 3, 1, "。", pos("記号"))},
++      {{"空", "keyword"}, {"が", "keyword"}, {"青い", "function"}});
++
++  {
++    auto gakusei = pos("名詞", "一般");
++    gakusei.baseForm = "学生";
++    auto da = pos("助動詞");
++    da.baseForm = "だ";
++
++    ok &= expectRoles(
++        "彼は学生だ",
++        {token(0, "彼", "noun"), token(1, "は", "particle"),
++         token(2, "学生", "noun"), token(4, "だ", "aux"),
++         token(5, "。", "symbol")},
++        {chunk(0, 1, 0, 2, 0, 1), chunk(1, -1, 2, 3, 0, 1)},
++        {chunkToken(0, 0, 0, "彼", pos("名詞")),
++         chunkToken(0, 1, 1, "は", pos("助詞", "係助詞")),
++         chunkToken(1, 2, 0, "学生", gakusei),
++         chunkToken(1, 3, 1, "だ", da),
++         chunkToken(1, 4, 2, "。", pos("記号"))},
++        {{"彼", "keyword"},
++         {"は", "keyword"},
++         {"学生", "function"},
++         {"だ", "function"}});
++  }
++
++  ok &= expectRoles(
++      "閉じて",
++      {token(0, "閉じ", "verb"), token(2, "て", "particle"),
++       token(3, "。", "symbol")},
++      {chunk(0, -1, 0, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "閉じ", posWithBase("動詞", "自立", "閉じる")),
++       chunkToken(0, 1, 1, "て", pos("助詞", "接続助詞")),
++       chunkToken(0, 2, 2, "。", pos("記号"))},
++      {{"閉じ", "function"}, {"て", "function"}});
++
++  ok &= expectRoles(
++      "食べて",
++      {token(0, "食べ", "verb"), token(2, "て", "particle"),
++       token(3, "。", "symbol")},
++      {chunk(0, -1, 0, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "食べ", posWithBase("動詞", "自立", "食べる")),
++       chunkToken(0, 1, 1, "て", pos("助詞", "接続助詞")),
++       chunkToken(0, 2, 2, "。", pos("記号"))},
++      {{"食べ", "function"}, {"て", "function"}});
++
++  ok &= expectRoles(
++      "勉強している",
++      {token(0, "勉強", "noun"), token(2, "し", "verb"),
++       token(3, "て", "particle"), token(4, "いる", "verb"),
++       token(6, "。", "symbol")},
++      {chunk(0, -1, 0, 5, 1, 3)},
++      {chunkToken(0, 0, 0, "勉強", pos("名詞", "サ変接続")),
++       chunkToken(0, 1, 1, "し", posWithBase("動詞", "自立", "する")),
++       chunkToken(0, 2, 2, "て", pos("助詞", "接続助詞")),
++       chunkToken(0, 3, 3, "いる", posWithBase("動詞", "非自立", "いる")),
++       chunkToken(0, 4, 4, "。", pos("記号"))},
++      {{"勉強", "function"},
++       {"し", "function"},
++       {"て", "function"},
++       {"いる", "function"}});
++
++  ok &= expectRoles(
++      "読んでいる",
++      {token(0, "読ん", "verb"), token(2, "で", "particle"),
++       token(3, "いる", "verb"), token(5, "。", "symbol")},
++      {chunk(0, -1, 0, 4, 0, 2)},
++      {chunkToken(0, 0, 0, "読ん", posWithBase("動詞", "自立", "読む")),
++       chunkToken(0, 1, 1, "で", pos("助詞", "接続助詞")),
++       chunkToken(0, 2, 2, "いる", posWithBase("動詞", "非自立", "いる")),
++       chunkToken(0, 3, 3, "。", pos("記号"))},
++      {{"読ん", "function"}, {"で", "function"}, {"いる", "function"}});
++
++  {
++    auto hanare = posWithBase("動詞", "自立", "離れる");
++    auto ta = posWithBase("助動詞", "", "た");
++    ok &= expectRoles(
++        "離れた",
++        {token(0, "離れ", "verb"), token(2, "た", "aux"),
++         token(3, "。", "symbol")},
++        {chunk(0, -1, 0, 3, 0, 1)},
++        {chunkToken(0, 0, 0, "離れ", hanare),
++         chunkToken(0, 1, 1, "た", ta),
++         chunkToken(0, 2, 2, "。", pos("記号"))},
++        {{"離れ", "function"}, {"た", "function"}});
++  }
++
++  {
++    auto tsuku = posWithBase("動詞", "自立", "つく");
++    auto ta = posWithBase("助動詞", "", "た");
++    ok &= expectRoles(
++        "ついた",
++        {token(0, "つい", "verb"), token(2, "た", "aux"),
++         token(3, "。", "symbol")},
++        {chunk(0, -1, 0, 3, 0, 1)},
++        {chunkToken(0, 0, 0, "つい", tsuku),
++         chunkToken(0, 1, 1, "た", ta),
++         chunkToken(0, 2, 2, "。", pos("記号"))},
++        {{"つい", "function"}, {"た", "function"}});
++  }
++
++  {
++    auto da = posWithBase("助動詞", "", "だ");
++    ok &= expectRoles(
++        "静かだ",
++        {token(0, "静か", "noun"), token(2, "だ", "aux"),
++         token(3, "。", "symbol")},
++        {chunk(0, -1, 0, 3, 0, 1)},
++        {chunkToken(0, 0, 0, "静か", pos("名詞", "形容動詞語幹")),
++         chunkToken(0, 1, 1, "だ", da),
++         chunkToken(0, 2, 2, "。", pos("記号"))},
++        {{"静か", "function"}, {"だ", "function"}});
++  }
++
++  {
++    auto ookai = posWithBase("形容詞", "自立", "多い");
++    auto ta = posWithBase("助動詞", "", "た");
++    ok &= expectRoles(
++        "多かった",
++        {token(0, "多かっ", "adjective"), token(3, "た", "aux"),
++         token(4, "。", "symbol")},
++        {chunk(0, -1, 0, 3, 0, 1)},
++        {chunkToken(0, 0, 0, "多かっ", ookai),
++         chunkToken(0, 1, 1, "た", ta),
++         chunkToken(0, 2, 2, "。", pos("記号"))},
++        {{"多かっ", "function"}, {"た", "function"}});
++  }
++
++  {
++    auto takai = posWithBase("形容詞", "自立", "高い");
++    auto nai = posWithBase("助動詞", "", "ない");
++    ok &= expectRoles(
++        "高くない",
++        {token(0, "高く", "adjective"), token(2, "ない", "aux"),
++         token(4, "。", "symbol")},
++        {chunk(0, -1, 0, 3, 0, 1)},
++        {chunkToken(0, 0, 0, "高く", takai),
++         chunkToken(0, 1, 1, "ない", nai),
++         chunkToken(0, 2, 2, "。", pos("記号"))},
++        {{"高く", "function"}, {"ない", "function"}});
++  }
++
++  ok &= expectRoles(
++      "その赤い本を読んだ",
++      {token(0, "その", "determiner"), token(2, "赤い", "adjective"),
++       token(4, "本", "noun"), token(5, "を", "particle"),
++       token(6, "読ん", "verb"), token(8, "だ", "aux"),
++       token(9, "。", "symbol")},
++      {chunk(0, 2, 0, 1, 0, 1), chunk(1, 2, 1, 1, 0, 1),
++       chunk(2, 3, 2, 2, 0, 1), chunk(3, -1, 4, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "その", pos("連体詞")),
++       chunkToken(1, 1, 0, "赤い", posWithBase("形容詞", "自立", "赤い")),
++       chunkToken(2, 2, 0, "本", pos("名詞")),
++       chunkToken(2, 3, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(3, 4, 0, "読ん", posWithBase("動詞", "自立", "読む")),
++       chunkToken(3, 5, 1, "だ", posWithBase("助動詞", "", "だ")),
++       chunkToken(3, 6, 2, "。", pos("記号"))},
++      {{"その", "type"},
++       {"赤い", "type"},
++       {"本", "type"},
++       {"を", "type"},
++       {"読ん", "function"},
++       {"だ", "function"}});
++
++  ok &= expectRoles(
++      "花子が図書館で借りた本を読んだ",
++      {token(0, "花子", "noun"), token(2, "が", "particle"),
++       token(3, "図書館", "noun"), token(6, "で", "particle"),
++       token(7, "借り", "verb"), token(9, "た", "aux"),
++       token(10, "本", "noun"), token(11, "を", "particle"),
++       token(12, "読ん", "verb"), token(14, "だ", "aux"),
++       token(15, "。", "symbol")},
++      {chunk(0, 2, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, 3, 4, 2, 0, 1), chunk(3, 4, 6, 2, 0, 1),
++       chunk(4, -1, 8, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "花子", pos("名詞")),
++       chunkToken(0, 1, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(1, 2, 0, "図書館", pos("名詞")),
++       chunkToken(1, 3, 1, "で", pos("助詞", "格助詞")),
++       chunkToken(2, 4, 0, "借り", posWithBase("動詞", "自立", "借りる")),
++       chunkToken(2, 5, 1, "た", posWithBase("助動詞", "", "た")),
++       chunkToken(3, 6, 0, "本", pos("名詞")),
++       chunkToken(3, 7, 1, "を", pos("助詞", "格助詞")),
++       chunkToken(4, 8, 0, "読ん", posWithBase("動詞", "自立", "読む")),
++       chunkToken(4, 9, 1, "だ", posWithBase("助動詞", "", "だ")),
++       chunkToken(4, 10, 2, "。", pos("記号"))},
++      {{"花子", "type"},
++       {"が", "type"},
++       {"図書館", "type"},
++       {"で", "type"},
++       {"借り", "type"},
++       {"た", "type"},
++       {"本", "type"},
++       {"を", "type"},
++       {"読ん", "function"},
++       {"だ", "function"}});
++
++  ok &= expectRoles(
++      "私の大学の先生が来た",
++      {token(0, "私", "noun"), token(1, "の", "particle"),
++       token(2, "大学", "noun"), token(4, "の", "particle"),
++       token(5, "先生", "noun"), token(7, "が", "particle"),
++       token(8, "来", "verb"), token(9, "た", "aux"),
++       token(10, "。", "symbol")},
++      {chunk(0, 1, 0, 2, 0, 1), chunk(1, 2, 2, 2, 0, 1),
++       chunk(2, 3, 4, 2, 0, 1), chunk(3, -1, 6, 3, 0, 1)},
++      {chunkToken(0, 0, 0, "私", pos("名詞")),
++       chunkToken(0, 1, 1, "の", pos("助詞", "連体化")),
++       chunkToken(1, 2, 0, "大学", pos("名詞")),
++       chunkToken(1, 3, 1, "の", pos("助詞", "連体化")),
++       chunkToken(2, 4, 0, "先生", pos("名詞")),
++       chunkToken(2, 5, 1, "が", pos("助詞", "格助詞")),
++       chunkToken(3, 6, 0, "来", posWithBase("動詞", "自立", "来る")),
++       chunkToken(3, 7, 1, "た", posWithBase("助動詞", "", "た")),
++       chunkToken(3, 8, 2, "。", pos("記号"))},
++      {{"私", "keyword"},
++       {"の", "keyword"},
++       {"大学", "keyword"},
++       {"の", "keyword"},
++       {"先生", "keyword"},
++       {"が", "keyword"},
++       {"来", "function"},
++       {"た", "function"}});
++
++  return ok ? EXIT_SUCCESS : EXIT_FAILURE;
++}
+diff --git a/mozuku-lsp/tests/analyzer_semantic_highlight_test.cpp b/mozuku-lsp/tests/analyzer_semantic_highlight_test.cpp
+new file mode 100644
+index 0000000..01fc280
+--- /dev/null
++++ b/mozuku-lsp/tests/analyzer_semantic_highlight_test.cpp
+@@ -0,0 +1,62 @@
++#include "analyzer.hpp"
++
++#include <cstdlib>
++#include <iostream>
++#include <string>
++#include <vector>
++
++int main() {
++  MoZuku::Analyzer analyzer;
++  MoZukuConfig config;
++  config.analysis.enableCaboCha = true;
++  config.analysis.grammarCheck = false;
++
++  if (!analyzer.initialize(config)) {
++    std::cerr << "failed to initialize analyzer\n";
++    return EXIT_FAILURE;
++  }
++
++  const std::string text = "私が駅に行く。";
++  const auto baseTokens = analyzer.analyzeText(text);
++  const auto semanticTokens =
++      analyzer.buildSemanticHighlightTokens(text, baseTokens);
++  const auto dependencies = analyzer.analyzeDependencies(text);
++
++  bool hasSubject = false;
++  bool hasDestination = false;
++  bool hasPredicate = false;
++
++  for (const auto &token : semanticTokens) {
++    if (token.surface == "私" && token.tokenType == "keyword") {
++      hasSubject = true;
++    }
++    if (token.surface == "駅" && token.tokenType == "type") {
++      hasDestination = true;
++    }
++    if (token.surface == "行く" && token.tokenType == "function") {
++      hasPredicate = true;
++    }
++  }
++
++  if (hasSubject && hasDestination && hasPredicate) {
++    return EXIT_SUCCESS;
++  }
++
++  std::cerr << "semantic tokens:";
++  for (const auto &token : semanticTokens) {
++    std::cerr << " " << token.surface << "=" << token.tokenType;
++  }
++  std::cerr << "\n";
++  std::cerr << "base tokens:";
++  for (const auto &token : baseTokens) {
++    std::cerr << " " << token.surface << "=" << token.tokenType;
++  }
++  std::cerr << "\n";
++  std::cerr << "dependencies:";
++  for (const auto &dep : dependencies) {
++    std::cerr << " [" << dep.chunkId << "->" << dep.headId << ":" << dep.text
++              << "]";
++  }
++  std::cerr << "\n";
++  return EXIT_FAILURE;
 +}
