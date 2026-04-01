@@ -1,0 +1,13 @@
+diff --git a/autoload/lsp/lsp.vim b/autoload/lsp/lsp.vim
+index 6c0bfaa..de496a1 100644
+--- a/autoload/lsp/lsp.vim
++++ b/autoload/lsp/lsp.vim
+@@ -526,7 +526,7 @@ def BufferInit(lspserverId: number, bnr: number): void
+ 
+       var semanticServer = buf.BufLspServerGet(bnr, 'semanticTokens')
+       if !semanticServer->empty() && lspsrv.id == semanticServer.id
+-	semantichighlight.BufferInit(lspserver, bnr)
++	semantichighlight.BufferInit(lspsrv, bnr)
+       endif
+     endfor
+ 
