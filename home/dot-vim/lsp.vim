@@ -249,6 +249,45 @@ function! s:RegisterLspServers() abort
         \     },
         \   },
         \ })
+  call s:AddLspServerIfExecutable(l:servers, 'jsonls',
+        \ ['json', 'jsonc'],
+        \ ['vscode-json-language-server', 'vscode-json-languageserver'], ['--stdio'],
+        \ #{
+        \   workspaceConfig: #{
+        \     json: #{
+        \       validate: #{
+        \         enable: v:true,
+        \         comments: 'warning',
+        \         trailingCommas: 'warning',
+        \         schemaValidation: 'warning',
+        \         schemaRequest: 'warning',
+        \       },
+        \       format: #{enable: v:true},
+        \       keepLines: #{enable: v:false},
+        \       resultLimit: 5000,
+        \       jsonFoldingLimit: 5000,
+        \       jsoncFoldingLimit: 5000,
+        \       schemas: [
+        \         #{
+        \           uri: 'https://json.schemastore.org/package.json',
+        \           fileMatch: ['package.json'],
+        \         },
+        \         #{
+        \           uri: 'https://json.schemastore.org/tsconfig.json',
+        \           fileMatch: ['tsconfig.json', 'tsconfig.*.json'],
+        \         },
+        \         #{
+        \           uri: 'https://json.schemastore.org/jsconfig.json',
+        \           fileMatch: ['jsconfig.json', 'jsconfig.*.json'],
+        \         },
+        \         #{
+        \           uri: 'https://json.schemastore.org/deno.json',
+        \           fileMatch: ['deno.json', 'deno.jsonc'],
+        \         },
+        \       ],
+        \     },
+        \   },
+        \ })
   call s:AddLspServerIfExecutable(l:servers, 'yamlls',
         \ ['yaml'],
         \ ['yaml-language-server'], ['--stdio'],
@@ -328,6 +367,12 @@ function! s:RegisterLspServers() abort
         \       completion: #{autoimport: #{enable: v:true}},
         \     },
         \   },
+        \ })
+  call s:AddLspServerIfExecutable(l:servers, 'zls',
+        \ ['zig'],
+        \ ['zls'], [],
+        \ #{
+        \   rootSearch: ['zls.json', 'build.zig', 'build.zig.zon', '.git'],
         \ })
   call s:AddLspServerIfExecutable(l:servers, 'html',
         \ ['html'],
