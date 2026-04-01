@@ -188,6 +188,10 @@ _source_first_readable \
   /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
   >/dev/null 2>&1
 
+# override syntax highlight color
+typeset -gA ZSH_HIGHLIGHT_STYLES
+ZSH_HIGHLIGHT_STYLES[comment]='fg=#6c7ea6'
+
 # zsh-syntax-highlighting should stay last.
 _source_first_readable \
   /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
