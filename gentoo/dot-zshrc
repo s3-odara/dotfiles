@@ -71,6 +71,18 @@ setopt NO_PUSHD_SILENT
 setopt PUSHD_MINUS
 export cdpath=(~ ~/git)
 
+# Job Control
+setopt AUTO_CONTINUE
+setopt CHECK_JOBS
+setopt CHECK_RUNNING_JOBS
+setopt HUP
+
+# I/O
+setopt NO_CLOBBER
+setopt NO_CLOBBER_EMPTY
+setopt NO_RM_STAR_SILENT
+setopt NO_RM_STAR_WAIT
+
 # Hooks
 autoload -Uz add-zsh-hook
 
@@ -82,6 +94,10 @@ zle -N down-line-or-beginning-search
 bindkey '^H' history-incremental-pattern-search-backward
 [[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
 [[ -n "${terminfo[kcud1]:-}" ]] && bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
+# Alias
+alias cp='cp -i'
+alias mv='mv -i'
+alias rm='rm -I'
 
 # Keep GPG_TTY fresh and inform gpg-agent.
 _gpg_update_tty() {
