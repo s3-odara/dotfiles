@@ -62,6 +62,14 @@ setopt SHARE_HISTORY
 setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_REDUCE_BLANKS
 
+# CD
+setopt AUTO_CD
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt NO_PUSHD_SILENT
+setopt PUSHD_MINUS
+export cdpath=(~ ~/git)
+
 # Hooks
 autoload -Uz add-zsh-hook
 
