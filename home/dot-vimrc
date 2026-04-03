@@ -29,10 +29,9 @@ function! PackInit() abort
   " LSP, Completion
   call minpac#add('https://github.com/yegappan/lsp.git')
   
-  " Snippet, Lexiv
+  " Snippet
   call minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
   call minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git')
-  call minpac#add('https://github.com/mattn/vim-lexiv.git', {'type': 'opt'})
 endfunction
 
 if filereadable(expand('~/.vim/functions.vim'))
@@ -47,13 +46,13 @@ endif
 set encoding=utf-8
 set fileencodings=utf-8,iso-2022-jp,euc-jp,sjis
 set expandtab
-set tabstop=4
+set tabstop=8         " hardtabがある文書では8から変えないほうが良いらしい？
 set softtabstop=-1    " shiftwidthに従う
-set shiftwidth=0      " tabstopに従う
+set shiftwidth=4      " 0にするとtabstopに従う
 set autoindent
 set autocomplete
 set autocompletedelay=200
-set completeopt=menuone,noinsert,noselect,fuzzy,popup
+set completeopt=menuone,fuzzy,popup
 set complete=o,Fvsnip#completefunc,k^2,.^5,w^5,b^5
 
 if !has('nvim') && has('patch-9.1.1576') && has('autocmd')
@@ -136,21 +135,36 @@ xnoremap <leader>se <cmd>LspSelectionExpand<CR>
 nnoremap <leader>ss <cmd>LspSelectionShrink<CR>
 xnoremap <leader>ss <cmd>LspSelectionShrink<CR>
 
-" プラグインロード
-" Insert Mode
-augroup LazyLoadInsert
-    autocmd!
-    autocmd InsertEnter * ++once packadd vim-lexiv | silent! iunmap <BS>
-augroup END
+inoremap <expr> ( SmartOpenPair('(', ')')
+inoremap <expr> [ SmartOpenPair('[', ']')
+inoremap <expr> { SmartOpenPair('{', '}')
+inoremap <expr> ) SmartClosePair(')')
+inoremap <expr> ] SmartClosePair(']')
+inoremap <expr> } SmartClosePair('}')
 
 " プラグイン設定
 
-inoremap <expr> <Tab>
-      \ pumvisible() ? "\<C-n>" :
+imap <expr> <C-l>
       \ vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" :
+      \ "\<C-l>"
+smap <expr> <C-l>
+      \ vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" :
+      \ "\<C-l>"
+inoremap <expr> <Space>
+      \ pumvisible() && InVsnipSession() ? "\<C-y>" :
+      \ "\<Space>"
+imap <expr> <Tab>
+      \ pumvisible() ? "\<C-n>" :
+      \ vsnip#jumpable(1) ? "\<Plug>(vsnip-jump-next)" :
       \ "\<Tab>"
-inoremap <expr> <S-Tab>
+smap <expr> <Tab>
+      \ vsnip#jumpable(1) ? "\<Plug>(vsnip-jump-next)" :
+      \ "\<Tab>"
+imap <expr> <S-Tab>
       \ pumvisible() ? "\<C-p>" :
+      \ vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" :
+      \ "\<S-Tab>"
+smap <expr> <S-Tab>
       \ vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" :
       \ "\<S-Tab>"
 

@@ -84,6 +84,34 @@ function! ScrollCompleteInfo(cmd, fallback) abort
   return a:fallback
 endfunction
 
+function! InVsnipSession() abort
+  try
+    return vsnip#jumpable(1) || vsnip#jumpable(-1)
+  catch
+    return v:false
+  endtry
+endfunction
+
+function! SmartOpenPair(open, close) abort
+  let l:col = col('.')
+  let l:line = getline('.')
+  let l:next = l:col <= len(l:line) ? l:line[l:col - 1] : ''
+  if l:next !=# '' && l:next !~# '\s'
+    return a:open
+  endif
+  return a:open . a:close . "\<Left>"
+endfunction
+
+function! SmartClosePair(close) abort
+  let l:col = col('.')
+  let l:line = getline('.')
+  let l:next = l:col <= len(l:line) ? l:line[l:col - 1] : ''
+  if l:next ==# a:close
+    return "\<Right>"
+  endif
+  return a:close
+endfunction
+
 function! TyposCodeAction(...) abort
   let l:query = get(a:, 1, '')
   let l:lspserver = lsp#buffer#CurbufGetServerByName('typos-lsp')
