@@ -75,7 +75,12 @@ export cdpath=(~ ~/git)
 setopt AUTO_CONTINUE
 setopt CHECK_JOBS
 setopt CHECK_RUNNING_JOBS
-setopt HUP
+# avoid kill pane when crash
+if [[ -n "$TMUX" ]]; then
+  unsetopt HUP
+else
+  setopt HUP
+fi
 
 # I/O
 setopt NO_CLOBBER
