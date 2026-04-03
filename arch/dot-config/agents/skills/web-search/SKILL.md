@@ -1,1 +1,1 @@
-../../../../dot-agents/skills/web-search/SKILL.md
+../../../../git/dotfiles/arch/dot-agents/skills/web-search/SKILL.md

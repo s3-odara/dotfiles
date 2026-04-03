@@ -3,9 +3,6 @@
   "permissions": {
     "allow_all": true
   },
-  "options": {
-    "skills_paths": ["~/.agents/skills"]
-  },
   "mcp": {
     "context7": {
       "type": "http",
