@@ -53,7 +53,7 @@ set autoindent
 set autocomplete
 set autocompletedelay=200
 set completeopt=menuone,fuzzy,popup
-set complete=o,Fvsnip#completefunc,k^2,.^5,w^5,b^5
+set complete=o,Fvsnip#completefunc,FPathComplete,k^2,.^5,w^5,b^5
 
 if !has('nvim') && has('patch-9.1.1576') && has('autocmd')
   set wildmenu wildmode=noselect:lastused,full

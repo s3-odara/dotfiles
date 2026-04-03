@@ -92,6 +92,61 @@ function! InVsnipSession() abort
   endtry
 endfunction
 
+function! PathComplete(findstart, base) abort
+  if a:findstart
+    let l:line = getline('.')
+    let l:col = col('.') - 1
+
+    while l:col > 0 && l:line[l:col - 1] !~# '[[:space:]"''`<>()\[\]{}|,;]'
+      let l:col -= 1
+    endwhile
+
+    return l:col
+  endif
+
+  if a:base !~# '^\./'
+        \ && a:base !~# '^\.\./'
+        \ && a:base !~# '^/'
+        \ && stridx(a:base, '~/') != 0
+        \ && stridx(a:base, '/') == -1
+    return []
+  endif
+
+  let l:expanded = stridx(a:base, '~/') == 0 ? expand(a:base) : a:base
+  let l:dir = fnamemodify(l:expanded, ':h')
+  let l:leaf = fnamemodify(l:expanded, ':t')
+  let l:prefix = l:dir ==# '.' ? '' : l:dir .. '/'
+  let l:matches = []
+
+  if !isdirectory(empty(l:dir) ? '.' : l:dir)
+    return []
+  endif
+
+  for l:path in glob(l:prefix .. '*', 0, 1)
+    let l:name = fnamemodify(l:path, ':t')
+    if l:name !~# '^' .. escape(l:leaf, '\')
+      continue
+    endif
+
+    let l:isdir = isdirectory(l:path)
+    let l:word = l:prefix .. l:name .. (l:isdir ? '/' : '')
+    if stridx(a:base, '~/') == 0
+      let l:home = expand('~/')
+      if stridx(l:word, l:home) == 0
+        let l:word = '~/' .. l:word[strlen(l:home):]
+      endif
+    endif
+
+    call add(l:matches, #{
+          \ word: l:word,
+          \ abbr: l:name .. (l:isdir ? '/' : ''),
+          \ menu: l:isdir ? '[dir]' : '[path]',
+          \ })
+  endfor
+
+  return {'words': l:matches, 'refresh': 'always'}
+endfunction
+
 function! SmartOpenPair(open, close) abort
   let l:col = col('.')
   let l:line = getline('.')
