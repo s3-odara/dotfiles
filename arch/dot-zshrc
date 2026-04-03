@@ -61,6 +61,7 @@ SAVEHIST=10000
 setopt SHARE_HISTORY
 setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_REDUCE_BLANKS
+setopt HIST_VERIFY
 
 # CD
 setopt AUTO_CD
@@ -74,12 +75,7 @@ export cdpath=(~ ~/git)
 setopt AUTO_CONTINUE
 setopt CHECK_JOBS
 setopt CHECK_RUNNING_JOBS
-# avoid kill pane when crash
-if [[ -n "$TMUX" ]]; then
-  unsetopt HUP
-else
-  setopt HUP
-fi
+setopt HUP
 
 # I/O
 setopt NO_CLOBBER

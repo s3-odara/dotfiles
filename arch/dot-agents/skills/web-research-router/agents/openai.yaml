@@ -1,3 +1,0 @@
-interface:
-  display_name: "Web Research Router"
-  short_description: "Prefer Web search, escalate to Firefox when pages need interaction"

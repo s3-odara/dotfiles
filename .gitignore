@@ -21,6 +21,8 @@
 /arch/dot-gemini/google_accounts.json
 /arch/dot-gemini/oauth_creds.json
 /home/dot-local/share/opencode/auth.json
+/home/dot-local/share/crush/crush.json
+
 
 # --- Machine/runtime state (do not track) ---
 /home/dot-config/dconf/
