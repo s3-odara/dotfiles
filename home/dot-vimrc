@@ -32,6 +32,9 @@ function! PackInit() abort
   " Snippet
   call minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
   call minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git')
+
+  " Motion
+  call minpac#add('https://github.com/girishji/easyjump.vim.git')
 endfunction
 
 if filereadable(expand('~/.vim/functions.vim'))
@@ -144,6 +147,14 @@ inoremap <expr> } SmartClosePair('}')
 
 " プラグイン設定
 
+let g:easyjump_default_keymap = v:false
+nnoremap <leader>j <Plug>EasyjumpJump;
+onoremap <leader>j <Plug>EasyjumpJump;
+vnoremap <leader>j <Plug>EasyjumpJump;
+nnoremap <leader>J 2<Plug>EasyjumpJump;
+onoremap <leader>J 2<Plug>EasyjumpJump;
+vnoremap <leader>J 2<Plug>EasyjumpJump;
+
 imap <expr> <C-l>
       \ vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" :
       \ "\<C-l>"
@@ -206,6 +217,7 @@ function! DefineMyHighlights()
         highlight NonText ctermbg=NONE guibg=NONE
         highlight SpecialKey ctermbg=NONE guibg=NONE
         highlight EndOfBuffer ctermbg=NONE guibg=NONE
+        highlight EasyJump guifg=#1B1C1F guibg=#61b2a3 gui=bold cterm=bold
     endif
 endfunction
 
