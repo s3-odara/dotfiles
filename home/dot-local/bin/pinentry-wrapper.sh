@@ -1,7 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-REAL_PINENTRY="/usr/bin/pinentry-wayprompt"
+PINENTRY_WOFI="/home/user/.local/bin/pinentry-wofi"
+PINENTRY_CURSES="/usr/bin/pinentry-curses"
 
-systemd-run --user --on-active=900 --unit=reset-gpg-pin.timer /usr/bin/gpgconf --kill gpg-agent
+if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
+  exec "$PINENTRY_WOFI" "$@"
+fi
 
-exec "$REAL_PINENTRY" "$@"
+exec "$PINENTRY_CURSES" "$@"
