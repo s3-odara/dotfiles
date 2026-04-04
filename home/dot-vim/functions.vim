@@ -1,20 +1,31 @@
-augroup fcitx5_control_fn
-  autocmd!
+function! s:FcitxRemote(args) abort
+  if !executable('fcitx5-remote')
+    return ''
+  endif
 
-  function! s:FcitxOnInsertLeave() abort
-    let w:im_name = trim(system('fcitx5-remote -n'))
-    call job_start(['fcitx5-remote', '-c'])
-  endfunction
+  let l:cmd = join(map(copy(a:args), 'shellescape(v:val)'), ' ') .. ' 2>/dev/null'
+  return trim(system(l:cmd))
+endfunction
 
-  function! s:FcitxOnInsertEnter() abort
-    if exists('w:im_name') && w:im_name !=# 'keyboard-us'
-      call job_start(['fcitx5-remote', '-o'])
-    endif
-  endfunction
+function! s:FcitxRemoteJob(args) abort
+  if !executable('fcitx5-remote')
+    return
+  endif
 
-  autocmd InsertLeave * call s:FcitxOnInsertLeave()
-  autocmd InsertEnter * call s:FcitxOnInsertEnter()
-augroup END
+  call job_start(a:args, #{out_io: 'null', err_io: 'null'})
+endfunction
+
+function! ImActivate(active) abort
+  if a:active
+    call s:FcitxRemoteJob(['fcitx5-remote', '-o'])
+  else
+    call s:FcitxRemoteJob(['fcitx5-remote', '-c'])
+  endif
+endfunction
+
+function! ImStatus() abort
+  return s:FcitxRemote(['fcitx5-remote']) ==# '2'
+endfunction
 
 augroup vimrc-auto-mkdir
   autocmd!

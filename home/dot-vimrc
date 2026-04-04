@@ -86,6 +86,10 @@ set ttymouse=sgr      " alacritty/tmux用
 set updatetime=500    " signifyの更新速度向上
 set timeoutlen=1500
 set ttimeoutlen=50
+set imactivatefunc=ImActivate
+set imstatusfunc=ImStatus
+set iminsert=2
+set imsearch=-1
 
 " 色
 set termguicolors
