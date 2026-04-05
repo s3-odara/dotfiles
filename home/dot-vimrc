@@ -19,9 +19,6 @@ function! PackInit() abort
   call minpac#add('https://github.com/k-takata/minpac.git', {'type': 'opt'})
   
   " UI, Tools
-  call minpac#add('https://github.com/itchyny/lightline.vim.git')
-  call minpac#add('https://github.com/itchyny/vim-gitbranch.git')
-  call minpac#add('https://github.com/mhinz/vim-signify.git')
   call minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
   call minpac#add('https://github.com/alvan/vim-closetag.git')
   call minpac#add('https://github.com/mattn/emmet-vim.git')
@@ -32,18 +29,7 @@ function! PackInit() abort
   " Snippet
   call minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
   call minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git')
-
-  " Motion
-  call minpac#add('https://github.com/girishji/easyjump.vim.git')
 endfunction
-
-if filereadable(expand('~/.vim/functions.vim'))
-  source ~/.vim/functions.vim
-endif
-
-if filereadable(expand('~/.vim/lsp.vim'))
-  source ~/.vim/lsp.vim
-endif
 
 " 設定
 set encoding=utf-8
@@ -80,6 +66,7 @@ set hlsearch
 set incsearch
 set ignorecase
 set smartcase
+set signcolumn=yes
 
 set mouse=a
 set ttymouse=sgr      " alacritty/tmux用
@@ -108,11 +95,51 @@ set thesaurus=~/.vim/dict/thesaurus.txt
 syntax on
 filetype plugin indent on
 
+" statusline
+function! SetupStatuslineHighlights() abort
+    highlight StatusLineNC cterm=NONE ctermfg=245 ctermbg=237 gui=NONE guifg=#8a9199 guibg=#2d323b
+    highlight MyStatusModeNormal cterm=bold ctermfg=235 ctermbg=110 gui=bold guifg=#1f2430 guibg=#73b8ff
+    highlight MyStatusModeInsert cterm=bold ctermfg=235 ctermbg=150 gui=bold guifg=#1f2430 guibg=#95e6cb
+    highlight MyStatusModeVisual cterm=bold ctermfg=235 ctermbg=216 gui=bold guifg=#1f2430 guibg=#f6c177
+    highlight MyStatusModeReplace cterm=bold ctermfg=235 ctermbg=203 gui=bold guifg=#1f2430 guibg=#f28779
+    highlight MyStatusModeCommand cterm=bold ctermfg=235 ctermbg=222 gui=bold guifg=#1f2430 guibg=#ffd173
+    highlight MyStatusModeTerminal cterm=bold ctermfg=235 ctermbg=117 gui=bold guifg=#1f2430 guibg=#73d0ff
+    highlight MyStatusGit cterm=NONE ctermfg=252 ctermbg=239 gui=NONE guifg=#e6e1cf guibg=#3a3f4b
+    highlight MyStatusFile cterm=NONE ctermfg=252 ctermbg=237 gui=NONE guifg=#e6e1cf guibg=#2d323b
+    highlight MyStatusInfo cterm=NONE ctermfg=250 ctermbg=235 gui=NONE guifg=#c5cdd9 guibg=#1f2430
+    highlight MyStatusPosition cterm=NONE ctermfg=235 ctermbg=109 gui=NONE guifg=#1f2430 guibg=#7aa2b8
+endfunction
+
+augroup MyStatusline
+    autocmd!
+    autocmd ColorScheme * call SetupStatuslineHighlights()
+augroup END
+
+call SetupStatuslineHighlights()
+
+set statusline=
+set statusline+=%{%StatusModeHighlight()%}
+set statusline+=\ %{StatusModeLabel()}%{StatusPasteLabel()}\ 
+set statusline+=%#MyStatusGit#
+set statusline+=%{StatusGitbranch()}
+set statusline+=%#MyStatusFile#
+set statusline+=\ %<%{StatusFileSegmentPrefix()}%{StatusPath()}%{StatusModified()}\ 
+set statusline+=%#MyStatusInfo#
+set statusline+=%=
+set statusline+=\ %{StatusInfo()}\ 
+set statusline+=%#MyStatusPosition#
+set statusline+=\ %l:%c
+set statusline+=\ %p%%\ 
+
 " キーマップ
 let mapleader = "\<Space>"
 xnoremap <silent> "+y :<C-u>call Osc52Copy()<CR>
 nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
+
+inoremap <expr> <PageDown> ScrollCompleteInfo("\<C-e>", "\<PageDown>")
+inoremap <expr> <PageUp> ScrollCompleteInfo("\<C-y>", "\<PageUp>")
+
 nnoremap <F3> <Cmd>nohlsearch<CR>
 inoremap <C-x><C-d> <C-x><C-k>
 " thesaurus complete
@@ -151,14 +178,6 @@ inoremap <expr> } SmartClosePair('}')
 
 " プラグイン設定
 
-let g:easyjump_default_keymap = v:false
-nnoremap <leader>j <Plug>EasyjumpJump;
-onoremap <leader>j <Plug>EasyjumpJump;
-vnoremap <leader>j <Plug>EasyjumpJump;
-nnoremap <leader>J 2<Plug>EasyjumpJump;
-onoremap <leader>J 2<Plug>EasyjumpJump;
-vnoremap <leader>J 2<Plug>EasyjumpJump;
-
 imap <expr> <C-l>
       \ vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" :
       \ "\<C-l>"
@@ -183,28 +202,6 @@ smap <expr> <S-Tab>
       \ vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" :
       \ "\<S-Tab>"
 
-" lightline.vim
-let g:lightline = {
-      \ 'active': {
-      \   'left': [ ['mode', 'paste'], ['gitbranch', 'readonly', 'absolutepath', 'modified'] ]
-      \ },
-      \ 'component_function':{ 'gitbranch': 'Gitbranch' },
-      \ }
-
-function! Gitbranch()
-    let head = gitbranch#name()
-    if head != ""
-        let head = "\uf126 " .. head
-    endif
-    return head
-endfunction
-
-inoremap <expr> <PageDown> ScrollCompleteInfo("\<C-e>", "\<PageDown>")
-inoremap <expr> <PageUp> ScrollCompleteInfo("\<C-y>", "\<PageUp>")
-
-" ctrlp
-"nnoremap <leader>p <cmd>packadd ctrlp.vim \| call ctrlp#init(0)<CR>
-
 " fuzzbox
 let g:fuzzbox_mappings = 0
 nnoremap <silent> <leader>kf <cmd>FuzzyFiles<CR>
@@ -221,7 +218,6 @@ function! DefineMyHighlights()
         highlight NonText ctermbg=NONE guibg=NONE
         highlight SpecialKey ctermbg=NONE guibg=NONE
         highlight EndOfBuffer ctermbg=NONE guibg=NONE
-        highlight EasyJump guifg=#1B1C1F guibg=#61b2a3 gui=bold cterm=bold
     endif
 endfunction
 

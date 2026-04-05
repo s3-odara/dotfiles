@@ -205,3 +205,137 @@ function! TyposCodeAction(...) abort
   call l:lspserver.codeAction(expand('%'), line('.'), line('.'), l:query)
   call winrestview(l:view)
 endfunction
+
+function! Gitbranch() abort
+  let l:head = gitbranch#name()
+  if l:head !=# ''
+    let l:head = "\uf126 " .. l:head
+  endif
+  return l:head
+endfunction
+
+function! StatusGitbranch() abort
+  let l:branch = Gitbranch()
+  return l:branch !=# '' ? ' ' .. l:branch .. ' ' : ''
+endfunction
+
+function! StatusModeLabel() abort
+  let l:mode = mode()
+  if l:mode ==# 'n'
+    return 'NORMAL'
+  elseif l:mode ==# 'i'
+    return 'INSERT'
+  elseif l:mode =~# '^[vV]'
+    return 'VISUAL'
+  elseif l:mode ==# 'R'
+    return 'REPLACE'
+  elseif l:mode ==# 'c'
+    return 'COMMAND'
+  elseif l:mode ==# 't'
+    return 'TERMINAL'
+  endif
+  return toupper(l:mode)
+endfunction
+
+function! StatusModeHighlight() abort
+  let l:mode = mode()
+  if l:mode ==# 'i'
+    return '%#MyStatusModeInsert#'
+  elseif l:mode =~# '^[vV]'
+    return '%#MyStatusModeVisual#'
+  elseif l:mode ==# 'R'
+    return '%#MyStatusModeReplace#'
+  elseif l:mode ==# 'c'
+    return '%#MyStatusModeCommand#'
+  elseif l:mode ==# 't'
+    return '%#MyStatusModeTerminal#'
+  endif
+  return '%#MyStatusModeNormal#'
+endfunction
+
+function! StatusPasteLabel() abort
+  return &paste ? ' PASTE' : ''
+endfunction
+
+function! StatusFileEncoding() abort
+  return &fileencoding !=# '' ? &fileencoding : &encoding
+endfunction
+
+function! StatusFiletype() abort
+  return &filetype !=# '' ? &filetype : 'no ft'
+endfunction
+
+function! StatusReadonly() abort
+  return &readonly ? '[RO]' : ''
+endfunction
+
+function! StatusModified() abort
+  return &modified ? '[+]' : ''
+endfunction
+
+function! StatusFileSegmentPrefix() abort
+  return StatusReadonly() !=# '' ? StatusReadonly() .. ' ' : ''
+endfunction
+
+function! StatusTruncateTail(text, max) abort
+  if a:max <= 0
+    return ''
+  endif
+
+  let l:length = strchars(a:text)
+  if l:length <= a:max
+    return a:text
+  endif
+
+  if a:max <= 3
+    return repeat('.', a:max)
+  endif
+
+  return '...' .. strcharpart(a:text, l:length - (a:max - 3))
+endfunction
+
+function! StatusPositionText() abort
+  let l:line = line('.')
+  let l:total = max([1, line('$')])
+  let l:percent = float2nr((100.0 * l:line) / l:total)
+  return printf(' %d:%d %d%% ', l:line, col('.'), l:percent)
+endfunction
+
+function! StatusInfoText() abort
+  return printf('%s | %s | %s', &fileformat, StatusFileEncoding(), StatusFiletype())
+endfunction
+
+function! StatusPathMax(show_info) abort
+  let l:left = strchars(' ' .. StatusModeLabel() .. StatusPasteLabel() .. ' ')
+  let l:left += strchars(StatusGitbranch())
+  let l:left += strchars(' ' .. StatusFileSegmentPrefix() .. StatusModified() .. ' ')
+
+  let l:right = strchars(StatusPositionText())
+  if a:show_info
+    let l:right += strchars(' ' .. StatusInfoText() .. ' ')
+  endif
+
+  return winwidth(0) - l:left - l:right
+endfunction
+
+function! StatusPath() abort
+  let l:path = expand('%:p')
+  if l:path ==# ''
+    return '[No Name]'
+  endif
+
+  let l:path_max = StatusPathMax(v:true)
+  if strchars(l:path) > l:path_max && l:path_max <= 20
+    let l:path_max = StatusPathMax(v:false)
+  endif
+  return StatusTruncateTail(l:path, l:path_max)
+endfunction
+
+function! StatusInfo() abort
+  let l:path = expand('%:p')
+  let l:path_max = StatusPathMax(v:true)
+  if l:path !=# '' && strchars(l:path) > l:path_max && l:path_max <= 20
+    return ''
+  endif
+  return StatusInfoText()
+endfunction
