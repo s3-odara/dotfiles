@@ -11,7 +11,6 @@ command! PackUpdate call PackInit() | call minpac#update()
 command! PackClean  call PackInit() | call minpac#clean()
 command! PackStatus packadd minpac | call minpac#status()
 
-
 function! PackInit() abort
   packadd minpac
   call minpac#init()
@@ -209,10 +208,9 @@ nnoremap <silent> <leader>kg <cmd>FuzzyGrep<CR>
 nnoremap <silent> <leader>kh <cmd>FuzzyHelp<CR>
 nnoremap <silent> <leader>ki <cmd>FuzzyInBuffer<CR>
 
-
-" --- ColorScheme (Habamax) ---
+" ColorScheme
 function! DefineMyHighlights()
-    if g:colors_name is "orbit"
+    if g:colors_name is "odara"
         highlight Normal ctermbg=NONE guibg=NONE
         highlight NonText ctermbg=NONE guibg=NONE
         highlight SpecialKey ctermbg=NONE guibg=NONE
@@ -225,27 +223,4 @@ augroup TransparentBG
     autocmd ColorScheme * call DefineMyHighlights()
 augroup END
 
-colorscheme orbit
-
-" 特定ファイルタイプ
-augroup noindent
-  autocmd!
-  autocmd FileType html,css setlocal tabstop=2
-augroup END
-
-" 開いているファイルにカレントディレクトリを移動
-" autocmd BufEnter * let s:root = finddir('.git', expand('%:p:h') . ';') |
-"       \ if !empty(s:root) |
-"       \   execute 'cd ' . fnameescape(fnamemodify(s:root, ':h')) |
-"       \ endif
-
-" Syntaxハイライトを利用したオムニ補完
-" https://vim-jp.org/vim-users-jp/2009/11/01/Hack-96.html
-" https://vim-jp.org/vimdoc-ja/insert.html#ft-syntax-omni
-"augroup omni
-"    autocmd!
-"    autocmd FileType *
-"    \   if &l:omnifunc == ''
-"    \ |   setlocal omnifunc=syntaxcomplete#Complete
-"    \ | endif
-"augroup END
+colorscheme odara

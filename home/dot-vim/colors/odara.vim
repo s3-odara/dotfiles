@@ -1,9 +1,7 @@
 " -----------------------------------------------------------------------------
-" Name:         Orbit
-" Description:  Vim port of monoooki/vscode-orbit-theme with yegappan/lsp support
-" Author:       OpenAI Codex
-" Source:       https://github.com/monoooki/vscode-orbit-theme
-" License:      MIT-compatible palette mapping from upstream theme
+" Name:         Odara
+" Description:  Inspired by monoooki/vscode-orbit-theme with yegappan/lsp support
+" License:      MIT
 " -----------------------------------------------------------------------------
 
 if exists('g:colors_name')
@@ -14,7 +12,7 @@ if exists('syntax_on')
   syntax reset
 endif
 
-let g:colors_name = 'orbit'
+let g:colors_name = 'odara'
 
 if !(has('termguicolors') && &termguicolors) && !has('gui_running') && &t_Co < 256
   finish
