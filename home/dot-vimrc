@@ -235,6 +235,8 @@ xnoremap <leader>ss <Cmd>LspSelectionShrink<CR>
 inoremap <expr> ( g:AutoPairOpen('(', ')')
 inoremap <expr> [ g:AutoPairOpen('[', ']')
 inoremap <expr> { g:AutoPairOpen('{', '}')
+inoremap <expr> ' g:AutoPairSymmetric("'")
+inoremap <expr> " g:AutoPairSymmetric('"')
 inoremap <expr> ) g:AutoPairClose(')')
 inoremap <expr> ] g:AutoPairClose(']')
 inoremap <expr> } g:AutoPairClose('}')
