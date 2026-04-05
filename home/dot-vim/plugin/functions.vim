@@ -1,519 +1,533 @@
-function! s:FcitxRemote(args) abort
+vim9script
+
+if exists('g:loaded_functions_vim9')
+  finish
+endif
+g:loaded_functions_vim9 = 1
+
+def FcitxRemote(args: list<string>): string
   if !executable('fcitx5-remote')
     return ''
   endif
 
-  let l:cmd = join(map(copy(a:args), 'shellescape(v:val)'), ' ') .. ' 2>/dev/null'
-  return trim(system(l:cmd))
-endfunction
+  var cmd = join(mapnew(copy(args), (_, value) => shellescape(value)), ' ') .. ' 2>/dev/null'
+  return trim(system(cmd))
+enddef
 
-function! s:FcitxRemoteJob(args) abort
+def FcitxRemoteJob(args: list<string>)
   if !executable('fcitx5-remote')
     return
   endif
 
-  call job_start(a:args, #{out_io: 'null', err_io: 'null'})
-endfunction
+  job_start(args, {out_io: 'null', err_io: 'null'})
+enddef
 
-function! ImActivate(active) abort
-  if a:active
-    call s:FcitxRemoteJob(['fcitx5-remote', '-o'])
-  else
-    call s:FcitxRemoteJob(['fcitx5-remote', '-c'])
+def g:ImeActivate(active: bool)
+  FcitxRemoteJob(active ? ['fcitx5-remote', '-o'] : ['fcitx5-remote', '-c'])
+enddef
+
+def g:ImeStatus(): bool
+  return FcitxRemote(['fcitx5-remote']) ==# '2'
+enddef
+
+def AutoMkdir(dir: string, force: bool)
+  if isdirectory(dir)
+    return
   endif
-endfunction
+  if !force && input($'"{dir}" does not exist. Create? [y/N]') !~? '^y\%[es]$'
+    return
+  endif
+  mkdir(iconv(dir, &encoding, &termencoding), 'p')
+enddef
 
-function! ImStatus() abort
-  return s:FcitxRemote(['fcitx5-remote']) ==# '2'
-endfunction
-
-augroup vimrc-auto-mkdir
+augroup vimrc_auto_mkdir
   autocmd!
-
-  function! s:auto_mkdir(dir, force) abort
-    if !isdirectory(a:dir) && (a:force ||
-    \   input(printf('"%s" does not exist. Create? [y/N]', a:dir)) =~? '^y\%[es]$')
-      call mkdir(iconv(a:dir, &encoding, &termencoding), 'p')
-    endif
-  endfunction
-
-  autocmd BufWritePre * call s:auto_mkdir(expand('<afile>:p:h'), v:cmdbang)
+  autocmd BufWritePre * call AutoMkdir(expand('<afile>:p:h'), !!v:cmdbang)
 augroup END
 
 augroup encrypted
-  au!
+  autocmd!
   autocmd BufReadPre,FileReadPre *.gpg set viminfo=
   autocmd BufReadPre,FileReadPre *.gpg set noswapfile
   autocmd BufReadPre,FileReadPre *.gpg set noundofile
   autocmd BufReadPre,FileReadPre *.gpg set bin
-  autocmd BufReadPre,FileReadPre *.gpg let ch_save = &ch|set ch=2
+  autocmd BufReadPre,FileReadPre *.gpg let b:gpg_cmdheight_save = &cmdheight | set cmdheight=2
   autocmd BufReadPost,FileReadPost *.gpg '[,']!gpg --decrypt 2> /dev/null
   autocmd BufReadPost,FileReadPost *.gpg set nobin
-  autocmd BufReadPost,FileReadPost *.gpg let &ch = ch_save|unlet ch_save
-  autocmd BufReadPost,FileReadPost *.gpg execute ":doautocmd BufReadPost " . expand("%:r")
+  autocmd BufReadPost,FileReadPost *.gpg let &cmdheight = get(b:, 'gpg_cmdheight_save', &cmdheight) | unlet! b:gpg_cmdheight_save
+  autocmd BufReadPost,FileReadPost *.gpg execute ':doautocmd BufReadPost ' .. expand('%:r')
   autocmd BufWritePre,FileWritePre *.gpg '[,']!gpg --default-recipient-self -ae 2>/dev/null
-  autocmd BufWritePost,FileWritePost *.gpg u
+  autocmd BufWritePost,FileWritePost *.gpg undo
 augroup END
 
-function! Osc52Copy() abort
-  let l:save_reg = @"
+def g:Osc52CopySelection()
+  var saveReg = @"
   normal! gvy
-  let l:content = @"
-  let @" = l:save_reg
-  if len(l:content) == 0
-    echo "Nothing to copy"
+  var content = @"
+  @" = saveReg
+  if len(content) == 0
+    echo 'Nothing to copy'
     return
   endif
 
-  let l:b64 = system('base64 | tr -d "\n"', l:content)
-  if len(l:b64) > 100000
+  var b64 = system('base64 | tr -d "\n"', content)
+  if len(b64) > 100000
     redraw
     echohl WarningMsg
-    echo "Warning: Content too large for OSC 52 copy."
+    echo 'Warning: Content too large for OSC 52 copy.'
     echohl None
     return
   endif
 
-  let l:seq = "\x1b]52;c;" . l:b64 . "\x07"
-  call writefile([l:seq], "/dev/tty", "b")
+  var seq = "\x1b]52;c;" .. b64 .. "\x07"
+  writefile([seq], '/dev/tty', 'b')
   redraw!
-  echo "Copied to clipboard (OSC 52)"
-endfunction
+  echo 'Copied to clipboard (OSC 52)'
+enddef
 
-function! ScrollCompleteInfo(cmd, fallback) abort
-  let l:id = popup_findinfo()
-  if l:id > 0 && pumvisible()
-    let l:pos = popup_getpos(l:id)
-    let l:firstline = get(l:pos, 'firstline', 1)
-    if a:cmd ==# "\<C-e>"
-      call popup_setoptions(l:id, #{firstline: l:firstline + 1})
-    elseif a:cmd ==# "\<C-y>"
-      call popup_setoptions(l:id, #{firstline: max([1, l:firstline - 1])})
+def g:CompletionPopupScroll(cmd: string, fallback: string): string
+  var id = popup_findinfo()
+  if id > 0 && pumvisible()
+    var pos = popup_getpos(id)
+    var firstline = get(pos, 'firstline', 1)
+    if cmd ==# "\<C-e>"
+      popup_setoptions(id, {firstline: firstline + 1})
+    elseif cmd ==# "\<C-y>"
+      popup_setoptions(id, {firstline: max([1, firstline - 1])})
     endif
     return ''
   endif
-  return a:fallback
-endfunction
+  return fallback
+enddef
 
-function! InVsnipSession() abort
+def g:VsnipSessionActive(): bool
   try
     return vsnip#jumpable(1) || vsnip#jumpable(-1)
   catch
     return v:false
   endtry
-endfunction
+enddef
 
-function! s:PathCompleteToken(line, cursor_col) abort
-  let l:start = 0
-  let l:quote = ''
-  let l:escaped = v:false
-  let l:limit = max([0, a:cursor_col - 1])
+def PathCompleteToken(lineText: string, cursorCol: number): dict<any>
+  var start = 0
+  var quote = ''
+  var escaped = v:false
+  var limit = max([0, cursorCol - 1])
 
-  for l:i in range(0, l:limit - 1)
-    let l:ch = a:line[l:i]
-    if l:escaped
-      let l:escaped = v:false
+  for i in range(0, limit - 1)
+    var ch = lineText[i]
+    if escaped
+      escaped = v:false
       continue
     endif
-    if l:ch ==# '\'
-      let l:escaped = v:true
+    if ch ==# '\'
+      escaped = v:true
       continue
     endif
-    if l:quote !=# ''
-      if l:ch ==# l:quote
-        let l:quote = ''
-        let l:start = l:i + 1
+    if quote !=# ''
+      if ch ==# quote
+        quote = ''
+        start = i + 1
       endif
       continue
     endif
-    if l:ch ==# '"' || l:ch ==# "'"
-      let l:quote = l:ch
-      let l:start = l:i + 1
-    elseif l:ch =~# '[[:space:]`<>()\[\]{}|,;]'
-      let l:start = l:i + 1
+    if ch ==# '"' || ch ==# "'"
+      quote = ch
+      start = i + 1
+    elseif ch =~# '[[:space:]`<>()\[\]{}|,;]'
+      start = i + 1
     endif
   endfor
 
-  if l:start > 0
-    let l:rollback = matchstrpos(strpart(a:line, 0, l:start), '\${\h\w*}$')
-    if !empty(l:rollback) && l:rollback[1] >= 0
-      let l:start = l:rollback[1]
+  if start > 0
+    var rollback = matchstrpos(strpart(lineText, 0, start), '\${\h\w*}$')
+    if !empty(rollback) && rollback[1] >= 0
+      start = rollback[1]
     endif
   endif
 
-  return #{
-        \ start: l:start,
-        \ base: strpart(a:line, l:start, l:limit - l:start),
-        \ quote: l:quote,
-        \ }
-endfunction
+  return {
+    start: start,
+    base: strpart(lineText, start, limit - start),
+    quote: quote,
+  }
+enddef
 
-function! s:PathUnescape(text) abort
-  let l:chars = split(a:text, '\zs')
-  let l:result = ''
-  let l:i = 0
+def PathUnescape(text: string): string
+  var chars = split(text, '\zs')
+  var result = ''
+  var i = 0
 
-  while l:i < len(l:chars)
-    if l:chars[l:i] ==# '\' && l:i + 1 < len(l:chars)
-      let l:i += 1
+  while i < len(chars)
+    if chars[i] ==# '\' && i + 1 < len(chars)
+      i += 1
     endif
-    let l:result ..= l:chars[l:i]
-    let l:i += 1
+    result ..= chars[i]
+    i += 1
   endwhile
 
-  return l:result
-endfunction
+  return result
+enddef
 
-function! s:PathCompleteBaseDir() abort
-  let l:bufdir = expand('%:p:h')
-  return empty(l:bufdir) ? getcwd() : l:bufdir
-endfunction
+def PathCompleteBaseDir(): string
+  var bufdir = expand('%:p:h')
+  return empty(bufdir) ? getcwd() : bufdir
+enddef
 
-function! s:StartsWith(text, prefix) abort
-  return stridx(a:text, a:prefix) == 0
-endfunction
+def StartsWith(text: string, prefix: string): bool
+  return stridx(text, prefix) == 0
+enddef
 
-function! s:PathEnvPrefixLength(base) abort
-  if !s:StartsWith(a:base, '$')
+def PathEnvPrefixLength(base: string): number
+  if !StartsWith(base, '$')
     return -1
   endif
 
-  if s:StartsWith(a:base, '${')
-    let l:end = stridx(a:base, '}/')
-    return l:end > 1 ? l:end + 2 : -1
+  if StartsWith(base, '${')
+    var end = stridx(base, '}/')
+    return end > 1 ? end + 2 : -1
   endif
 
-  let l:slash = stridx(a:base, '/')
-  if l:slash <= 1
+  var slash = stridx(base, '/')
+  if slash <= 1
     return -1
   endif
 
-  let l:name = strpart(a:base, 1, l:slash - 1)
-  return l:name =~# '^\h\w*$' ? l:slash + 1 : -1
-endfunction
+  var name = strpart(base, 1, slash - 1)
+  return name =~# '^\h\w*$' ? slash + 1 : -1
+enddef
 
-function! s:LooksLikeUri(base) abort
-  let l:sep = stridx(a:base, '://')
-  if l:sep <= 0
+def LooksLikeUri(base: string): bool
+  var sep = stridx(base, '://')
+  if sep <= 0
     return v:false
   endif
-  return strpart(a:base, 0, l:sep) =~# '^\h\w*$'
-endfunction
+  return strpart(base, 0, sep) =~# '^\h\w*$'
+enddef
 
-function! s:PathCompleteShouldTrigger(base) abort
-  if empty(a:base)
+def PathCompleteShouldTrigger(base: string): bool
+  if empty(base)
     return v:false
   endif
-  if s:LooksLikeUri(a:base)
+  if LooksLikeUri(base)
     return v:false
   endif
-  if s:StartsWith(a:base, '//')
-        \ || s:StartsWith(a:base, '/*')
-        \ || s:StartsWith(a:base, '*/')
+  if StartsWith(base, '//') || StartsWith(base, '/*') || StartsWith(base, '*/')
     return v:false
   endif
-  if s:StartsWith(a:base, './')
-        \ || s:StartsWith(a:base, '../')
-        \ || s:StartsWith(a:base, '/')
-        \ || s:StartsWith(a:base, '~/')
-        \ || s:PathEnvPrefixLength(a:base) > 0
+  if StartsWith(base, './')
+      || StartsWith(base, '../')
+      || StartsWith(base, '/')
+      || StartsWith(base, '~/')
+      || PathEnvPrefixLength(base) > 0
     return v:true
   endif
-  return stridx(a:base, '/') >= 0
-endfunction
+  return stridx(base, '/') >= 0
+enddef
 
-function! s:ResolvePathComplete(base) abort
-  let l:base = a:base
-  let l:slash = strridx(l:base, '/')
-  let l:display_prefix = l:slash >= 0 ? strpart(l:base, 0, l:slash + 1) : ''
-  let l:leaf = l:slash >= 0 ? strpart(l:base, l:slash + 1) : l:base
-  let l:dir_expr = empty(l:display_prefix) ? '' : substitute(l:display_prefix, '/\+$', '', '')
-  let l:dir = ''
+def ResolvePathComplete(base: string): dict<any>
+  var slash = strridx(base, '/')
+  var displayPrefix = slash >= 0 ? strpart(base, 0, slash + 1) : ''
+  var leaf = slash >= 0 ? strpart(base, slash + 1) : base
+  var dirExpr = empty(displayPrefix) ? '' : substitute(displayPrefix, '/\+$', '', '')
+  var dir = ''
 
-  if empty(l:display_prefix)
-    let l:dir = s:PathCompleteBaseDir()
-  elseif s:StartsWith(l:display_prefix, '~/')
-    let l:dir = simplify(expand('~') .. '/' .. l:dir_expr[2:])
-  elseif s:StartsWith(l:display_prefix, '${')
-    let l:prefix_len = s:PathEnvPrefixLength(l:display_prefix)
-    let l:var = strpart(l:display_prefix, 2, l:prefix_len - 4)
-    let l:root = getenv(l:var)
-    if empty(l:root)
+  if empty(displayPrefix)
+    dir = PathCompleteBaseDir()
+  elseif StartsWith(displayPrefix, '~/')
+    dir = simplify(expand('~') .. '/' .. dirExpr[2 :])
+  elseif StartsWith(displayPrefix, '${')
+    var prefixLen = PathEnvPrefixLength(displayPrefix)
+    var varName = strpart(displayPrefix, 2, prefixLen - 4)
+    var root = getenv(varName)
+    if empty(root)
       return {}
     endif
-    let l:dir = simplify(fnamemodify(l:root, ':p') .. '/' .. l:dir_expr[l:prefix_len:])
-  elseif s:StartsWith(l:display_prefix, '$')
-    let l:prefix_len = s:PathEnvPrefixLength(l:display_prefix)
-    let l:var = strpart(l:display_prefix, 1, l:prefix_len - 2)
-    let l:root = getenv(l:var)
-    if empty(l:root)
+    dir = simplify(fnamemodify(root, ':p') .. '/' .. dirExpr[prefixLen :])
+  elseif StartsWith(displayPrefix, '$')
+    var prefixLen = PathEnvPrefixLength(displayPrefix)
+    var varName = strpart(displayPrefix, 1, prefixLen - 2)
+    var root = getenv(varName)
+    if empty(root)
       return {}
     endif
-    let l:dir = simplify(fnamemodify(l:root, ':p') .. '/' .. l:dir_expr[l:prefix_len:])
-  elseif s:StartsWith(l:display_prefix, '/')
-    let l:dir = simplify('/' .. l:dir_expr[1:])
+    dir = simplify(fnamemodify(root, ':p') .. '/' .. dirExpr[prefixLen :])
+  elseif StartsWith(displayPrefix, '/')
+    dir = simplify('/' .. dirExpr[1 :])
   else
-    let l:dir = simplify(s:PathCompleteBaseDir() .. '/' .. l:dir_expr)
+    dir = simplify(PathCompleteBaseDir() .. '/' .. dirExpr)
   endif
 
-  return #{
-        \ dir: l:dir,
-        \ leaf: l:leaf,
-        \ display_prefix: l:display_prefix,
-        \ show_hidden: l:leaf =~# '^\.',
-        \ }
-endfunction
+  return {
+    dir: dir,
+    leaf: leaf,
+    display_prefix: displayPrefix,
+    show_hidden: leaf =~# '^\.',
+  }
+enddef
 
-function! s:JoinCompletedPath(prefix, name) abort
-  if empty(a:prefix)
-    return a:name
+def JoinCompletedPath(prefix: string, name: string): string
+  return empty(prefix) ? name : prefix .. name
+enddef
+
+def EscapeGlobLiteral(text: string): string
+  var escaped = escape(text, '\*?[')
+  escaped = substitute(escaped, '\]', '\\]', 'g')
+  return escaped
+enddef
+
+def EscapeCompletedPath(word: string, quote: string): string
+  var escaped = substitute(word, '\\', '\\\\', 'g')
+  if quote ==# ''
+    return substitute(escaped, ' ', '\\ ', 'g')
   endif
-  return a:prefix .. a:name
-endfunction
-
-function! s:EscapeGlobLiteral(text) abort
-  let l:escaped = escape(a:text, '\*?[')
-  let l:escaped = substitute(l:escaped, '\]', '\\]', 'g')
-  return l:escaped
-endfunction
-
-function! s:EscapeCompletedPath(word, quote) abort
-  if a:quote !=# ''
-    let l:escaped = substitute(a:word, '\\', '\\\\', 'g')
-    if a:quote ==# '"'
-      let l:escaped = substitute(l:escaped, '"', '\\"', 'g')
-    elseif a:quote ==# "'"
-      let l:escaped = substitute(l:escaped, "'", "\\'", 'g')
-    endif
-    return l:escaped
+  if quote ==# '"'
+    return substitute(escaped, '"', '\\"', 'g')
   endif
+  if quote ==# "'"
+    return substitute(escaped, "'", "\\'", 'g')
+  endif
+  return escaped
+enddef
 
-  let l:escaped = substitute(a:word, '\\', '\\\\', 'g')
-  let l:escaped = substitute(l:escaped, ' ', '\\ ', 'g')
-  return l:escaped
-endfunction
+def g:PathComplete(findstart: bool, base: string): any
+  var ctx = PathCompleteToken(getline('.'), col('.'))
 
-function! PathComplete(findstart, base) abort
-  let l:ctx = s:PathCompleteToken(getline('.'), col('.'))
-
-  if a:findstart
-    return l:ctx.start
+  if findstart
+    return ctx.start
   endif
 
-  let l:base = empty(l:ctx.base) ? a:base : l:ctx.base
-  if l:ctx.quote ==# ''
-    let l:base = s:PathUnescape(l:base)
+  var completeBase = empty(ctx.base) ? base : ctx.base
+  if ctx.quote ==# ''
+    completeBase = PathUnescape(completeBase)
   endif
 
-  if !s:PathCompleteShouldTrigger(l:base)
+  if !PathCompleteShouldTrigger(completeBase)
     return []
   endif
 
-  let l:query = s:ResolvePathComplete(l:base)
-  if empty(l:query) || !isdirectory(l:query.dir)
+  var query = ResolvePathComplete(completeBase)
+  if empty(query) || !isdirectory(query.dir)
     return []
   endif
 
-  let l:matches = []
-  let l:pattern = l:query.dir .. '/' .. s:EscapeGlobLiteral(l:query.leaf) .. '*'
+  var matches: list<dict<string>> = []
+  var pattern = query.dir .. '/' .. EscapeGlobLiteral(query.leaf) .. '*'
 
-  for l:path in glob(l:pattern, 0, 1)
-    let l:name = fnamemodify(l:path, ':t')
-    if l:name ==# '.' || l:name ==# '..'
+  for path in glob(pattern, 0, 1)
+    var name = fnamemodify(path, ':t')
+    if name ==# '.' || name ==# '..'
       continue
     endif
-    let l:isdir = isdirectory(l:path)
-    let l:word = s:JoinCompletedPath(l:query.display_prefix, l:name) .. (l:isdir ? '/' : '')
-    let l:word = s:EscapeCompletedPath(l:word, l:ctx.quote)
-
-    call add(l:matches, #{
-          \ word: l:word,
-          \ abbr: l:name .. (l:isdir ? '/' : ''),
-          \ menu: l:isdir ? '[dir]' : '[path]',
-          \ })
+    var isdir = isdirectory(path)
+    var word = JoinCompletedPath(query.display_prefix, name) .. (isdir ? '/' : '')
+    word = EscapeCompletedPath(word, ctx.quote)
+    add(matches, {
+      word: word,
+      abbr: name .. (isdir ? '/' : ''),
+      menu: isdir ? '[dir]' : '[path]',
+    })
   endfor
 
-  return {'words': l:matches, 'refresh': 'always'}
-endfunction
+  return {
+    words: matches,
+    refresh: 'always',
+  }
+enddef
 
-function! SmartOpenPair(open, close) abort
-  let l:col = col('.')
-  let l:line = getline('.')
-  let l:next = l:col <= len(l:line) ? l:line[l:col - 1] : ''
-  if l:next !=# '' && l:next !~# '\s'
-    return a:open
+def NextCharAtCursor(): string
+  var cursorCol = col('.')
+  var lineText = getline('.')
+  return cursorCol <= len(lineText) ? lineText[cursorCol - 1] : ''
+enddef
+
+def g:AutoPairOpen(open: string, close: string): string
+  var next = NextCharAtCursor()
+  if next !=# '' && next !~# '\s'
+    return open
   endif
-  return a:open . a:close . "\<Left>"
-endfunction
+  return open .. close .. "\<Left>"
+enddef
 
-function! SmartClosePair(close) abort
-  let l:col = col('.')
-  let l:line = getline('.')
-  let l:next = l:col <= len(l:line) ? l:line[l:col - 1] : ''
-  if l:next ==# a:close
-    return "\<Right>"
-  endif
-  return a:close
-endfunction
+def g:AutoPairClose(close: string): string
+  return NextCharAtCursor() ==# close ? "\<Right>" : close
+enddef
 
-function! TyposCodeAction(...) abort
-  let l:query = get(a:, 1, '')
-  let l:lspserver = lsp#buffer#CurbufGetServerByName('typos-lsp')
-  if empty(l:lspserver)
-    echohl ErrorMsg
-    echo 'typos-lsp is not attached to this buffer'
-    echohl None
+def ShowError(message: string)
+  echohl ErrorMsg
+  echo message
+  echohl None
+enddef
+
+def g:TyposCodeAction(...queryList: list<any>)
+  var query = get(queryList, 0, '')
+  var lspserver = lsp#buffer#CurbufGetServerByName('typos-lsp')
+  if empty(lspserver)
+    ShowError('typos-lsp is not attached to this buffer')
     return
   endif
-  if !get(l:lspserver, 'running', v:false)
-    echohl ErrorMsg
-    echo 'typos-lsp is not running'
-    echohl None
+  if !get(lspserver, 'running', v:false)
+    ShowError('typos-lsp is not running')
     return
   endif
-  if !get(l:lspserver, 'ready', v:false)
-    echohl ErrorMsg
-    echo 'typos-lsp is not ready'
-    echohl None
+  if !get(lspserver, 'ready', v:false)
+    ShowError('typos-lsp is not ready')
     return
   endif
 
-  let l:view = winsaveview()
-  call cursor(line('.'), 1)
-  call l:lspserver.codeAction(expand('%'), line('.'), line('.'), l:query)
-  call winrestview(l:view)
-endfunction
+  var view = winsaveview()
+  cursor(line('.'), 1)
+  lspserver.codeAction(expand('%'), line('.'), line('.'), query)
+  winrestview(view)
+enddef
 
-function! Gitbranch() abort
-  let l:head = gitbranch#name()
-  if l:head !=# ''
-    let l:head = "\uf126 " .. l:head
-  endif
-  return l:head
-endfunction
+def BranchText(): string
+  var head = gitbranch#name()
+  return empty(head) ? '' : "\uf126 " .. head
+enddef
 
-function! StatusGitbranch() abort
-  let l:branch = Gitbranch()
-  return l:branch !=# '' ? ' ' .. l:branch .. ' ' : ''
-endfunction
-
-function! StatusModeLabel() abort
-  let l:mode = mode()
-  if l:mode ==# 'n'
+def ModeLabel(): string
+  var current = mode()
+  if current ==# 'n'
     return 'NORMAL'
-  elseif l:mode ==# 'i'
+  elseif current ==# 'i'
     return 'INSERT'
-  elseif l:mode =~# '^[vV]'
+  elseif current =~# '^[vV]'
     return 'VISUAL'
-  elseif l:mode ==# 'R'
+  elseif current ==# 'R'
     return 'REPLACE'
-  elseif l:mode ==# 'c'
+  elseif current ==# 'c'
     return 'COMMAND'
-  elseif l:mode ==# 't'
+  elseif current ==# 't'
     return 'TERMINAL'
   endif
-  return toupper(l:mode)
-endfunction
+  return toupper(current)
+enddef
 
-function! StatusModeHighlight() abort
-  let l:mode = mode()
-  if l:mode ==# 'i'
-    return '%#MyStatusModeInsert#'
-  elseif l:mode =~# '^[vV]'
-    return '%#MyStatusModeVisual#'
-  elseif l:mode ==# 'R'
-    return '%#MyStatusModeReplace#'
-  elseif l:mode ==# 'c'
-    return '%#MyStatusModeCommand#'
-  elseif l:mode ==# 't'
-    return '%#MyStatusModeTerminal#'
-  endif
-  return '%#MyStatusModeNormal#'
-endfunction
-
-function! StatusPasteLabel() abort
+def PasteLabel(): string
   return &paste ? ' PASTE' : ''
-endfunction
+enddef
 
-function! StatusFileEncoding() abort
-  return &fileencoding !=# '' ? &fileencoding : &encoding
-endfunction
+def FileEncodingLabel(): string
+  return !empty(&fileencoding) ? &fileencoding : &encoding
+enddef
 
-function! StatusFiletype() abort
-  return &filetype !=# '' ? &filetype : 'no ft'
-endfunction
+def FiletypeLabel(): string
+  return !empty(&filetype) ? &filetype : 'no ft'
+enddef
 
-function! StatusReadonly() abort
+def ReadonlyLabel(): string
   return &readonly ? '[RO]' : ''
-endfunction
+enddef
 
-function! StatusModified() abort
+def ModifiedLabel(): string
   return &modified ? '[+]' : ''
-endfunction
+enddef
 
-function! StatusFileSegmentPrefix() abort
-  return StatusReadonly() !=# '' ? StatusReadonly() .. ' ' : ''
-endfunction
-
-function! StatusTruncateTail(text, max) abort
-  if a:max <= 0
+def TruncateTail(text: string, maxWidth: number): string
+  if maxWidth <= 0
     return ''
   endif
 
-  let l:length = strchars(a:text)
-  if l:length <= a:max
-    return a:text
+  var length = strchars(text)
+  if length <= maxWidth
+    return text
   endif
 
-  if a:max <= 3
-    return repeat('.', a:max)
+  if maxWidth <= 3
+    return repeat('.', maxWidth)
   endif
 
-  return '...' .. strcharpart(a:text, l:length - (a:max - 3))
-endfunction
+  return '...' .. strcharpart(text, length - (maxWidth - 3))
+enddef
 
-function! StatusPositionText() abort
-  let l:line = line('.')
-  let l:total = max([1, line('$')])
-  let l:percent = float2nr((100.0 * l:line) / l:total)
-  return printf(' %d:%d %d%% ', l:line, col('.'), l:percent)
-endfunction
+def PositionText(): string
+  var currentLine = line('.')
+  var total = max([1, line('$')])
+  var percent = float2nr((100.0 * currentLine) / total)
+  return printf(' %d:%d %d%% ', currentLine, col('.'), percent)
+enddef
 
-function! StatusInfoText() abort
-  return printf('%s | %s | %s', &fileformat, StatusFileEncoding(), StatusFiletype())
-endfunction
+def InfoText(): string
+  return printf('%s | %s | %s', &fileformat, FileEncodingLabel(), FiletypeLabel())
+enddef
 
-function! StatusPathMax(show_info) abort
-  let l:left = strchars(' ' .. StatusModeLabel() .. StatusPasteLabel() .. ' ')
-  let l:left += strchars(StatusGitbranch())
-  let l:left += strchars(' ' .. StatusFileSegmentPrefix() .. StatusModified() .. ' ')
+def FileSegmentFixedWidth(): number
+  var prefix = ReadonlyLabel()
+  if !empty(prefix)
+    prefix ..= ' '
+  endif
+  return strchars(' ' .. prefix .. ModifiedLabel() .. ' ')
+enddef
 
-  let l:right = strchars(StatusPositionText())
-  if a:show_info
-    let l:right += strchars(' ' .. StatusInfoText() .. ' ')
+def BranchSegmentText(): string
+  var branch = BranchText()
+  return empty(branch) ? '' : ' ' .. branch .. ' '
+enddef
+
+def PathMax(showInfo: bool): number
+  var left = strchars(' ' .. ModeLabel() .. PasteLabel() .. ' ')
+  left += strchars(BranchSegmentText())
+  left += FileSegmentFixedWidth()
+
+  var right = strchars(PositionText())
+  if showInfo
+    right += strchars(' ' .. InfoText() .. ' ')
   endif
 
-  return winwidth(0) - l:left - l:right
-endfunction
+  return winwidth(0) - left - right
+enddef
 
-function! StatusPath() abort
-  let l:path = expand('%:p')
-  if l:path ==# ''
+def PathText(showInfo: bool): string
+  var path = expand('%:p')
+  if empty(path)
     return '[No Name]'
   endif
 
-  let l:path_max = StatusPathMax(v:true)
-  if strchars(l:path) > l:path_max && l:path_max <= 20
-    let l:path_max = StatusPathMax(v:false)
+  var pathMax = PathMax(showInfo)
+  if strchars(path) > pathMax && pathMax <= 20 && showInfo
+    pathMax = PathMax(v:false)
   endif
-  return StatusTruncateTail(l:path, l:path_max)
-endfunction
+  return TruncateTail(path, pathMax)
+enddef
 
-function! StatusInfo() abort
-  let l:path = expand('%:p')
-  let l:path_max = StatusPathMax(v:true)
-  if l:path !=# '' && strchars(l:path) > l:path_max && l:path_max <= 20
+def g:StatuslineModeHighlight(): string
+  var current = mode()
+  if current ==# 'i'
+    return '%#MyStatusModeInsert#'
+  elseif current =~# '^[vV]'
+    return '%#MyStatusModeVisual#'
+  elseif current ==# 'R'
+    return '%#MyStatusModeReplace#'
+  elseif current ==# 'c'
+    return '%#MyStatusModeCommand#'
+  elseif current ==# 't'
+    return '%#MyStatusModeTerminal#'
+  endif
+  return '%#MyStatusModeNormal#'
+enddef
+
+def g:StatuslineModeText(): string
+  return ' ' .. ModeLabel() .. PasteLabel() .. ' '
+enddef
+
+def g:StatuslineBranch(): string
+  return BranchSegmentText()
+enddef
+
+def g:StatuslineFileSegment(): string
+  var prefix = ReadonlyLabel()
+  if !empty(prefix)
+    prefix ..= ' '
+  endif
+  return ' ' .. prefix .. PathText(v:true) .. ModifiedLabel() .. ' '
+enddef
+
+def g:StatuslineInfo(): string
+  var path = expand('%:p')
+  var pathMax = PathMax(v:true)
+  if !empty(path) && strchars(path) > pathMax && pathMax <= 20
     return ''
   endif
-  return StatusInfoText()
-endfunction
+  return ' ' .. InfoText() .. ' '
+enddef

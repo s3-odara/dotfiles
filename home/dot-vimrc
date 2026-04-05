@@ -72,8 +72,8 @@ set ttymouse=sgr      " alacritty/tmux用
 set updatetime=4000    " gitsignを非同期にした
 set timeoutlen=1500
 set ttimeoutlen=50
-set imactivatefunc=ImActivate
-set imstatusfunc=ImStatus
+set imactivatefunc=ImeActivate
+set imstatusfunc=ImeStatus
 set iminsert=2
 set imsearch=-1
 
@@ -117,27 +117,27 @@ augroup END
 call SetupStatuslineHighlights()
 
 set statusline=
-set statusline+=%{%StatusModeHighlight()%}
-set statusline+=\ %{StatusModeLabel()}%{StatusPasteLabel()}\ 
+set statusline+=%{%StatuslineModeHighlight()%}
+set statusline+=%{StatuslineModeText()}
 set statusline+=%#MyStatusGit#
-set statusline+=%{StatusGitbranch()}
+set statusline+=%{StatuslineBranch()}
 set statusline+=%#MyStatusFile#
-set statusline+=\ %<%{StatusFileSegmentPrefix()}%{StatusPath()}%{StatusModified()}\ 
+set statusline+=%<%{StatuslineFileSegment()}
 set statusline+=%#MyStatusInfo#
 set statusline+=%=
-set statusline+=\ %{StatusInfo()}\ 
+set statusline+=%{StatuslineInfo()}
 set statusline+=%#MyStatusPosition#
 set statusline+=\ %l:%c
 set statusline+=\ %p%%\ 
 
 " キーマップ
 let mapleader = "\<Space>"
-xnoremap <silent> "+y :<C-u>call Osc52Copy()<CR>
+xnoremap <silent> "+y :<C-u>call Osc52CopySelection()<CR>
 nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '<C-v><C-m>', '', 'g')<cr>p
 nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '<C-v><C-m>', '', 'g')<cr>p
 
-inoremap <expr> <PageDown> ScrollCompleteInfo("\<C-e>", "\<PageDown>")
-inoremap <expr> <PageUp> ScrollCompleteInfo("\<C-y>", "\<PageUp>")
+inoremap <expr> <PageDown> CompletionPopupScroll("\<C-e>", "\<PageDown>")
+inoremap <expr> <PageUp> CompletionPopupScroll("\<C-y>", "\<PageUp>")
 
 nnoremap <F3> <Cmd>nohlsearch<CR>
 inoremap <C-x><C-d> <C-x><C-k>
@@ -168,12 +168,12 @@ xnoremap <leader>se <cmd>LspSelectionExpand<CR>
 nnoremap <leader>ss <cmd>LspSelectionShrink<CR>
 xnoremap <leader>ss <cmd>LspSelectionShrink<CR>
 
-inoremap <expr> ( SmartOpenPair('(', ')')
-inoremap <expr> [ SmartOpenPair('[', ']')
-inoremap <expr> { SmartOpenPair('{', '}')
-inoremap <expr> ) SmartClosePair(')')
-inoremap <expr> ] SmartClosePair(']')
-inoremap <expr> } SmartClosePair('}')
+inoremap <expr> ( AutoPairOpen('(', ')')
+inoremap <expr> [ AutoPairOpen('[', ']')
+inoremap <expr> { AutoPairOpen('{', '}')
+inoremap <expr> ) AutoPairClose(')')
+inoremap <expr> ] AutoPairClose(']')
+inoremap <expr> } AutoPairClose('}')
 
 " プラグイン設定
 
@@ -184,7 +184,7 @@ smap <expr> <C-l>
       \ vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" :
       \ "\<C-l>"
 inoremap <expr> <Space>
-      \ pumvisible() && InVsnipSession() ? "\<C-y>" :
+      \ pumvisible() && VsnipSessionActive() ? "\<C-y>" :
       \ "\<Space>"
 imap <expr> <Tab>
       \ pumvisible() ? "\<C-n>" :
