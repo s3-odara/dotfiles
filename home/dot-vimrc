@@ -69,7 +69,7 @@ set signcolumn=yes
 
 set mouse=a
 set ttymouse=sgr      " alacritty/tmux用
-set updatetime=500    " signifyの更新速度向上
+set updatetime=4000    " gitsignを非同期にした
 set timeoutlen=1500
 set ttimeoutlen=50
 set imactivatefunc=ImActivate

@@ -8,8 +8,10 @@ g:loaded_gitsign_vim9 = 1
 if !exists('g:gitsign_enable')
   g:gitsign_enable = 1
 endif
-if !exists('g:gitsign_debounce_ms')
-  g:gitsign_debounce_ms = 200
+# The first normal update after idle runs immediately.
+# This delay is the quiet period before queued retries run.
+if !exists('g:gitsign_cooldown_ms')
+  g:gitsign_cooldown_ms = 1000
 endif
 if !exists('g:gitsign_max_file_lines')
   g:gitsign_max_file_lines = 20000
@@ -52,6 +54,7 @@ def EnsureState(buf: number): dict<any>
     state_by_buf[key] = {
       generation: 0,
       timer: -1,
+      pending_generation: -1,
       job: v:none,
       job_seq: 0,
       job_mode: '',
@@ -113,6 +116,7 @@ def StopTimer(buf: number)
     timer_stop(state.timer)
     state.timer = -1
   endif
+  state.pending_generation = -1
 enddef
 
 def StopJob(buf: number)
@@ -370,12 +374,33 @@ def CompleteJob(buf: number, finished_seq: number)
   endif
 enddef
 
+def IsJobRunning(buf: number): bool
+  var state = BufState(buf)
+  return !empty(state) && type(state.job) == v:t_job && job_status(state.job) ==# 'run'
+enddef
+
+def MaybeRunPendingUpdate(buf: number)
+  var state = BufState(buf)
+  if empty(state) || state.timer != -1 || IsJobRunning(buf)
+    return
+  endif
+
+  var generation = state.pending_generation
+  if generation < 0
+    return
+  endif
+  state.pending_generation = -1
+  RunUpdate(buf, generation)
+  StartCooldown(buf)
+enddef
+
 def HandleDiffResult(buf: number, finished_seq: number, generation: number, stdout_file: string, stderr_file: string)
   var state = BufState(buf)
   CompleteJob(buf, finished_seq)
   DeleteFileIfExists(stderr_file)
   if empty(state) || state.generation != generation || !bufexists(buf)
     DeleteFileIfExists(stdout_file)
+    MaybeRunPendingUpdate(buf)
     return
   endif
 
@@ -388,6 +413,7 @@ def HandleDiffResult(buf: number, finished_seq: number, generation: number, stdo
   endif
 
   ApplySigns(buf, ParseDiff(diff))
+  MaybeRunPendingUpdate(buf)
 enddef
 
 def StartSavedDiffJob(buf: number, generation: number)
@@ -407,6 +433,7 @@ def StartSavedDiffJob(buf: number, generation: number)
         DeleteFileIfExists(stdout_file)
         DeleteFileIfExists(stderr_file)
         CompleteJob(buf, seq)
+        MaybeRunPendingUpdate(buf)
         return
       endif
       HandleDiffResult(buf, seq, generation, stdout_file, stderr_file)
@@ -440,6 +467,7 @@ def StartModifiedDiffJob(buf: number, generation: number, basefile: string)
         DeleteFileIfExists(stdout_file)
         DeleteFileIfExists(stderr_file)
         CompleteJob(buf, seq)
+        MaybeRunPendingUpdate(buf)
         return
       endif
       HandleDiffResult(buf, seq, generation, stdout_file, stderr_file)
@@ -489,6 +517,7 @@ def StartShowJob(buf: number, generation: number, head_oid: string)
       var current = BufState(buf)
       if empty(current) || current.generation != generation
         DeleteFileIfExists(stdout_file)
+        MaybeRunPendingUpdate(buf)
         return
       endif
 
@@ -534,6 +563,7 @@ def StartHeadResolveJob(buf: number, generation: number)
       var current = BufState(buf)
       if empty(current) || current.generation != generation
         DeleteFileIfExists(stdout_file)
+        MaybeRunPendingUpdate(buf)
         return
       endif
 
@@ -561,6 +591,38 @@ def StartHeadResolveJob(buf: number, generation: number)
       StartShowJob(buf, generation, head_oid)
     }
   )
+enddef
+
+def StartCooldown(buf: number)
+  var state = BufState(buf)
+  if empty(state)
+    return
+  endif
+
+  # Delay queued retries after an update; do not delay the first one.
+  var delay = g:gitsign_cooldown_ms
+  if delay <= 0
+    state.timer = -1
+    return
+  endif
+
+  if state.timer != -1
+    timer_stop(state.timer)
+  endif
+  state.timer = timer_start(delay, (_) => OnCooldownExpire(buf))
+enddef
+
+def OnCooldownExpire(buf: number)
+  var state = BufState(buf)
+  if empty(state)
+    return
+  endif
+  state.timer = -1
+
+  if state.pending_generation < 0 || IsJobRunning(buf)
+    return
+  endif
+  MaybeRunPendingUpdate(buf)
 enddef
 
 def ScheduleUpdate(buf: number, immediate: bool = false)
@@ -598,10 +660,26 @@ def ScheduleUpdate(buf: number, immediate: bool = false)
   state.relpath = relpath
   state.generation += 1
 
-  StopTimer(buf)
+  if immediate
+    StopTimer(buf)
+    RunUpdate(buf, state.generation)
+    return
+  endif
 
-  var delay = immediate ? 0 : g:gitsign_debounce_ms
-  state.timer = timer_start(delay, (_) => RunUpdate(buf, state.generation))
+  if state.timer != -1
+    state.pending_generation = state.generation
+    StartCooldown(buf)
+    return
+  endif
+
+  if IsJobRunning(buf)
+    state.pending_generation = state.generation
+    return
+  endif
+
+  # Normal edits use a leading update, then coalesce follow-up edits.
+  RunUpdate(buf, state.generation)
+  StartCooldown(buf)
 enddef
 
 def RunUpdate(buf: number, generation: number)
@@ -609,7 +687,6 @@ def RunUpdate(buf: number, generation: number)
   if empty(state) || state.generation != generation
     return
   endif
-  state.timer = -1
 
   if !IsEligibleBuffer(buf)
     ResetBuffer(buf)

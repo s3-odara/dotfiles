@@ -103,50 +103,228 @@ function! InVsnipSession() abort
   endtry
 endfunction
 
-function! PathComplete(findstart, base) abort
-  if a:findstart
-    let l:line = getline('.')
-    let l:col = col('.') - 1
+function! s:PathCompleteToken(line, cursor_col) abort
+  let l:start = 0
+  let l:quote = ''
+  let l:escaped = v:false
+  let l:limit = max([0, a:cursor_col - 1])
 
-    while l:col > 0 && l:line[l:col - 1] !~# '[[:space:]"''`<>()\[\]{}|,;]'
-      let l:col -= 1
-    endwhile
-
-    return l:col
-  endif
-
-  if a:base !~# '^\./'
-        \ && a:base !~# '^\.\./'
-        \ && a:base !~# '^/'
-        \ && stridx(a:base, '~/') != 0
-        \ && stridx(a:base, '/') == -1
-    return []
-  endif
-
-  let l:expanded = stridx(a:base, '~/') == 0 ? expand(a:base) : a:base
-  let l:dir = fnamemodify(l:expanded, ':h')
-  let l:leaf = fnamemodify(l:expanded, ':t')
-  let l:prefix = l:dir ==# '.' ? '' : l:dir .. '/'
-  let l:matches = []
-
-  if !isdirectory(empty(l:dir) ? '.' : l:dir)
-    return []
-  endif
-
-  for l:path in glob(l:prefix .. '*', 0, 1)
-    let l:name = fnamemodify(l:path, ':t')
-    if l:name !~# '^' .. escape(l:leaf, '\')
+  for l:i in range(0, l:limit - 1)
+    let l:ch = a:line[l:i]
+    if l:escaped
+      let l:escaped = v:false
       continue
     endif
-
-    let l:isdir = isdirectory(l:path)
-    let l:word = l:prefix .. l:name .. (l:isdir ? '/' : '')
-    if stridx(a:base, '~/') == 0
-      let l:home = expand('~/')
-      if stridx(l:word, l:home) == 0
-        let l:word = '~/' .. l:word[strlen(l:home):]
-      endif
+    if l:ch ==# '\'
+      let l:escaped = v:true
+      continue
     endif
+    if l:quote !=# ''
+      if l:ch ==# l:quote
+        let l:quote = ''
+        let l:start = l:i + 1
+      endif
+      continue
+    endif
+    if l:ch ==# '"' || l:ch ==# "'"
+      let l:quote = l:ch
+      let l:start = l:i + 1
+    elseif l:ch =~# '[[:space:]`<>()\[\]{}|,;]'
+      let l:start = l:i + 1
+    endif
+  endfor
+
+  if l:start > 0
+    let l:rollback = matchstrpos(strpart(a:line, 0, l:start), '\${\h\w*}$')
+    if !empty(l:rollback) && l:rollback[1] >= 0
+      let l:start = l:rollback[1]
+    endif
+  endif
+
+  return #{
+        \ start: l:start,
+        \ base: strpart(a:line, l:start, l:limit - l:start),
+        \ quote: l:quote,
+        \ }
+endfunction
+
+function! s:PathUnescape(text) abort
+  let l:chars = split(a:text, '\zs')
+  let l:result = ''
+  let l:i = 0
+
+  while l:i < len(l:chars)
+    if l:chars[l:i] ==# '\' && l:i + 1 < len(l:chars)
+      let l:i += 1
+    endif
+    let l:result ..= l:chars[l:i]
+    let l:i += 1
+  endwhile
+
+  return l:result
+endfunction
+
+function! s:PathCompleteBaseDir() abort
+  let l:bufdir = expand('%:p:h')
+  return empty(l:bufdir) ? getcwd() : l:bufdir
+endfunction
+
+function! s:StartsWith(text, prefix) abort
+  return stridx(a:text, a:prefix) == 0
+endfunction
+
+function! s:PathEnvPrefixLength(base) abort
+  if !s:StartsWith(a:base, '$')
+    return -1
+  endif
+
+  if s:StartsWith(a:base, '${')
+    let l:end = stridx(a:base, '}/')
+    return l:end > 1 ? l:end + 2 : -1
+  endif
+
+  let l:slash = stridx(a:base, '/')
+  if l:slash <= 1
+    return -1
+  endif
+
+  let l:name = strpart(a:base, 1, l:slash - 1)
+  return l:name =~# '^\h\w*$' ? l:slash + 1 : -1
+endfunction
+
+function! s:LooksLikeUri(base) abort
+  let l:sep = stridx(a:base, '://')
+  if l:sep <= 0
+    return v:false
+  endif
+  return strpart(a:base, 0, l:sep) =~# '^\h\w*$'
+endfunction
+
+function! s:PathCompleteShouldTrigger(base) abort
+  if empty(a:base)
+    return v:false
+  endif
+  if s:LooksLikeUri(a:base)
+    return v:false
+  endif
+  if s:StartsWith(a:base, '//')
+        \ || s:StartsWith(a:base, '/*')
+        \ || s:StartsWith(a:base, '*/')
+    return v:false
+  endif
+  if s:StartsWith(a:base, './')
+        \ || s:StartsWith(a:base, '../')
+        \ || s:StartsWith(a:base, '/')
+        \ || s:StartsWith(a:base, '~/')
+        \ || s:PathEnvPrefixLength(a:base) > 0
+    return v:true
+  endif
+  return stridx(a:base, '/') >= 0
+endfunction
+
+function! s:ResolvePathComplete(base) abort
+  let l:base = a:base
+  let l:slash = strridx(l:base, '/')
+  let l:display_prefix = l:slash >= 0 ? strpart(l:base, 0, l:slash + 1) : ''
+  let l:leaf = l:slash >= 0 ? strpart(l:base, l:slash + 1) : l:base
+  let l:dir_expr = empty(l:display_prefix) ? '' : substitute(l:display_prefix, '/\+$', '', '')
+  let l:dir = ''
+
+  if empty(l:display_prefix)
+    let l:dir = s:PathCompleteBaseDir()
+  elseif s:StartsWith(l:display_prefix, '~/')
+    let l:dir = simplify(expand('~') .. '/' .. l:dir_expr[2:])
+  elseif s:StartsWith(l:display_prefix, '${')
+    let l:prefix_len = s:PathEnvPrefixLength(l:display_prefix)
+    let l:var = strpart(l:display_prefix, 2, l:prefix_len - 4)
+    let l:root = getenv(l:var)
+    if empty(l:root)
+      return {}
+    endif
+    let l:dir = simplify(fnamemodify(l:root, ':p') .. '/' .. l:dir_expr[l:prefix_len:])
+  elseif s:StartsWith(l:display_prefix, '$')
+    let l:prefix_len = s:PathEnvPrefixLength(l:display_prefix)
+    let l:var = strpart(l:display_prefix, 1, l:prefix_len - 2)
+    let l:root = getenv(l:var)
+    if empty(l:root)
+      return {}
+    endif
+    let l:dir = simplify(fnamemodify(l:root, ':p') .. '/' .. l:dir_expr[l:prefix_len:])
+  elseif s:StartsWith(l:display_prefix, '/')
+    let l:dir = simplify('/' .. l:dir_expr[1:])
+  else
+    let l:dir = simplify(s:PathCompleteBaseDir() .. '/' .. l:dir_expr)
+  endif
+
+  return #{
+        \ dir: l:dir,
+        \ leaf: l:leaf,
+        \ display_prefix: l:display_prefix,
+        \ show_hidden: l:leaf =~# '^\.',
+        \ }
+endfunction
+
+function! s:JoinCompletedPath(prefix, name) abort
+  if empty(a:prefix)
+    return a:name
+  endif
+  return a:prefix .. a:name
+endfunction
+
+function! s:EscapeGlobLiteral(text) abort
+  let l:escaped = escape(a:text, '\*?[')
+  let l:escaped = substitute(l:escaped, '\]', '\\]', 'g')
+  return l:escaped
+endfunction
+
+function! s:EscapeCompletedPath(word, quote) abort
+  if a:quote !=# ''
+    let l:escaped = substitute(a:word, '\\', '\\\\', 'g')
+    if a:quote ==# '"'
+      let l:escaped = substitute(l:escaped, '"', '\\"', 'g')
+    elseif a:quote ==# "'"
+      let l:escaped = substitute(l:escaped, "'", "\\'", 'g')
+    endif
+    return l:escaped
+  endif
+
+  let l:escaped = substitute(a:word, '\\', '\\\\', 'g')
+  let l:escaped = substitute(l:escaped, ' ', '\\ ', 'g')
+  return l:escaped
+endfunction
+
+function! PathComplete(findstart, base) abort
+  let l:ctx = s:PathCompleteToken(getline('.'), col('.'))
+
+  if a:findstart
+    return l:ctx.start
+  endif
+
+  let l:base = empty(l:ctx.base) ? a:base : l:ctx.base
+  if l:ctx.quote ==# ''
+    let l:base = s:PathUnescape(l:base)
+  endif
+
+  if !s:PathCompleteShouldTrigger(l:base)
+    return []
+  endif
+
+  let l:query = s:ResolvePathComplete(l:base)
+  if empty(l:query) || !isdirectory(l:query.dir)
+    return []
+  endif
+
+  let l:matches = []
+  let l:pattern = l:query.dir .. '/' .. s:EscapeGlobLiteral(l:query.leaf) .. '*'
+
+  for l:path in glob(l:pattern, 0, 1)
+    let l:name = fnamemodify(l:path, ':t')
+    if l:name ==# '.' || l:name ==# '..'
+      continue
+    endif
+    let l:isdir = isdirectory(l:path)
+    let l:word = s:JoinCompletedPath(l:query.display_prefix, l:name) .. (l:isdir ? '/' : '')
+    let l:word = s:EscapeCompletedPath(l:word, l:ctx.quote)
 
     call add(l:matches, #{
           \ word: l:word,
