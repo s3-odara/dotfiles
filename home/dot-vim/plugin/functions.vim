@@ -384,7 +384,7 @@ enddef
 
 def BranchText(): string
   var head = gitbranch#name()
-  return empty(head) ? '' : "\uf126 " .. head
+  return empty(head) ? '' : head
 enddef
 
 def ModeLabel(): string
