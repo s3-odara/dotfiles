@@ -22,12 +22,13 @@ def FcitxRemoteJob(args: list<string>)
   job_start(args, {out_io: 'null', err_io: 'null'})
 enddef
 
-def g:ImeActivate(active: bool)
+def g:ImeActivate(active: bool): number
   FcitxRemoteJob(active ? ['fcitx5-remote', '-o'] : ['fcitx5-remote', '-c'])
+  return 0
 enddef
 
-def g:ImeStatus(): bool
-  return FcitxRemote(['fcitx5-remote']) ==# '2'
+def g:ImeStatus(): number
+  return FcitxRemote(['fcitx5-remote']) ==# '2' ? 1 : 0
 enddef
 
 def AutoMkdir(dir: string, force: bool)
@@ -457,22 +458,24 @@ def FileSegmentFixedWidth(): number
   if !empty(prefix)
     prefix ..= ' '
   endif
-  return strchars(' ' .. prefix .. ModifiedLabel() .. ' ')
+  return strchars(prefix .. ModifiedLabel() .. ' ')
 enddef
 
 def BranchSegmentText(): string
   var branch = BranchText()
-  return empty(branch) ? '' : ' ' .. branch .. ' '
+  return empty(branch) ? '' : branch .. ' '
 enddef
 
 def PathMax(showInfo: bool): number
   var left = strchars(' ' .. ModeLabel() .. PasteLabel() .. ' ')
-  left += strchars(BranchSegmentText())
-  left += FileSegmentFixedWidth()
+  if !empty(BranchText())
+    left += 1 + strchars(BranchSegmentText())
+  endif
+  left += 1 + FileSegmentFixedWidth()
 
   var right = strchars(PositionText())
   if showInfo
-    right += strchars(' ' .. InfoText() .. ' ')
+    right += 1 + strchars(InfoText() .. ' ')
   endif
 
   return winwidth(0) - left - right
@@ -508,7 +511,7 @@ def g:StatuslineModeHighlight(): string
 enddef
 
 def g:StatuslineModeText(): string
-  return ' ' .. ModeLabel() .. PasteLabel() .. ' '
+  return ModeLabel() .. PasteLabel() .. ' '
 enddef
 
 def g:StatuslineBranch(): string
@@ -520,7 +523,7 @@ def g:StatuslineFileSegment(): string
   if !empty(prefix)
     prefix ..= ' '
   endif
-  return ' ' .. prefix .. PathText(v:true) .. ModifiedLabel() .. ' '
+  return prefix .. PathText(v:true) .. ModifiedLabel() .. ' '
 enddef
 
 def g:StatuslineInfo(): string
@@ -529,5 +532,5 @@ def g:StatuslineInfo(): string
   if !empty(path) && strchars(path) > pathMax && pathMax <= 20
     return ''
   endif
-  return ' ' .. InfoText() .. ' '
+  return InfoText() .. ' '
 enddef

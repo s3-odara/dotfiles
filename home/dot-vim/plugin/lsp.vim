@@ -595,6 +595,7 @@ enddef
 
 def RegisterRuff(servers: list<dict<any>>)
   var opts = {
+    omnicompl: v:false,
     rootSearch: [
       'pyrightconfig.json',
       'pyproject.toml',
@@ -637,6 +638,7 @@ enddef
 
 def RegisterHarper(servers: list<dict<any>>)
   var opts = {
+    omnicompl: v:false,
     workspaceConfig: HarperWorkspaceConfig(),
   }
   AddLspServerIfExecutable(
@@ -650,12 +652,16 @@ def RegisterHarper(servers: list<dict<any>>)
 enddef
 
 def RegisterTypos(servers: list<dict<any>>)
+  var opts = {
+    omnicompl: v:false,
+  }
   AddLspServerIfExecutable(
     servers,
     'typos-lsp',
     ['c', 'cpp', 'gitcommit', 'html', 'javascript', 'javascriptreact', 'markdown', 'python', 'rust', 'sh', 'text', 'toml', 'typescript', 'typescriptreact', 'vim', 'yaml'],
     ['typos-lsp'],
-    ['--stdio']
+    ['--stdio'],
+    opts
   )
 enddef
 
@@ -668,6 +674,7 @@ def RegisterMozuku(servers: list<dict<any>>)
   var server = {
     name: 'mozuku',
     filetype: ['markdown', 'text', 'tex', 'plaintex', 'latex'],
+    omnicompl: v:false,
     path: mozukuPath,
     languageId: function('g:LspMozukuLanguageId'),
     initializationOptions: MozukuInitOptions(),
@@ -678,6 +685,7 @@ enddef
 def RegisterLspServers()
   var servers: list<dict<any>> = []
 
+  RegisterTypos(servers)
   RegisterDenols(servers)
   RegisterVtsls(servers)
   RegisterClangd(servers)
@@ -691,11 +699,10 @@ def RegisterLspServers()
   RegisterZls(servers)
   RegisterHtml(servers)
   RegisterBashls(servers)
-  RegisterTy(servers)
   RegisterRuff(servers)
+  RegisterTy(servers)
   RegisterTaplo(servers)
   RegisterHarper(servers)
-  RegisterTypos(servers)
   RegisterMozuku(servers)
 
   if !empty(servers)

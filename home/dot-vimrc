@@ -118,14 +118,14 @@ call SetupStatuslineHighlights()
 
 set statusline=
 set statusline+=%{%StatuslineModeHighlight()%}
-set statusline+=%{StatuslineModeText()}
+set statusline+=\ %{StatuslineModeText()}
 set statusline+=%#MyStatusGit#
-set statusline+=%{StatuslineBranch()}
+set statusline+=\ %{StatuslineBranch()}
 set statusline+=%#MyStatusFile#
-set statusline+=%<%{StatuslineFileSegment()}
+set statusline+=\ %<%{StatuslineFileSegment()}
 set statusline+=%#MyStatusInfo#
 set statusline+=%=
-set statusline+=%{StatuslineInfo()}
+set statusline+=\ %{StatuslineInfo()}
 set statusline+=%#MyStatusPosition#
 set statusline+=\ %l:%c
 set statusline+=\ %p%%\ 
