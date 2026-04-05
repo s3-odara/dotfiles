@@ -91,6 +91,7 @@ autoload -Uz add-zsh-hook
 autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
+bindkey -v  # vi mode
 
 bindkey '^H' history-incremental-pattern-search-backward
 [[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search

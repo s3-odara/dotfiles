@@ -69,8 +69,8 @@ set signcolumn=yes
 set mouse=a
 set ttymouse=sgr      " alacritty/tmux用
 set updatetime=4000    " gitsignを非同期にした
-set timeoutlen=1500
-set ttimeoutlen=50
+set timeoutlen=1500  " キーマップを押しやすくする
+set ttimeoutlen=50  " エスケープシーケンスの待ち時間
 set imactivatefunc=ImeActivate
 set imstatusfunc=ImeStatus
 set iminsert=2
@@ -80,6 +80,10 @@ set imsearch=-1
 set termguicolors
 set background=dark
 set diffopt=internal,filler,algorithm:patience,indent-heuristic,closeoff,inline:char,linematch:60
+" cursor
+let &t_SI = "\e[3 q"  " Start Insert
+let &t_SR = "\e[3 q"  " Start Replace
+let &t_EI = "\e[3 q"  " End Insert
 
 " スペルチェック
 set spelllang=en_us,cjk
