@@ -2,8 +2,9 @@ vim9script
 scriptencoding utf-8
 
 const MINPAC_DIR = expand('~/.vim/pack/minpac/opt/minpac')
-const SWAP_DIR = expand('~/.cache/vim/swap')
-const UNDO_DIR = expand('~/.cache/vim/undo')
+const XDG_STATE_DIR = empty($XDG_STATE_HOME) ? expand('~/.local/state') : $XDG_STATE_HOME
+const SWAP_DIR = XDG_STATE_DIR .. '/vim/swap'
+const UNDO_DIR = XDG_STATE_DIR .. '/vim/undo'
 
 def EnsureMinpacInstalled()
   if isdirectory(MINPAC_DIR)
@@ -35,10 +36,10 @@ enddef
 
 def EnsureCacheDirs()
   if !isdirectory(SWAP_DIR)
-    mkdir(SWAP_DIR, 'p', 0700)
+    mkdir(SWAP_DIR, 'p', 0o700)
   endif
   if !isdirectory(UNDO_DIR)
-    mkdir(UNDO_DIR, 'p', 0700)
+    mkdir(UNDO_DIR, 'p', 0o700)
   endif
 enddef
 
@@ -147,8 +148,8 @@ set iminsert=2
 set imsearch=-1
 set undofile
 set nobackup
-set directory=~/.cache/vim/swap//
-set undodir=~/.cache/vim/undo//
+&directory = SWAP_DIR .. '//'
+&undodir = UNDO_DIR .. '//'
 
 EnsureCacheDirs()
 SetupCmdlineAutocomplete()
