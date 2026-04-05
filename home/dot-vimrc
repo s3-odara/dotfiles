@@ -20,7 +20,6 @@ function! PackInit() abort
   
   " UI, Tools
   call minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
-  call minpac#add('https://github.com/alvan/vim-closetag.git')
   call minpac#add('https://github.com/mattn/emmet-vim.git')
   
   " LSP, Completion
