@@ -20,6 +20,7 @@ function! PackInit() abort
   " UI, Tools
   call minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
   call minpac#add('https://github.com/mattn/emmet-vim.git')
+  call minpac#add('https://github.com/mao-yining/undotree.vim')
   
   " LSP, Completion
   call minpac#add('https://github.com/yegappan/lsp.git')
@@ -75,6 +76,17 @@ set imactivatefunc=ImeActivate
 set imstatusfunc=ImeStatus
 set iminsert=2
 set imsearch=-1
+set undofile
+set nobackup
+set directory=~/.cache/vim/swap//
+set undodir=~/.cache/vim/undo//
+if !isdirectory(expand('~/.cache/vim/swap'))
+  call mkdir(expand('~/.cache/vim/swap'), 'p')
+endif
+if !isdirectory(expand('~/.cache/vim/undo'))
+  call mkdir(expand('~/.cache/vim/undo'), 'p')
+endif
+
 
 " 色
 set termguicolors
@@ -177,6 +189,8 @@ inoremap <expr> { AutoPairOpen('{', '}')
 inoremap <expr> ) AutoPairClose(')')
 inoremap <expr> ] AutoPairClose(']')
 inoremap <expr> } AutoPairClose('}')
+
+nnoremap <leader>ud <Cmd>UndotreeToggle<CR>
 
 " プラグイン設定
 
