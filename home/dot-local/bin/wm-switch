@@ -34,8 +34,14 @@ fi
 old_pid=
 if [ -f "$pid_file" ]; then
   old_pid="$(cat "$pid_file")"
-  if [ -n "$old_pid" ] && ! kill -0 "$old_pid" 2>/dev/null; then
-    old_pid=
+  if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+    kill "$old_pid" 2>/dev/null || true
+    # Wait for the old WM to release the river window management lock.
+    i=0
+    while kill -0 "$old_pid" 2>/dev/null && [ $i -lt 20 ]; do
+      sleep 0.05
+      i=$((i + 1))
+    done
   fi
 fi
 
@@ -52,7 +58,3 @@ fi
 mkdir -p "$state_dir"
 printf '%s\n' "$wm" > "$current_file"
 printf '%s\n' "$new_pid" > "$pid_file"
-
-if [ -n "$old_pid" ] && [ "$old_pid" != "$new_pid" ]; then
-  kill "$old_pid" 2>/dev/null || true
-fi
