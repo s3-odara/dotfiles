@@ -104,6 +104,7 @@ bindkey '^[OB' down-line-or-beginning-search
 alias cp='cp -i'
 alias mv='mv -i'
 alias rm='rm -I'
+alias ls='ls --color=auto'
 
 # Keep GPG_TTY fresh and inform gpg-agent.
 # Disabled by default because some LXC environments behave poorly here.

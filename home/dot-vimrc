@@ -136,14 +136,15 @@ set incsearch
 set ignorecase
 set smartcase
 set signcolumn=yes
+set hidden
 
 set mouse=a
 set ttymouse=sgr      # alacritty/tmux用
 set updatetime=4000    # gitsignを非同期にした
 set timeoutlen=1500  # キーマップを押しやすくする
 set ttimeoutlen=50  # エスケープシーケンスの待ち時間
-set imactivatefunc=ImeActivate
-set imstatusfunc=ImeStatus
+set imactivatefunc=g:ImeActivate
+set imstatusfunc=g:ImeStatus
 set iminsert=2
 set imsearch=-1
 set undofile
@@ -173,6 +174,10 @@ set thesaurus=~/.vim/dict/thesaurus.txt
 
 syntax on
 filetype plugin indent on
+
+source ~/.vim/config/functions.vim
+source ~/.vim/config/gitsign.vim
+source ~/.vim/config/lsp.vim
 
 augroup MyStatusline
   autocmd!
@@ -230,6 +235,7 @@ nnoremap <leader>se <Cmd>LspSelectionExpand<CR>
 xnoremap <leader>se <Cmd>LspSelectionExpand<CR>
 nnoremap <leader>ss <Cmd>LspSelectionShrink<CR>
 xnoremap <leader>ss <Cmd>LspSelectionShrink<CR>
+nnoremap <leader>ws <Cmd>LspSymbolSearch<CR>
 
 # Auto pairs
 inoremap <expr> ( g:AutoPairOpen('(', ')')
@@ -255,7 +261,7 @@ smap <expr> <S-Tab> vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" : "\<S-Tab>"
 
 g:fuzzbox_mappings = 0
 nnoremap <silent> <leader>kf <Cmd>FuzzyFiles<CR>
-nnoremap <silent> <leader>kb <Cmd>FuzzyBuffers<CR>
+nnoremap <silent> <leader>kd <Cmd>FuzzyBuffers<CR>
 nnoremap <silent> <leader>kg <Cmd>FuzzyGrep<CR>
 nnoremap <silent> <leader>kh <Cmd>FuzzyHelp<CR>
 nnoremap <silent> <leader>ki <Cmd>FuzzyInBuffer<CR>

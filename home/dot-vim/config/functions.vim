@@ -1,10 +1,5 @@
 vim9script
 
-if exists('g:loaded_functions_vim9')
-  finish
-endif
-g:loaded_functions_vim9 = 1
-
 def FcitxRemote(args: list<string>): string
   if !executable('fcitx5-remote')
     return ''

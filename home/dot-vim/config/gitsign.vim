@@ -1,10 +1,5 @@
 vim9script
 
-if exists('g:loaded_gitsign_vim9')
-  finish
-endif
-g:loaded_gitsign_vim9 = 1
-
 if !exists('g:gitsign_enable')
   g:gitsign_enable = 1
 endif

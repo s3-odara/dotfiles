@@ -11,14 +11,10 @@ def ApplyLspOptions()
   })
 enddef
 
-def g:LspPluginApplyLspOptions()
-  ApplyLspOptions()
-enddef
-
 augroup lsp_setup
   autocmd!
-  autocmd User LspSetup call g:LspPluginApplyLspOptions()
-  autocmd User LspSetup call g:LspPluginRegisterLspServers()
+  autocmd User LspSetup call ApplyLspOptions()
+  autocmd User LspSetup call RegisterLspServers()
 augroup END
 
 def MozukuServerPath(): string
@@ -708,8 +704,4 @@ def RegisterLspServers()
   if !empty(servers)
     g:LspAddServer(servers)
   endif
-enddef
-
-def g:LspPluginRegisterLspServers()
-  RegisterLspServers()
 enddef
