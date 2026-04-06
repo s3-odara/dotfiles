@@ -1,0 +1,81 @@
+#!/bin/bash
+
+FINAL_ARGS=()
+UPDATE_MODE=0
+PARSE_WRAPPER_OPTS=1
+
+for arg in "$@"; do
+    if [[ $PARSE_WRAPPER_OPTS -eq 1 ]]; then
+        case "$arg" in
+        --)
+            PARSE_WRAPPER_OPTS=0
+            FINAL_ARGS+=("--")
+            ;;
+        --update)
+            UPDATE_MODE=1
+            FINAL_ARGS+=("-S" "$HOME/.vim/update_minpac.vim")
+            ;;
+        *)
+            FINAL_ARGS+=("$arg")
+            ;;
+        esac
+    else
+        FINAL_ARGS+=("$arg")
+    fi
+done
+
+BWRAP_ARGS=()
+
+if [[ $UPDATE_MODE -eq 1 ]]; then
+
+    BWRAP_ARGS+=(
+        --die-with-parent
+        --new-session
+        --proc /proc
+        --dev /dev
+        --ro-bind /usr /usr
+        --ro-bind-try /bin /bin
+        --ro-bind-try /sbin /sbin
+        --ro-bind-try /lib /lib
+        --ro-bind-try /lib64 /lib64
+        --ro-bind /etc /etc
+        --ro-bind "$HOME/.vimrc" "$HOME/.vimrc"
+        --ro-bind "$HOME/.vim" "$HOME/.vim"
+        --ro-bind-try /run/systemd/resolve /run/systemd/resolve
+    )
+
+    BWRAP_ARGS+=(
+        --bind-try /tmp /tmp
+        --bind-try "$HOME/.vim/pack" "$HOME/.vim/pack"
+    )
+
+    VIM_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/vim"
+    mkdir -p "$VIM_STATE/swap" "$VIM_STATE/undo"
+    BWRAP_ARGS+=(--bind-try "$VIM_STATE" "$VIM_STATE")
+
+else
+
+    BWRAP_ARGS+=(
+        --unshare-net
+        --die-with-parent
+        --proc /proc
+        --dev /dev
+        --ro-bind /usr /usr
+        --ro-bind-try /bin /bin
+        --ro-bind-try /sbin /sbin
+        --ro-bind-try /lib /lib
+        --ro-bind-try /lib64 /lib64
+        --ro-bind /etc /etc
+        --bind-try /tmp /tmp # doasedit
+        --bind-try "$HOME" "$HOME"
+    )
+
+    # fcitx5-remote
+    if [[ ${DBUS_SESSION_BUS_ADDRESS:-} =~ unix:path=([^,]+) ]]; then
+        DBUS_PATH="${BASH_REMATCH[1]}"
+        BWRAP_ARGS+=(--ro-bind-try "$DBUS_PATH" "$DBUS_PATH")
+    fi
+
+fi
+
+exec bwrap "${BWRAP_ARGS[@]}" /usr/bin/vim "${FINAL_ARGS[@]}"
