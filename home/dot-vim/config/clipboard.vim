@@ -20,7 +20,7 @@ def g:Osc52CopySelection()
   endif
 
   var seq = "\x1b]52;c;" .. b64 .. "\x07"
-  writefile([seq], '/dev/tty', 'b')
+  echoraw(seq)
   redraw!
   echo 'Copied to clipboard (OSC 52)'
 enddef
