@@ -25,6 +25,7 @@ def g:PackInit()
   minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
   minpac#add('https://github.com/mattn/emmet-vim.git')
   minpac#add('https://github.com/mao-yining/undotree.vim')
+  minpac#add('https://github.com/girishji/easyjump.vim.git')
 
   # LSP / Completion
   minpac#add('https://github.com/yegappan/lsp.git')
@@ -247,10 +248,18 @@ inoremap <expr> ) g:AutoPairClose(')')
 inoremap <expr> ] g:AutoPairClose(']')
 inoremap <expr> } g:AutoPairClose('}')
 
-# Tools
+# Plugin settings
 nnoremap <leader>ud <Cmd>UndotreeToggle<CR>
 
-# Plugin settings
+g:easyjump_default_keymap = false
+nnoremap <silent> <leader>je <Plug>EasyjumpJump;
+onoremap <silent> <leader>je <Plug>EasyjumpJump;
+vnoremap <silent> <leader>je <Plug>EasyjumpJump;
+nnoremap <silent> <leader>JE 2<Plug>EasyjumpJump;
+onoremap <silent> <leader>JE 2<Plug>EasyjumpJump;
+vnoremap <silent> <leader>JE 2<Plug>EasyjumpJump;
+highlight EasyJump guifg=#11eb9c gui=bold cterm=bold
+
 imap <expr> <C-l> vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" : "\<C-l>"
 smap <expr> <C-l> vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" : "\<C-l>"
 inoremap <expr> <Space> pumvisible() && g:VsnipSessionActive() ? "\<C-y>" : "\<Space>"
