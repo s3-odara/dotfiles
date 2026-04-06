@@ -1,5 +1,6 @@
 vim9script
 
+# config defaults / constants
 if !exists('g:gitsign_enable')
   g:gitsign_enable = 1
 endif
@@ -38,6 +39,7 @@ execute $'sign define {SIGN_CHANGE} text=! texthl=GitSignChangeHL'
 execute $'sign define {SIGN_DELETE} text=_ texthl=GitSignDeleteHL'
 execute $'sign define {SIGN_DELETE_FIRST} text=^ texthl=GitSignDeleteHL'
 
+# state management
 var state_by_buf: dict<dict<any>> = {}
 var root_by_dir: dict<string> = {}
 var relpath_by_file: dict<string> = {}
@@ -139,6 +141,7 @@ def ResetBuffer(buf: number)
   ClearSigns(buf)
 enddef
 
+# diff parsing
 def ParseHunk(line: string): list<number>
   var m = matchlist(line, '^@@ -\(\d\+\)\%(,\(\d*\)\)\? +\(\d\+\)\%(,\(\d*\)\)\? @@')
   if empty(m)
@@ -215,6 +218,7 @@ def ApplySigns(buf: number, signs: list<dict<any>>)
   state.last_signs = next
 enddef
 
+# repo/file helpers
 def FindGitRoot(filedir: string): string
   if has_key(root_by_dir, filedir)
     return root_by_dir[filedir]
@@ -315,26 +319,6 @@ def BufferTooLarge(buf: number, file: string): bool
   return false
 enddef
 
-def StartJob(buf: number, mode: string, argv: list<string>, stdout_file: string, stderr_file: string, ExitCbFactory: func)
-  var state = EnsureState(buf)
-  StopJob(buf)
-  state.job_mode = mode
-  state.job_seq += 1
-  var seq = state.job_seq
-  var job = job_start(argv, {
-    out_io: 'file',
-    out_name: stdout_file,
-    err_io: 'file',
-    err_name: stderr_file,
-    exit_cb: ExitCbFactory(seq),
-  })
-  if type(job) != v:t_job
-    state.job_mode = ''
-    return
-  endif
-  state.job = job
-enddef
-
 def ReadLines(path: string): list<string>
   return filereadable(path) ? readfile(path) : []
 enddef
@@ -387,6 +371,27 @@ def MaybeRunPendingUpdate(buf: number)
   state.pending_generation = -1
   RunUpdate(buf, generation)
   StartCooldown(buf)
+enddef
+
+# async job pipeline
+def StartJob(buf: number, mode: string, argv: list<string>, stdout_file: string, stderr_file: string, ExitCbFactory: func)
+  var state = EnsureState(buf)
+  StopJob(buf)
+  state.job_mode = mode
+  state.job_seq += 1
+  var seq = state.job_seq
+  var job = job_start(argv, {
+    out_io: 'file',
+    out_name: stdout_file,
+    err_io: 'file',
+    err_name: stderr_file,
+    exit_cb: ExitCbFactory(seq),
+  })
+  if type(job) != v:t_job
+    state.job_mode = ''
+    return
+  endif
+  state.job = job
 enddef
 
 def HandleDiffResult(buf: number, finished_seq: number, generation: number, stdout_file: string, stderr_file: string)
@@ -588,6 +593,7 @@ def StartHeadResolveJob(buf: number, generation: number)
   )
 enddef
 
+# scheduler/public API/autocmd
 def StartCooldown(buf: number)
   var state = BufState(buf)
   if empty(state)

@@ -44,233 +44,32 @@ def EnsureCacheDirs()
   endif
 enddef
 
-def SetupCmdlineAutocomplete()
-  if has('nvim') || !has('patch-9.1.1576') || !has('autocmd')
-    return
-  endif
-
-  set wildmenu
-  set wildmode=noselect:lastused,full
-  # noselectを設定していない場合、補完が呼び出された時点で候補が自動選択される。
-  # これにより、コマンドを手動で編集できなくなる。
-
-
-  augroup MyCmdlineAutocomplete
-    autocmd!
-    #  コマンドラインの内容が変更されたときに、自動で補完を呼び出す。
-    autocmd CmdlineChanged [:/?] call wildtrigger()
-  augroup END
-enddef
-
-def SetupStatuslineHighlights()
-  highlight StatusLineNC cterm=NONE ctermfg=245 ctermbg=237 gui=NONE guifg=#8a9199 guibg=#2d323b
-  highlight MyStatusModeNormal cterm=bold ctermfg=235 ctermbg=110 gui=bold guifg=#1f2430 guibg=#73b8ff
-  highlight MyStatusModeInsert cterm=bold ctermfg=235 ctermbg=150 gui=bold guifg=#1f2430 guibg=#95e6cb
-  highlight MyStatusModeVisual cterm=bold ctermfg=235 ctermbg=216 gui=bold guifg=#1f2430 guibg=#f6c177
-  highlight MyStatusModeReplace cterm=bold ctermfg=235 ctermbg=203 gui=bold guifg=#1f2430 guibg=#f28779
-  highlight MyStatusModeCommand cterm=bold ctermfg=235 ctermbg=222 gui=bold guifg=#1f2430 guibg=#ffd173
-  highlight MyStatusModeTerminal cterm=bold ctermfg=235 ctermbg=117 gui=bold guifg=#1f2430 guibg=#73d0ff
-  highlight MyStatusGit cterm=NONE ctermfg=252 ctermbg=239 gui=NONE guifg=#e6e1cf guibg=#3a3f4b
-  highlight MyStatusFile cterm=NONE ctermfg=252 ctermbg=237 gui=NONE guifg=#e6e1cf guibg=#2d323b
-  highlight MyStatusInfo cterm=NONE ctermfg=250 ctermbg=235 gui=NONE guifg=#c5cdd9 guibg=#1f2430
-  highlight MyStatusPosition cterm=NONE ctermfg=235 ctermbg=109 gui=NONE guifg=#1f2430 guibg=#7aa2b8
-enddef
-
-def SetupStatusline()
-  &statusline = join([
-    '%{%g:StatuslineModeHighlight()%}',
-    ' %{g:StatuslineModeText()}',
-    '%#MyStatusGit#',
-    ' %{g:StatuslineBranch()}',
-    '%#MyStatusFile#',
-    ' %<%{g:StatuslineFileSegment()}',
-    '%#MyStatusInfo#',
-    '%=',
-    ' %{g:StatuslineInfo()}',
-    '%#MyStatusPosition#',
-    ' %l:%c',
-    ' %p%% ',
-  ], '')
-enddef
-
-# ColorScheme
-def ApplyTransparentBackground()
-  if get(g:, 'colors_name', '') !=# 'odara'
-    return
-  endif
-
-  highlight Normal ctermbg=NONE guibg=NONE
-  highlight NonText ctermbg=NONE guibg=NONE
-  highlight SpecialKey ctermbg=NONE guibg=NONE
-  highlight EndOfBuffer ctermbg=NONE guibg=NONE
-enddef
-
 EnsureMinpacInstalled()
 
 command! -bar PackUpdate call g:PackInit() | call minpac#update()
 command! -bar PackClean  call g:PackInit() | call minpac#clean()
 command! -bar PackStatus packadd minpac | call minpac#status()
-
-# Core options
-set encoding=utf-8
-set fileencodings=utf-8,iso-2022-jp,euc-jp,sjis
-
-set expandtab
-set tabstop=8         # hardtabがある文書では8から変えないほうが良いらしい？
-set softtabstop=-1    # shiftwidthに従う
-set shiftwidth=4      # 0にするとtabstopに従う
-set autoindent
-
-set autocomplete
-set autocompletedelay=200
-set completeopt=menuone,fuzzy,popup
-set complete=o,Fvsnip#completefunc,FPathComplete,k^2,.^5,w^5,b^5
-
-set number
-set ruler
-set showcmd
-set laststatus=2
-set wildmenu
-set wildoptions+=fuzzy
-set hlsearch
-set incsearch
-set ignorecase
-set smartcase
-set signcolumn=yes
-set hidden
-
-set mouse=a
-set ttymouse=sgr      # alacritty/tmux用
-set updatetime=4000    # gitsignを非同期にした
-set timeoutlen=1500  # キーマップを押しやすくする
-set ttimeoutlen=50  # エスケープシーケンスの待ち時間
-set imactivatefunc=g:ImeActivate
-set imstatusfunc=g:ImeStatus
-set iminsert=2
-set imsearch=-1
-set undofile
-set nobackup
 &directory = SWAP_DIR .. '//'
 &undodir = UNDO_DIR .. '//'
 
 EnsureCacheDirs()
-SetupCmdlineAutocomplete()
 
-# UI / colors
-set termguicolors
-set background=dark
-set diffopt=internal,filler,algorithm:patience,indent-heuristic,closeoff,inline:char,linematch:60
-
-&t_SI = "\<Esc>[3 q" # Start Insert
-&t_SR = "\<Esc>[3 q" # StartReplace
-&t_EI = "\<Esc>[3 q" # End Insert
-
-set spelllang=en_us,cjk
-if filereadable('/usr/share/dict/words')
-  set dictionary=/usr/share/dict/words
-elseif filereadable(expand('~/.vim/dict/words'))
-  set dictionary=~/.vim/dict/words
-endif
-set thesaurus=~/.vim/dict/thesaurus.txt
-
-syntax on
-filetype plugin indent on
-
-source ~/.vim/config/functions.vim
-source ~/.vim/config/gitsign.vim
+source ~/.vim/config/core.vim
+source ~/.vim/config/lib/ime.vim
+source ~/.vim/config/completion.vim
+source ~/.vim/config/clipboard.vim
+source ~/.vim/config/autopairs.vim
+source ~/.vim/config/lib/statusline.vim
+source ~/.vim/config/statusline.vim
+source ~/.vim/config/plugins.vim
+source ~/.vim/config/plugins/gitsign.vim
+source ~/.vim/config/lsp/settings.vim
+source ~/.vim/config/lsp/servers.vim
 source ~/.vim/config/lsp.vim
-
-augroup MyStatusline
-  autocmd!
-  autocmd ColorScheme * call SetupStatuslineHighlights()
-augroup END
-
-augroup TransparentBG
-  autocmd!
-  autocmd ColorScheme * call ApplyTransparentBackground()
-augroup END
-
-SetupStatuslineHighlights()
-SetupStatusline()
+source ~/.vim/config/lib/lsp_helpers.vim
+source ~/.vim/config/keymaps.vim
+source ~/.vim/config/autocmds.vim
+source ~/.vim/config/ui.vim
 
 colorscheme odara
-ApplyTransparentBackground()
-
-# Keymaps
-g:mapleader = "\<Space>"
-
-# Clipboard
-xnoremap <silent> "+y :<C-u>call g:Osc52CopySelection()<CR>
-nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '\r', '', 'g')<CR>p
-nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '\r', '', 'g')<CR>p
-
-# Completion / insert helpers
-inoremap <expr> <PageDown> g:CompletionPopupScroll("\<C-e>", "\<PageDown>")
-inoremap <expr> <PageUp> g:CompletionPopupScroll("\<C-y>", "\<PageUp>")
-inoremap <C-x><C-d> <C-x><C-k>
-# thesaurus complete
-inoremap <C-t> <C-x><C-t>
-nnoremap <F3> <Cmd>nohlsearch<CR>
-
-# LSP
-nnoremap <leader>df <Cmd>LspGotoDefinition<CR>
-nnoremap <leader>pd <Cmd>LspPeekDefinition<CR>
-nnoremap <leader>dic <Cmd>LspDiag current<CR>
-nnoremap <leader>dc <Cmd>LspGotoDeclaration<CR>
-nnoremap <leader>re <Cmd>LspShowReferences<CR>
-nnoremap <leader>pr <Cmd>LspPeekReferences<CR>
-nnoremap <leader>h <Cmd>LspHover<CR>
-nnoremap <leader>rn <Cmd>LspRename<CR>
-nnoremap <leader>ac <Cmd>LspCodeAction<CR>
-nnoremap <leader>at <Cmd>call g:TyposCodeAction()<CR>
-nnoremap <leader>f <Cmd>LspFormat<CR>
-nnoremap <leader>[ <Cmd>LspDiag prev<CR>
-nnoremap <leader>] <Cmd>LspDiag next<CR>
-nnoremap <leader>dis <Cmd>LspDiag show<CR>
-nnoremap <leader>ol <Cmd>LspOutline<CR>
-nnoremap <leader>ds <Cmd>LspDocumentSymbol<CR>
-nnoremap <leader>t <Cmd>LspGotoTypeDef<CR>
-nnoremap <leader>im <Cmd>LspGotoImpl<CR>
-nnoremap <leader>ih <Cmd>LspInlayHints toggle<CR>
-nnoremap <leader>se <Cmd>LspSelectionExpand<CR>
-xnoremap <leader>se <Cmd>LspSelectionExpand<CR>
-nnoremap <leader>ss <Cmd>LspSelectionShrink<CR>
-xnoremap <leader>ss <Cmd>LspSelectionShrink<CR>
-nnoremap <leader>ws <Cmd>LspSymbolSearch<CR>
-
-# Auto pairs
-inoremap <expr> ( g:AutoPairOpen('(', ')')
-inoremap <expr> [ g:AutoPairOpen('[', ']')
-inoremap <expr> { g:AutoPairOpen('{', '}')
-inoremap <expr> ' g:AutoPairSymmetric("'")
-inoremap <expr> " g:AutoPairSymmetric('"')
-inoremap <expr> ) g:AutoPairClose(')')
-inoremap <expr> ] g:AutoPairClose(']')
-inoremap <expr> } g:AutoPairClose('}')
-
-# Plugin settings
-nnoremap <leader>ud <Cmd>UndotreeToggle<CR>
-
-g:easyjump_default_keymap = false
-nnoremap <silent> <leader>je <Plug>EasyjumpJump;
-onoremap <silent> <leader>je <Plug>EasyjumpJump;
-vnoremap <silent> <leader>je <Plug>EasyjumpJump;
-nnoremap <silent> <leader>JE 2<Plug>EasyjumpJump;
-onoremap <silent> <leader>JE 2<Plug>EasyjumpJump;
-vnoremap <silent> <leader>JE 2<Plug>EasyjumpJump;
-highlight EasyJump guifg=#11eb9c gui=bold cterm=bold
-
-imap <expr> <C-l> vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" : "\<C-l>"
-smap <expr> <C-l> vsnip#available(1) ? "\<Plug>(vsnip-expand-or-jump)" : "\<C-l>"
-inoremap <expr> <Space> pumvisible() && g:VsnipSessionActive() ? "\<C-y>" : "\<Space>"
-imap <expr> <Tab> pumvisible() ? "\<C-n>" : vsnip#jumpable(1) ? "\<Plug>(vsnip-jump-next)" : "\<Tab>"
-smap <expr> <Tab> vsnip#jumpable(1) ? "\<Plug>(vsnip-jump-next)" : "\<Tab>"
-imap <expr> <S-Tab> pumvisible() ? "\<C-p>" : vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" : "\<S-Tab>"
-smap <expr> <S-Tab> vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" : "\<S-Tab>"
-
-g:fuzzbox_mappings = 0
-nnoremap <silent> <leader>kf <Cmd>FuzzyFiles<CR>
-nnoremap <silent> <leader>kd <Cmd>FuzzyBuffers<CR>
-nnoremap <silent> <leader>kg <Cmd>FuzzyGrep<CR>
-nnoremap <silent> <leader>kh <Cmd>FuzzyHelp<CR>
-nnoremap <silent> <leader>ki <Cmd>FuzzyInBuffer<CR>
+g:ApplyTransparentBackground()
