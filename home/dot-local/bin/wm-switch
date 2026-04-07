@@ -9,52 +9,65 @@ pid_file="$state_dir/pid"
 wm="${1:-}"
 
 if [ -z "$wm" ]; then
-  if [ -f "$current_file" ] && [ -f "$pid_file" ]; then
-    current_pid="$(cat "$pid_file")"
-    if [ -n "$current_pid" ] && kill -0 "$current_pid" 2>/dev/null; then
-      cat "$current_file"
-      exit 0
+    current_wm=
+    if [ -f "$current_file" ]; then
+        current_wm="$(sed -n '1p' "$current_file" 2>/dev/null || true)"
     fi
-  fi
 
-  if [ -f "$current_file" ]; then
-    cat "$current_file"
-    exit 0
-  fi
+    if [ -f "$pid_file" ]; then
+        current_pid="$(sed -n '1p' "$pid_file" 2>/dev/null || true)"
+        if [ -n "$current_pid" ] && kill -0 "$current_pid" 2>/dev/null; then
+            if [ -n "$current_wm" ]; then
+                printf '%s\n' "$current_wm"
+                exit 0
+            fi
+        fi
+    fi
 
-  printf '%s\n' 'usage: wm-switch <wm>' >&2
-  exit 64
+    if [ -n "$current_wm" ]; then
+        printf '%s\n' "$current_wm"
+        exit 0
+    fi
+
+    printf '%s\n' 'usage: wm-switch <wm>' >&2
+    exit 64
 fi
 
 if ! command -v "$wm" >/dev/null 2>&1; then
-  printf 'wm-switch: %s not found in PATH\n' "$wm" >&2
-  exit 1
+    printf 'wm-switch: %s not found in PATH\n' "$wm" >&2
+    exit 1
+fi
+
+mkdir -p "$state_dir"
+
+current_wm=
+if [ -f "$current_file" ]; then
+    current_wm="$(sed -n '1p' "$current_file" 2>/dev/null || true)"
 fi
 
 old_pid=
 if [ -f "$pid_file" ]; then
-  old_pid="$(cat "$pid_file")"
-  if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-    kill "$old_pid" 2>/dev/null || true
-    # Wait for the old WM to release the river window management lock.
+    old_pid="$(sed -n '1p' "$pid_file" 2>/dev/null || true)"
+fi
+
+if [ "$wm" = "$current_wm" ] &&
+    [ -n "$old_pid" ] &&
+    kill -0 "$old_pid" 2>/dev/null; then
+    exit 0
+fi
+
+printf '%s\n' "$wm" >"$current_file"
+
+if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+    kill -TERM "$old_pid" 2>/dev/null || true
+
     i=0
     while kill -0 "$old_pid" 2>/dev/null && [ $i -lt 20 ]; do
-      sleep 0.05
-      i=$((i + 1))
+        sleep 0.05
+        i=$((i + 1))
     done
-  fi
+
+    if kill -0 "$old_pid" 2>/dev/null; then
+        printf 'wm-switch: old WM did not exit in time: %s\n' "$old_pid" >&2
+    fi
 fi
-
-"$wm" &
-new_pid=$!
-
-sleep 0.1
-if ! kill -0 "$new_pid" 2>/dev/null; then
-  wait "$new_pid"
-  printf 'wm-switch: %s exited during startup\n' "$wm" >&2
-  exit 1
-fi
-
-mkdir -p "$state_dir"
-printf '%s\n' "$wm" > "$current_file"
-printf '%s\n' "$new_pid" > "$pid_file"

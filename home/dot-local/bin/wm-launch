@@ -5,16 +5,45 @@ runtime_dir="${XDG_RUNTIME_DIR:?wm-launch: XDG_RUNTIME_DIR is not set}"
 state_dir="$runtime_dir/wm-launch"
 current_file="$state_dir/current"
 pid_file="$state_dir/pid"
-
-wm="${1:-${WAYLAND_WM:-machi}}"
-
-if ! command -v "$wm" >/dev/null 2>&1; then
-  printf 'wm-launch: %s not found in PATH\n' "$wm" >&2
-  exit 1
-fi
+default_wm="${WAYLAND_WM:-machi}"
 
 mkdir -p "$state_dir"
-printf '%s\n' "$wm" > "$current_file"
-printf '%s\n' "$$" > "$pid_file"
+trap 'rm -f "$pid_file"' EXIT INT TERM
 
-exec "$wm"
+if [ $# -gt 0 ]; then
+    printf '%s\n' "$1" >"$current_file"
+elif [ ! -f "$current_file" ]; then
+    printf '%s\n' "$default_wm" >"$current_file"
+fi
+
+while :; do
+    wm=
+    if [ -f "$current_file" ]; then
+        wm="$(sed -n '1p' "$current_file" 2>/dev/null || true)"
+    fi
+    [ -n "$wm" ] || wm="$default_wm"
+
+    if ! command -v "$wm" >/dev/null 2>&1; then
+        printf 'wm-launch: %s not found in PATH\n' "$wm" >&2
+        rm -f "$pid_file"
+        exit 1
+    fi
+
+    "$wm" </dev/null &
+    child_pid=$!
+    printf '%s\n' "$child_pid" >"$pid_file"
+
+    status=0
+    wait "$child_pid" || status=$?
+    rm -f "$pid_file"
+
+    next_wm=
+    if [ -f "$current_file" ]; then
+        next_wm="$(sed -n '1p' "$current_file" 2>/dev/null || true)"
+    fi
+    [ -n "$next_wm" ] || next_wm="$default_wm"
+
+    if [ "$next_wm" = "$wm" ]; then
+        exit "$status"
+    fi
+done
