@@ -11,9 +11,9 @@ export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
   --natural-scroll "*" enabled \
   --tap "*" enabled \
   --tap-button-map "*" left-right-middle \
-  --natural-scroll "pointer-2-10-TPPS/2_Elan_TrackPoint" disabled \
-  --pointer-accel "pointer-2-10-TPPS/2_Elan_TrackPoint" 0.3 \
-  --natural-scroll "pointer-14139-4123-Compx_ATK_Mouse_8K_Dongle" disabled &
+  --natural-scroll "*Elan_TrackPoint*" disabled \
+  --pointer-accel "*Elan_TrackPoint*" 0.3 \
+  --natural-scroll "*ATK_Mouse*" disabled &
 
 if ! "$HOME/.local/bin/brightness" restore --keep; then
   printf '%s\n' 'wayland-session-init: failed to restore brightness; continuing' >&2

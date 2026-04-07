@@ -1,0 +1,2 @@
+#!/bin/sh
+exec pkill -TERM -x river
