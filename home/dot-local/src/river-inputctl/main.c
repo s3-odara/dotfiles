@@ -20,6 +20,7 @@ enum rule_kind {
     RULE_NATURAL_SCROLL,
     RULE_ACCEL_PROFILE,
     RULE_ACCEL_SPEED,
+    RULE_COUNT,
 };
 
 enum action_result {
@@ -102,6 +103,7 @@ static void apply_rules(struct app *app);
 static void setup_pending_result(struct app *app, struct river_libinput_result_v1 *result, const char *device_name, const char *action);
 static void stop_globals(struct app *app);
 static int dispatch_until_stopped(struct app *app);
+static void maybe_remove_device(struct app *app, struct device *device);
 
 static volatile sig_atomic_t g_terminate_requested;
 
@@ -129,6 +131,7 @@ static void input_device_removed(void *data, struct river_input_device_v1 *input
 
     if (device->input == input) {
         device->input = NULL;
+        maybe_remove_device(device->app, device);
     }
 }
 
@@ -178,6 +181,7 @@ static void libinput_device_removed(void *data, struct river_libinput_device_v1 
 
     if (device != NULL && device->libinput == libinput) {
         device->libinput = NULL;
+        maybe_remove_device(listener_data->app, device);
     }
     free(listener_data);
 }
@@ -353,6 +357,7 @@ static void die_usage(FILE *stream, int code) {
         "  river-inputctl [options]\n"
         "\n"
         "options:\n"
+        "  --watch\n"
         "  --repeat RATE DELAY\n"
         "  --tap MATCH enabled|disabled\n"
         "  --tap-button-map MATCH left-right-middle|left-middle-right\n"
@@ -497,6 +502,27 @@ static struct device *find_device_by_input(struct app *app, struct river_input_d
     return NULL;
 }
 
+static void maybe_remove_device(struct app *app, struct device *device) {
+    size_t i;
+
+    if (device == NULL || device->input != NULL || device->libinput != NULL) {
+        return;
+    }
+
+    for (i = 0; i < app->device_len; i++) {
+        if (app->devices[i] == device) {
+            free(device->name);
+            free(device);
+            if (i + 1 < app->device_len) {
+                memmove(&app->devices[i], &app->devices[i + 1],
+                    (app->device_len - i - 1) * sizeof(*app->devices));
+            }
+            app->device_len--;
+            return;
+        }
+    }
+}
+
 static void setup_pending_result(struct app *app, struct river_libinput_result_v1 *result, const char *device_name, const char *action) {
     struct pending_result *pending;
 
@@ -578,7 +604,7 @@ static void apply_libinput_rule(struct app *app, struct device *device, const st
 
 static void apply_libinput_rules(struct app *app, struct device *device) {
     size_t i;
-    bool applied[5] = {false};  // RULE_TAP〜RULE_ACCEL_SPEED
+    bool applied[RULE_COUNT] = {false};
 
     if (device->libinput_rules_applied || device->libinput == NULL || !device->have_name) {
         return;
@@ -776,24 +802,14 @@ int main(int argc, char **argv) {
 
     apply_rules(&app);
 
-    if (app.watch) {
-        while (!g_terminate_requested) {
-            if (wl_display_dispatch(app.display) < 0) {
-                if (errno == EINTR && g_terminate_requested) {
-                    break;
-                }
-                fprintf(stderr, "river-inputctl: failed while dispatching wayland events\n");
-                app.exit_code = 1;
+    while (!g_terminate_requested) {
+        if (wl_display_dispatch(app.display) < 0) {
+            if (errno == EINTR && g_terminate_requested) {
                 break;
             }
-        }
-    } else {
-        while (app.pending_results > 0) {
-            if (wl_display_roundtrip(app.display) < 0) {
-                fprintf(stderr, "river-inputctl: failed while waiting for results\n");
-                app.exit_code = 1;
-                break;
-            }
+            fprintf(stderr, "river-inputctl: failed while dispatching wayland events\n");
+            app.exit_code = 1;
+            break;
         }
     }
 
