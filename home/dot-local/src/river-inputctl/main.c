@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
+#include <fnmatch.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <stdint.h>
@@ -453,10 +454,7 @@ static const char *device_name_or_unknown(const struct device *device) {
 }
 
 static bool device_name_matches(const char *pattern, const char *name) {
-    if (strcmp(pattern, "*") == 0) {
-        return true;
-    }
-    return strcmp(pattern, name) == 0;
+    return fnmatch(pattern, name, 0) == 0;
 }
 
 static void add_rule(struct app *app, struct rule rule) {
@@ -580,12 +578,17 @@ static void apply_libinput_rule(struct app *app, struct device *device, const st
 
 static void apply_libinput_rules(struct app *app, struct device *device) {
     size_t i;
+    bool applied[5] = {false};  // RULE_TAP〜RULE_ACCEL_SPEED
 
     if (device->libinput_rules_applied || device->libinput == NULL || !device->have_name) {
         return;
     }
-    for (i = 0; i < app->rule_len; i++) {
-        apply_libinput_rule(app, device, &app->rules[i]);
+    for (i = app->rule_len; i > 0; i--) {
+        const struct rule *rule = &app->rules[i - 1];
+        if (!applied[rule->kind] && device_name_matches(rule->match, device->name)) {
+            apply_libinput_rule(app, device, rule);
+            applied[rule->kind] = true;
+        }
     }
     device->libinput_rules_applied = true;
 }
