@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "/home/user/git/dotfiles/home/dot-local/src/river-inputctl",
+    "file": "main.c",
+    "arguments": ["/usr/bin/gcc", "-O2", "-Wall", "-Wextra", "-pedantic", "-std=c11", "-Igen", "-isystem", "/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include", "-isystem", "/usr/include", "-c", "main.c"]
+  }
+]

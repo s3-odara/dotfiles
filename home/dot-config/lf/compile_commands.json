@@ -1,0 +1,12 @@
+[
+  {
+    "directory": "/home/user/git/dotfiles/home/dot-config/lf",
+    "command": "cc -O2 -Wall -Wextra -std=c11 -c preview-guard.c -o preview-guard.o",
+    "file": "preview-guard.c"
+  },
+  {
+    "directory": "/home/user/git/dotfiles/home/dot-config/lf",
+    "command": "cc -O2 -Wall -Wextra -std=c11 -c player-guard.c -o player-guard.o",
+    "file": "player-guard.c"
+  }
+]
