@@ -8,7 +8,7 @@
 # This file aligns launcher/theme/rules with the existing river setup.
 
 main_modifier = "super"
-launcher_cmd = ["wofi", "--show=drun"]
+launcher_cmd = ["fuzzel"]
 
 [ui]
 border_width = 10
@@ -33,7 +33,7 @@ desktop_background = "#002b36"
 match_app_id = "firefox"
 match_props = "toplevel"
 force_ssd = true
-swallow_top = 48
+swallow_top = 2
 
 [[rules]]
 match_app_id = "firefox-esr"

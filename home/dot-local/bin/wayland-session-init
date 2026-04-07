@@ -8,12 +8,11 @@ export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
   --repeat 25 300 \
   --accel-profile "*" flat \
   --pointer-accel "*" 0.4 \
-  --natural-scroll "*" enabled \
   --tap "*" enabled \
   --tap-button-map "*" left-right-middle \
-  --natural-scroll "*Elan_TrackPoint*" disabled \
-  --pointer-accel "*Elan_TrackPoint*" 0.3 \
-  --natural-scroll "*ATK_Mouse*" disabled &
+  --natural-scroll "SYNA8018:00 06CB:CE67 Touchpad" enabled \
+  --natural-scroll "TPPS/2 Elan TrackPoint" disabled \
+  --pointer-accel "TPPS/2 Elan TrackPoint" 0.3 &
 
 if ! "$HOME/.local/bin/brightness" restore --keep; then
   printf '%s\n' 'wayland-session-init: failed to restore brightness; continuing' >&2

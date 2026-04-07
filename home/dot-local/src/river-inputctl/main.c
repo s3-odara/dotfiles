@@ -599,6 +599,10 @@ static void apply_libinput_rule(struct app *app, struct device *device, const st
         wl_array_release(&array);
         setup_pending_result(app, result, name, "set_accel_speed");
         break;
+    case RULE_COUNT:
+        fprintf(stderr, "river-inputctl: internal error: invald rule kind\n");
+        app->exit_code = 1;
+        break;
     }
 }
 

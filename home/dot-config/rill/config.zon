@@ -16,7 +16,7 @@
 
     .keybindings = .{
         .{ .key = "Return", .modifiers = .{ .mod4 = true, .shift = true }, .action = .{ .spawn = .{"foot"} } },
-        .{ .key = "s", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{ "wofi", "--show=drun" } } },
+        .{ .key = "s", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{ "fuzzel" } } },
         .{ .key = "m", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"/home/odara/.local/bin/lock"} } },
         .{ .key = "r", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"/home/odara/.local/bin/lock-and-suspend"} } },
         .{ .key = "r", .modifiers = .{ .mod4 = true, .shift = true }, .action = .reload_config },

@@ -1,2 +1,2 @@
 #!/bin/sh
-exec wofi --show=drun
+exec fuzzel --show=drun

@@ -1,7 +1,7 @@
 (array/push
   (config :xkb-bindings)
   [:Return {:mod4 true :shift true} (action/spawn ["foot"])]
-  [:s {:mod4 true} (action/spawn ["wofi" "--show=drun"])]
+  [:s {:mod4 true} (action/spawn ["fuzzel"])]
   [:m {:mod4 true} (action/spawn ["/home/odara/.local/bin/lock"])]
   [:r {:mod4 true} (action/spawn ["/home/odara/.local/bin/lock-and-suspend"])]
   [:Escape {:mod4 true} (action/exit-session)]

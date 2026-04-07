@@ -1,0 +1,451 @@
+#!/usr/bin/env bash
+# pinentry-wofi
+# pinentry shim for wofi (dmenu mode).
+#
+# based on Morgane "Sardem FF7" Glidic's pinentry-rofi https://gist.github.com/sardemff7/759cbf956bea20d382a6128c641d2746
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+
+# -------- Configuration --------
+
+WOFI_BIN="/usr/bin/fuzzel"  # MUST be absolute
+
+MAX_LINE_BYTES=4096
+MAX_UI_BYTES=2048
+
+# Fail-closed if file permissions look unsafe. Set PINENTRY_WOFI_STRICT_PERMS=0 to only warn.
+STRICT_PERMS=true
+if [[ "${PINENTRY_WOFI_STRICT_PERMS:-1}" == "0" ]]; then
+  STRICT_PERMS=false
+fi
+
+# -------- Utilities --------
+
+warn() { printf '%s\n' "$*" >&2; }
+
+assuan_send() {
+  # bash builtin printf writes via write(2); explicit flush not needed
+  printf '%s\n' "$1"
+}
+
+# bytesize in bytes (not chars)
+bytesize() {
+  perl -e 'use strict; use warnings; use bytes; print length($ARGV[0]);' "$1"
+}
+
+# -------- Assuan helpers (Perl for byte-oriented + UTF-8 replace semantics) --------
+
+# UTF-8 safe encode + cap-by-bytes (Ruby safe_strip_and_cap_utf8 と同型)
+utf8_cap() {
+  local max="$1"
+  perl -MEncode -e '
+    use strict; use warnings;
+    use Encode qw(decode encode);
+    my $max = shift @ARGV;
+    local $/;
+    my $s = <STDIN>;
+    $s = "" unless defined $s;
+
+    my $t = decode("UTF-8", $s, Encode::FB_DEFAULT);
+    my $b = encode("UTF-8", $t);
+
+    while (length($b) > $max) {
+      $b = substr($b, 0, $max);
+      $t = decode("UTF-8", $b, Encode::FB_DEFAULT);
+      $b = encode("UTF-8", $t);
+    }
+
+    binmode STDOUT, ":utf8";
+    print $t;
+  ' "$max"
+}
+
+# Assuan %xx unescape (byte-oriented), then optional whitespace normalization, then cap.
+# mode:
+#   collapse => \s+ -> " " and strip
+#   strip    => strip only
+#   none     => no whitespace changes
+assuan_param_to_ui() {
+  local max="$1"
+  local mode="$2"
+
+  perl -MEncode -e '
+    use strict; use warnings;
+    use Encode qw(decode encode);
+
+    my ($max, $mode) = @ARGV;
+    local $/;
+    my $s = <STDIN>;
+    $s = "" unless defined $s;
+
+    # byte-oriented %xx decode
+    $s =~ s/%([0-9A-Fa-f]{2})/chr(hex($1))/ge;
+
+    # decode as UTF-8 with U+FFFD replacement on invalid/undef
+    my $t = decode("UTF-8", $s, Encode::FB_DEFAULT);
+
+    if ($mode eq "collapse") {
+      $t =~ s/\s+/ /g;
+      $t =~ s/^\s+|\s+$//g;
+    } elsif ($mode eq "strip") {
+      $t =~ s/^\s+|\s+$//g;
+    } else {
+      # none
+    }
+
+    # cap by bytes of UTF-8 encoding, re-decode to keep valid UTF-8
+    my $b = encode("UTF-8", $t);
+    while (length($b) > $max) {
+      $b = substr($b, 0, $max);
+      $t = decode("UTF-8", $b, Encode::FB_DEFAULT);
+      $b = encode("UTF-8", $t);
+    }
+
+    binmode STDOUT, ":utf8";
+    print $t;
+  ' "$max" "$mode"
+}
+
+# Assuan Data line escaping: escape %, CR, LF (uppercase hex)
+assuan_escape_data() {
+  perl -e '
+    use strict; use warnings;
+    binmode STDIN;
+    binmode STDOUT;
+    local $/;
+    my $s = <STDIN>;
+    $s = "" unless defined $s;
+
+    $s =~ s/%/%25/g;
+    $s =~ s/\r/%0D/g;
+    $s =~ s/\n/%0A/g;
+    print $s;
+  '
+}
+
+# -------- Assuan line reader --------
+
+LINE=""
+
+read_assuan_line() {
+  local line buf nxt
+
+  if ! IFS= read -r line; then
+    return 1
+  fi
+
+  # Normalize CRLF/CR
+  line="${line%$'\r'}"
+  buf="$line"
+
+  # Minimal continuation handling: trailing "\" continues
+  while [[ "$buf" == *\\ ]]; do
+    buf="${buf%\\}"
+    if ! IFS= read -r nxt; then
+      break
+    fi
+    nxt="${nxt%$'\r'}"
+    buf+="$nxt"
+
+    if (( $(bytesize "$buf") > MAX_LINE_BYTES )); then
+      LINE="__TOO_LONG__"
+      return 0
+    fi
+  done
+
+  if (( $(bytesize "$buf") > MAX_LINE_BYTES )); then
+    LINE="__TOO_LONG__"
+  else
+    LINE="$buf"
+  fi
+
+  return 0
+}
+
+# -------- Process hardening --------
+
+ensure_executable_file() {
+  local path="$1" what="$2"
+  if [[ "$path" != /* || ! -f "$path" || ! -x "$path" ]]; then
+    warn "$what not found or not executable: $path"
+    exit 1
+  fi
+}
+
+ensure_safe_file() {
+  local path="$1" what="$2"
+  local mode_str mode
+
+  mode_str="$(stat -c '%a' "$path" 2>/dev/null)" || {
+    warn "pinentry-wofi: startup hardening failed: stat failed: $path"
+    exit 1
+  }
+
+  mode=$((8#$mode_str))
+
+  # group/world writable bits?
+  if (( (mode & 022) != 0 )); then
+    local msg
+    msg="$what has unsafe permissions (mode=$mode_str): $path"
+    if $STRICT_PERMS; then
+      warn "$msg"
+      exit 1
+    else
+      warn "WARNING: $msg"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+# Startup hardening (best-effort where applicable)
+umask 077
+ulimit -c 0 2>/dev/null || true
+
+ensure_executable_file "$WOFI_BIN" "wofi binary"
+ensure_safe_file "$WOFI_BIN" "wofi binary"
+
+SCRIPT_PATH="$0"
+if command -v readlink >/dev/null 2>&1; then
+  rp="$(readlink -f "$0" 2>/dev/null || true)"
+  if [[ -n "$rp" ]]; then
+    SCRIPT_PATH="$rp"
+  fi
+fi
+ensure_safe_file "$SCRIPT_PATH" "pinentry script"
+
+# -------- wofi invocation --------
+
+WOFI_OUT=""
+WOFI_STATUS=0
+WOFI_OK_LABEL=""
+WOFI_CANCEL_LABEL=""
+
+run_wofi_password() {
+  local prompt_str="$1"
+  prompt_str="$(printf '%s' "$prompt_str" | utf8_cap "$MAX_UI_BYTES")"
+
+  # Unset loader-injection related env vars for subprocess.
+  # Do not inherit Assuan stdin.
+  WOFI_OUT="$(
+  env -u LD_PRELOAD -u LD_LIBRARY_PATH -u DYLD_INSERT_LIBRARIES -u DYLD_LIBRARY_PATH \
+    "$WOFI_BIN" --dmenu --password --cache=/dev/null --prompt "$prompt_str" \
+    < /dev/null 2>/dev/null
+)"
+  WOFI_STATUS=$?
+}
+
+run_wofi_confirm() {
+  local prompt_str="$1"
+  local ok_label_in="$2"
+  local cancel_label_in="$3"
+
+  prompt_str="$(printf '%s' "$prompt_str" | utf8_cap "$MAX_UI_BYTES")"
+  WOFI_OK_LABEL="$(printf '%s' "$ok_label_in" | utf8_cap 128)"
+  WOFI_CANCEL_LABEL="$(printf '%s' "$cancel_label_in" | utf8_cap 128)"
+
+  # Provide two choices via stdin (dmenu mode)
+  WOFI_OUT="$(
+  printf '%s\n%s\n' "$WOFI_OK_LABEL" "$WOFI_CANCEL_LABEL" | \
+    env -u LD_PRELOAD -u LD_LIBRARY_PATH -u DYLD_INSERT_LIBRARIES -u DYLD_LIBRARY_PATH \
+      "$WOFI_BIN" --dmenu --cache=/dev/null --prompt "$prompt_str" \
+      2>/dev/null
+)"
+  WOFI_STATUS=$?
+}
+
+# -------- State --------
+
+title=""
+prompt=""
+desc=""
+error_msg=""
+ok_label="OK"
+cancel_label="Cancel"
+
+reset_state() {
+  title=""
+  prompt=""
+  desc=""
+  error_msg=""
+  ok_label="OK"
+  cancel_label="Cancel"
+}
+
+join_with_sep() {
+  local sep="$1"; shift
+  local out="" first=1 s
+  for s in "$@"; do
+    if (( first )); then
+      out="$s"; first=0
+    else
+      out+="$sep$s"
+    fi
+  done
+  printf '%s' "$out"
+}
+
+# -------- Main loop --------
+
+assuan_send "OK Please go ahead"
+
+while read_assuan_line; do
+  if [[ "$LINE" == "__TOO_LONG__" ]]; then
+    assuan_send "ERR 67109139 Line too long"
+    continue
+  fi
+
+  local_ok=1
+  line="$LINE"
+
+  if [[ "$line" =~ ^OPTION[[:space:]]+(.+)$ ]]; then
+    : # ignore
+
+  elif [[ "$line" =~ ^GETINFO[[:space:]]+(.+)$ ]]; then
+    info="${BASH_REMATCH[1]}"
+    if [[ "$info" == "pid" ]]; then
+      assuan_send "D $$"
+    else
+      assuan_send "ERR 67109139 Unknown info"
+      local_ok=0
+    fi
+
+  elif [[ "$line" =~ ^SETKEYINFO[[:space:]]+(.+)$ ]]; then
+    : # ignore
+
+  elif [[ "$line" =~ ^SETDESC[[:space:]]+(.+)$ ]]; then
+    desc="$(printf '%s' "${BASH_REMATCH[1]}" | assuan_param_to_ui "$MAX_UI_BYTES" "collapse")"
+
+  elif [[ "$line" =~ ^SETPROMPT[[:space:]]+(.+)$ ]]; then
+    prompt="$(printf '%s' "${BASH_REMATCH[1]}" | assuan_param_to_ui "$MAX_UI_BYTES" "strip")"
+
+  elif [[ "$line" =~ ^SETTITLE[[:space:]]+(.+)$ ]]; then
+    title="$(printf '%s' "${BASH_REMATCH[1]}" | assuan_param_to_ui "$MAX_UI_BYTES" "collapse")"
+
+  elif [[ "$line" =~ ^SETERROR[[:space:]]+(.+)$ ]]; then
+    error_msg="$(printf '%s' "${BASH_REMATCH[1]}" | assuan_param_to_ui "$MAX_UI_BYTES" "collapse")"
+
+  elif [[ "$line" =~ ^SETOK[[:space:]]+(.+)$ ]]; then
+    ok_label="$(printf '%s' "${BASH_REMATCH[1]}" | assuan_param_to_ui 128 "strip")"
+
+  elif [[ "$line" =~ ^SETCANCEL[[:space:]]+(.+)$ ]]; then
+    cancel_label="$(printf '%s' "${BASH_REMATCH[1]}" | assuan_param_to_ui 128 "strip")"
+
+  elif [[ "$line" == "RESET" ]]; then
+    reset_state
+
+  elif [[ "$line" == "GETPIN" ]]; then
+    base="PIN:"
+    if [[ -n "$prompt" ]]; then
+      base="$prompt"
+    fi
+
+    parts=()
+    [[ -n "$title" ]] && parts+=("$title")
+    parts+=("$base")
+    [[ -n "$desc" ]] && parts+=("$desc")
+    [[ -n "$error_msg" ]] && parts+=("Error: $error_msg")
+
+    full_prompt="$(join_with_sep " — " "${parts[@]}")"
+
+    run_wofi_password "$full_prompt"
+
+    # Defensive cap to 64KiB bytes + chomp one trailing newline if any (Ruby byteslice + chomp 相当)
+    pass="$(printf '%s' "$WOFI_OUT" | perl -e '
+      use strict; use warnings; use bytes;
+      local $/; my $s=<STDIN>; $s="" unless defined $s;
+      $s = substr($s, 0, 64*1024);
+      $s =~ s/\r?\n\z//;  # chomp once
+      print $s;
+    ')"
+
+    if [[ "$WOFI_STATUS" -eq 0 ]]; then
+      if [[ -z "$pass" ]]; then
+        assuan_send "D"
+      else
+        escaped="$(printf '%s' "$pass" | assuan_escape_data)"
+        assuan_send "D $escaped"
+      fi
+    elif [[ "$WOFI_STATUS" -eq 1 ]]; then
+      assuan_send "ERR 83886179 Operation cancelled <wofi>"
+      local_ok=0
+    else
+      assuan_send "ERR 83886179 Pinentry failed <wofi>"
+      local_ok=0
+    fi
+
+    # Best-effort zeroization analogue
+    pass=""
+
+  elif [[ "$line" == "CONFIRM" ]]; then
+    base="Confirm"
+    if [[ -n "$prompt" ]]; then
+      base="$prompt"
+    fi
+
+    parts=()
+    [[ -n "$title" ]] && parts+=("$title")
+    parts+=("$base")
+    [[ -n "$desc" ]] && parts+=("$desc")
+
+    full_prompt="$(join_with_sep " — " "${parts[@]}")"
+
+    run_wofi_confirm "$full_prompt" "$ok_label" "$cancel_label"
+
+    choice="$(printf '%s' "$WOFI_OUT" | perl -e '
+      use strict; use warnings;
+      local $/; my $s=<STDIN>; $s="" unless defined $s;
+      $s =~ s/\r?\n\z//;  # chomp once
+      print $s;
+    ')"
+
+    if [[ "$WOFI_STATUS" -eq 0 ]]; then
+      if [[ "$choice" == "$WOFI_OK_LABEL" ]]; then
+        : # success
+      else
+        assuan_send "ERR 83886179 Operation cancelled <wofi>"
+        local_ok=0
+      fi
+    elif [[ "$WOFI_STATUS" -eq 1 ]]; then
+      assuan_send "ERR 83886179 Operation cancelled <wofi>"
+      local_ok=0
+    else
+      assuan_send "ERR 83886179 Pinentry failed <wofi>"
+      local_ok=0
+    fi
+
+  elif [[ "$line" == "MESSAGE" ]]; then
+    : # no-op (compat)
+
+  elif [[ "$line" == "BYE" ]]; then
+    exit 0
+
+  else
+    assuan_send "ERR 67109139 Unknown command"
+    local_ok=0
+  fi
+
+  if [[ "$local_ok" -eq 1 ]]; then
+    assuan_send "OK"
+  fi
+done
+
+exit 0
+
