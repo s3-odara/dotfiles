@@ -6,7 +6,7 @@ state_dir="$runtime_dir/wm-launch"
 current_file="$state_dir/current"
 pid_file="$state_dir/pid"
 
-wm="${1:-${WAYLAND_WM:-rill}}"
+wm="${1:-${WAYLAND_WM:-machi}}"
 
 if ! command -v "$wm" >/dev/null 2>&1; then
   printf 'wm-launch: %s not found in PATH\n' "$wm" >&2

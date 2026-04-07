@@ -11,7 +11,7 @@ main_modifier = "super"
 launcher_cmd = ["wofi", "--show=drun"]
 
 [ui]
-border_width = 3
+border_width = 10
 border_active = { outer = "#93a1a1", mid = "#839496", inner = "#93a1a1" }
 border_inactive = { outer = "#586e75", mid = "#657b83", inner = "#586e75" }
 titlebar_text_active = "#002b36"
