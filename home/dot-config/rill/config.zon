@@ -15,8 +15,8 @@
     .spawn_at_startup = .{},
 
     .keybindings = .{
-        .{ .key = "Return", .modifiers = .{ .mod4 = true, .shift = true }, .action = .{ .spawn = .{"foot"} } },
-        .{ .key = "s", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{ "fuzzel" } } },
+        .{ .key = "Return", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"foot"} } },
+        .{ .key = "Space", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"fuzzel"} } },
         .{ .key = "m", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"/home/odara/.local/bin/lock"} } },
         .{ .key = "r", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"/home/odara/.local/bin/lock-and-suspend"} } },
         .{ .key = "r", .modifiers = .{ .mod4 = true, .shift = true }, .action = .reload_config },
@@ -31,12 +31,17 @@
         .{ .key = "i", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
         .{ .key = "o", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
 
-        .{ .key = ",", .modifiers = .{ .mod4 = true }, .action = .focus_output_left },
-        .{ .key = ".", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
+        .{ .key = "comma", .modifiers = .{ .mod4 = true }, .action = .focus_output_left },
+        .{ .key = "period", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
         .{ .key = "Left", .modifiers = .{ .mod4 = true }, .action = .focus_output_left },
         .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
         .{ .key = "Up", .modifiers = .{ .mod4 = true }, .action = .focus_output_above },
         .{ .key = "Down", .modifiers = .{ .mod4 = true }, .action = .focus_output_below },
+
+        .{ .key = "k", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_above },
+        .{ .key = "j", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_below },
+        .{ .key = "k", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_workspace_above },
+        .{ .key = "j", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_workspace_below },
 
         .{ .key = "1", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 1 } },
         .{ .key = "2", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 2 } },
@@ -56,7 +61,7 @@
         .{ .key = "7", .modifiers = .{ .mod4 = true, .shift = true }, .action = .{ .move_window_to_workspace_number = 7 } },
         .{ .key = "8", .modifiers = .{ .mod4 = true, .shift = true }, .action = .{ .move_window_to_workspace_number = 8 } },
         .{ .key = "9", .modifiers = .{ .mod4 = true, .shift = true }, .action = .{ .move_window_to_workspace_number = 9 } },
-        .{ .key = "`", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
+        .{ .key = "grave", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
 
         .{ .key = "p", .modifiers = .{ .mod4 = true }, .action = .{ .spawn = .{"/home/odara/.local/bin/screenshot-copy"} } },
         .{ .key = "p", .modifiers = .{ .mod4 = true, .shift = true }, .action = .{ .spawn = .{"/home/odara/.local/bin/screenshot-save"} } },
