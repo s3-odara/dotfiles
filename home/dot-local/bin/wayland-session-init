@@ -4,7 +4,17 @@ set -eu
 export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
 export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
 
-"$HOME/.local/bin/river-inputctl" \
+session_pid_file="${RIVER_SESSION_PID_FILE:-}"
+
+spawn_tracked() {
+  "$@" &
+  pid=$!
+  if [ -n "$session_pid_file" ]; then
+    printf '%s\n' "$pid" >>"$session_pid_file"
+  fi
+}
+
+spawn_tracked "$HOME/.local/bin/river-inputctl" \
   --repeat 25 300 \
   --accel-profile "*" flat \
   --pointer-accel "*" 0.4 \
@@ -12,13 +22,13 @@ export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
   --tap-button-map "*" left-right-middle \
   --natural-scroll "SYNA8018:00 06CB:CE67 Touchpad" enabled \
   --natural-scroll "TPPS/2 Elan TrackPoint" disabled \
-  --pointer-accel "TPPS/2 Elan TrackPoint" 0.3 &
+  --pointer-accel "TPPS/2 Elan TrackPoint" 0.3
 
 if ! "$HOME/.local/bin/brightness" restore --keep; then
   printf '%s\n' 'wayland-session-init: failed to restore brightness; continuing' >&2
 fi
 
-fcitx5 &
+spawn_tracked fcitx5
 if ! wlr-randr --output eDP-1 --scale 1.5; then
   printf '%s\n' 'wayland-session-init: unable to apply scale to eDP-1; continuing' >&2
 fi
@@ -26,9 +36,9 @@ if ! dbus-update-activation-environment WAYLAND_DISPLAY; then
   printf '%s\n' 'wayland-session-init: failed to update dbus activation environment; continuing' >&2
 fi
 
-"$HOME/.local/bin/wob-run" &
-waybar &
-fnott &
+spawn_tracked "$HOME/.local/bin/wob-run"
+spawn_tracked waybar
+spawn_tracked fnott
 
 umask 077
 cat > "$XDG_RUNTIME_DIR/river.env" <<EOF
@@ -37,4 +47,4 @@ WAYLAND_DISPLAY=$WAYLAND_DISPLAY
 DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-}
 EOF
 
-"$HOME/.local/bin/session-idle" &
+spawn_tracked "$HOME/.local/bin/session-idle"

@@ -6,6 +6,7 @@ state_dir="$runtime_dir/wm-launch"
 current_file="$state_dir/current"
 pid_file="$state_dir/pid"
 default_wm="${WAYLAND_WM:-machi}"
+crash_count=0
 
 mkdir -p "$state_dir"
 trap 'rm -f "$pid_file"' EXIT INT TERM
@@ -43,7 +44,21 @@ while :; do
     fi
     [ -n "$next_wm" ] || next_wm="$default_wm"
 
-    if [ "$next_wm" = "$wm" ]; then
+    if [ "$next_wm" != "$wm" ]; then
+        crash_count=0
+        continue
+    fi
+
+    if [ "$status" -eq 0 ]; then
+        exit 0
+    fi
+
+    crash_count=$((crash_count + 1))
+    if [ "$crash_count" -ge 3 ]; then
+        printf 'wm-launch: %s crashed %s times; giving up\n' "$wm" "$crash_count" >&2
         exit "$status"
     fi
+
+    printf 'wm-launch: %s crashed with status %s; restarting (%s/3)\n' \
+        "$wm" "$status" "$crash_count" >&2
 done

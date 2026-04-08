@@ -4,6 +4,26 @@ set -eu
 export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
 export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
 
+session_pid_file="${XDG_RUNTIME_DIR:?}/river-session.pids"
+: >"$session_pid_file"
+export RIVER_SESSION_PID_FILE="$session_pid_file"
+
+cleanup() {
+  if [ -n "${wm_pid:-}" ]; then
+    kill -TERM "$wm_pid" 2>/dev/null || true
+  fi
+
+  if [ -f "$session_pid_file" ]; then
+    while IFS= read -r pid; do
+      [ -n "$pid" ] || continue
+      kill -TERM "$pid" 2>/dev/null || true
+    done <"$session_pid_file"
+  fi
+
+  rm -f "$session_pid_file"
+}
+trap cleanup EXIT INT TERM HUP
+
 "$HOME/.local/bin/wayland-session-init"
 "$HOME/.local/bin/wm-launch" &
 wm_pid=$!
@@ -12,6 +32,7 @@ if [ -f "$HOME/medias/frieren.png" ]; then
   # Defer wallpaper startup until after the WM launcher has spawned the WM.
   sleep 0.2
   swaybg -m fill -i "$HOME/medias/frieren.png" &
+  printf '%s\n' "$!" >>"$session_pid_file"
 fi
 
 wait "$wm_pid"
