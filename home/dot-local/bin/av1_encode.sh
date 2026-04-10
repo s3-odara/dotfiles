@@ -36,10 +36,29 @@ encode_file() {
     ofile="${ofile_base}_$n.${OUTPUT_EXT}"
     n=$((n+1))
   done
-  ffmpeg -hide_banner -y \
-    -hwaccel vaapi -vaapi_device /dev/dri/renderD128 \
+
+  # Prefer a full VAAPI pipeline when the decoder supports the input.
+  if ffmpeg -hide_banner -y \
+    -hwaccel vaapi -hwaccel_output_format vaapi \
+    -vaapi_device /dev/dri/renderD128 \
     -i "$infile" \
-    -vf hwupload,scale_vaapi=format=p010 -c:v av1_vaapi -rc_mode:v CQP \
+    -vf 'scale_vaapi=format=p010' \
+    -c:v av1_vaapi -rc_mode:v CQP \
+    -q:v "$V_QUALITY" -compression_level:v 29 \
+    -c:a libopus -ar 48000 -b:a "$A_BITRATE" \
+    "$ofile"
+  then
+    return
+  fi
+
+  echo "Retrying with software decode + hwupload: $infile" >&2
+  rm -f "$ofile"
+
+  ffmpeg -hide_banner -y \
+    -vaapi_device /dev/dri/renderD128 \
+    -i "$infile" \
+    -vf 'hwupload,scale_vaapi=format=p010' \
+    -c:v av1_vaapi -rc_mode:v CQP \
     -q:v "$V_QUALITY" -compression_level:v 29 \
     -c:a libopus -ar 48000 -b:a "$A_BITRATE" \
     "$ofile"
