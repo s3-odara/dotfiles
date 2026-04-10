@@ -216,6 +216,16 @@ _source_first_readable \
   /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
   >/dev/null 2>&1
 
+if [[ -o interactive && -n $TMUX ]]; then
+  function exit {
+    if (( $# == 0 )); then
+      builtin exit 0
+    else
+      builtin exit "$@"
+    fi
+  }
+fi
+
 # tmux
 if [[ -z "$TMUX" && -n "$PS1" ]]; then
   if [[ -n "$TMUX_FORCE_NEW" ]]; then
