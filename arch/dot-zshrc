@@ -137,7 +137,37 @@ prompt pure
 RPROMPT+='%F{#8798e8}%T'
 
 # Plugins
-typeset -ga ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+_zsh_autosuggest_strategy_snippets() {
+  emulate -L zsh
+
+  local snippet_file="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/snippets"
+  [[ -r "$snippet_file" ]] || return
+
+  local prefix="$1"
+  local line block
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "$line" ]]; then
+      if [[ -n "$block" && "$block" == "$prefix"* ]]; then
+        typeset -g suggestion="$block"
+        return
+      fi
+      block=''
+      continue
+    fi
+
+    if [[ -n "$block" ]]; then
+      block+=$'\n'
+    fi
+    block+="$line"
+  done < "$snippet_file"
+
+  if [[ -n "$block" && "$block" == "$prefix"* ]]; then
+    typeset -g suggestion="$block"
+  fi
+}
+
+typeset -ga ZSH_AUTOSUGGEST_STRATEGY=(history snippets completion)
 ZSH_AUTOSUGGEST_HISTORY_IGNORE='?(#c100,)'
 
 _source_first_readable \
