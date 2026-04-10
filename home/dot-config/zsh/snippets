@@ -1,0 +1,15 @@
+wf-recorder \
+-c av1_vaapi \
+-d /dev/dri/renderD128 \
+-F scale_vaapi=format=p010 \
+-p rc_mode=CQP \
+-p global_quality=128 \
+-p compression_level=29 \
+-g "$(slurp)" \
+-f recording.mkv
+
+doas make -j16 LLVM=1 && doas make modules_install && doas make install
+
+doas make LLVM=1 oldconfig
+
+doas make menuconfig
