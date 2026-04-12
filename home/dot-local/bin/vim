@@ -60,7 +60,7 @@ else
         --unshare-net
         --die-with-parent
         --proc /proc
-        --dev /dev
+        --dev-bind /dev /dev
         --ro-bind /usr /usr
         --ro-bind-try /bin /bin
         --ro-bind-try /sbin /sbin

@@ -33,6 +33,8 @@
 
         .{ .key = "comma", .modifiers = .{ .mod4 = true }, .action = .focus_output_left },
         .{ .key = "period", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
+        .{ .key = "comma", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_output_left },
+        .{ .key = "period", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_output_right },
         .{ .key = "Left", .modifiers = .{ .mod4 = true }, .action = .focus_output_left },
         .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
         .{ .key = "Up", .modifiers = .{ .mod4 = true }, .action = .focus_output_above },
