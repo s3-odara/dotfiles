@@ -1,0 +1,707 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CRF_ESTIMATOR_SCRIPT_NAME=$(basename "$0")
+source "$SCRIPT_DIR/libav1_crf_estimator.sh"
+
+# Configurable defaults
+OUTPUT_EXT="webm"
+V_CRF=35
+V_PRESET=6
+V_COLOR="yuv420p10le"
+A_BITRATE="64k"
+OUTPUT_SUFFIX=""
+MODE="live"
+TARGET_QUALITY="70" # ssimulacra2 70 ≒ vmaf 93
+TARGET_QUALITY_ENABLED=0
+ESTIMATE_METRIC="ssimulacra2"
+ESTIMATE_STAT="mean"
+V_CRF_EXPLICIT=0
+AUDIO_COPY=0
+ESTIMATE_ONLY=0
+ESTIMATE_PRESET="8"
+ESTIMATE_DELTA="60"
+ESTIMATE_BASE="2"
+ESTIMATE_WINDOW_SECONDS="15"
+ESTIMATE_SCDET_THRESHOLD="10"
+ESTIMATE_CRF_INIT="36"
+ESTIMATE_LO="15"
+ESTIMATE_HI="55"
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+log() {
+  echo "[$(basename "$0")] $*" >&2
+}
+
+usage() {
+  cat >&2 <<EOF
+Usage: $0 [options] file [file ...]
+
+Video / output options:
+  -q, --quality N              Video quality (ffmpeg -crf, default: $V_CRF)
+  -p, --preset N               Video preset (ffmpeg -preset, default: $V_PRESET)
+  -cs, --color-space SPACE     Color space (ffmpeg -pix_fmt, default: $V_COLOR)
+  -a, --audio-rate RATE        Audio bitrate (ffmpeg -b:a, default: $A_BITRATE)
+  -ac, --audio-copy            Copy audio streams instead of re-encoding to Opus
+  -ex, --extension EXT         Output extension (default: $OUTPUT_EXT)
+  -su, --suffix SUFFIX         Output suffix (default: $OUTPUT_SUFFIX)
+  -m, --mode MODE              SVT-AV1 mode: live|anime|grain (default: $MODE)
+
+Estimation options:
+  -ee, --estimate-enable       Estimate CRF per file before encoding
+  -et, --estimate-target VALUE Target quality for estimation (default: $TARGET_QUALITY)
+  -em, --estimate-metric NAME  Metric: xpsnr|vmaf|ssimulacra2 (default: $ESTIMATE_METRIC)
+      --estimate-stat NAME     Statistic: mean|pNN (default: $ESTIMATE_STAT)
+  -eo, --estimate-only         Only estimate CRF and skip output encoding
+  -ep, --estimate-preset N     Preset used during CRF estimation (default: $ESTIMATE_PRESET)
+  -ed, --estimate-delta N      Duration divisor used to choose sample count (default: $ESTIMATE_DELTA)
+  -eb, --estimate-base N       Log base used to choose sample count (default: $ESTIMATE_BASE)
+
+Other:
+  -h, --help                   Show this help
+EOF
+}
+
+mode_params_for() {
+  case "$1" in
+    live)
+      printf '%s' \
+        'tune=1:scm=0:enable-qm=1:qm-min=4:qm-max=15:chroma-qm-min=10:chroma-qm-max=15:tf-strength=1:sharpness=1:enable-variance-boost=1:variance-boost-strength=2:variance-octile=5:qp-scale-compress-strength=1:luminance-qp-bias=10:ac-bias=1.0'
+      ;;
+    anime)
+      printf '%s' \
+        'tune=1:scm=3:enable-qm=1:qm-min=4:qm-max=15:chroma-qm-min=10:chroma-qm-max=15:tf-strength=1:sharpness=1:enable-variance-boost=1:variance-boost-strength=2:variance-octile=5:qp-scale-compress-strength=1:luminance-qp-bias=10:ac-bias=0.5'
+      ;;
+    grain)
+      printf '%s' \
+        'tune=1:scm=0:enable-qm=0:enable-tf=0:enable-cdef=0:enable-restoration=0:sharpness=0:enable-variance-boost=0:qp-scale-compress-strength=2:luminance-qp-bias=0:ac-bias=4.0'
+      ;;
+    *)
+      echo "Unknown mode: $1 (expected: live|anime|grain)" >&2
+      return 1
+      ;;
+  esac
+}
+
+normalize_estimate_metric() {
+  case "${1,,}" in
+    xpsnr|vmaf|ssimulacra2)
+      printf '%s\n' "${1,,}"
+      ;;
+    *)
+      die "Unknown estimate metric: $1 (expected: xpsnr|vmaf|ssimulacra2)"
+      ;;
+  esac
+}
+
+normalize_estimate_stat() {
+  local stat="${1^^}"
+  if [[ "$stat" == "MEAN" ]]; then
+    printf 'mean\n'
+    return 0
+  fi
+  if [[ "$stat" =~ ^P([0-9]{2})$ ]]; then
+    printf 'p%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  die "Unknown estimate stat: $1 (expected: mean or pNN such as p05/p10)"
+}
+
+validate_int() {
+  local name="$1" value="$2"
+  [[ "$value" =~ ^-?[0-9]+$ ]] || die "$name must be an integer: $value"
+}
+
+validate_non_negative_int() {
+  local name="$1" value="$2"
+  validate_int "$name" "$value"
+  (( value >= 0 )) || die "$name must be >= 0: $value"
+}
+
+validate_positive_int() {
+  local name="$1" value="$2"
+  validate_int "$name" "$value"
+  (( value > 0 )) || die "$name must be > 0: $value"
+}
+
+validate_number() {
+  local name="$1" value="$2"
+  [[ "$value" =~ ^-?([0-9]+([.][0-9]*)?|[.][0-9]+)$ ]] || die "$name must be numeric: $value"
+}
+
+validate_positive_number() {
+  local name="$1" value="$2"
+  validate_number "$name" "$value"
+  awk -v x="$value" 'BEGIN { exit !(x + 0 > 0) }' || die "$name must be > 0: $value"
+}
+
+validate_gt_one_number() {
+  local name="$1" value="$2"
+  validate_number "$name" "$value"
+  awk -v x="$value" 'BEGIN { exit !(x + 0 > 1) }' || die "$name must be > 1: $value"
+}
+
+validate_crf_bounds() {
+  validate_non_negative_int "--quality" "$V_CRF"
+  validate_non_negative_int "--preset" "$V_PRESET"
+  validate_non_negative_int "--estimate-preset" "$ESTIMATE_PRESET"
+  validate_positive_number "--estimate-target" "$TARGET_QUALITY"
+  validate_positive_number "--estimate-delta" "$ESTIMATE_DELTA"
+  validate_gt_one_number "--estimate-base" "$ESTIMATE_BASE"
+  validate_positive_number "--estimate-window-seconds" "$ESTIMATE_WINDOW_SECONDS"
+  validate_non_negative_int "--estimate-scdet-threshold" "$ESTIMATE_SCDET_THRESHOLD"
+  validate_non_negative_int "--estimate-crf-init" "$ESTIMATE_CRF_INIT"
+  validate_non_negative_int "--estimate-lo" "$ESTIMATE_LO"
+  validate_non_negative_int "--estimate-hi" "$ESTIMATE_HI"
+  (( ESTIMATE_LO <= ESTIMATE_HI )) || die "--estimate-lo must be <= --estimate-hi"
+  (( ESTIMATE_CRF_INIT >= ESTIMATE_LO && ESTIMATE_CRF_INIT <= ESTIMATE_HI )) || die "--estimate-crf-init must be within [--estimate-lo, --estimate-hi]"
+}
+
+validate_estimate_color_space() {
+  if [[ "$ESTIMATE_METRIC" == "ssimulacra2" ]]; then
+    case "$V_COLOR" in
+      yuv420p|yuv420p10le) ;;
+      *)
+        die "--estimate-metric ssimulacra2 requires --color-space to be yuv420p or yuv420p10le (got: $V_COLOR)"
+        ;;
+    esac
+  fi
+}
+
+output_path_for_input() {
+  local infile="$1"
+  local dir base stem ofile n
+
+  dir=$(dirname "$infile")
+  base=$(basename "$infile")
+  case "$base" in
+    .*)
+      if [[ "$base" == *.*.* ]]; then
+        stem="${base%.*}"
+      else
+        stem="$base"
+      fi
+      ;;
+    *.*)
+      stem="${base%.*}"
+      ;;
+    *)
+      stem="$base"
+      ;;
+  esac
+  stem+="$OUTPUT_SUFFIX"
+  ofile="$dir/$stem.$OUTPUT_EXT"
+
+  n=1
+  while [[ -e "$ofile" ]]; do
+    ofile="$dir/${stem}_$n.$OUTPUT_EXT"
+    n=$((n + 1))
+  done
+
+  printf '%s\n' "$ofile"
+}
+
+stream_allowed_for_container() {
+  local output_ext="${1,,}"
+  local codec_type="$2"
+  local codec_name="${3,,}"
+  local codec_tag="${4,,}"
+
+  if [[ "$codec_name" == "unknown" || "$codec_name" == "none" ]]; then
+    case "$output_ext:$codec_type:$codec_tag" in
+      mp4:data:tmcd|m4v:data:tmcd|mov:data:tmcd)
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  fi
+
+  case "$output_ext" in
+    webm)
+      case "$codec_type" in
+        video|audio)
+          return 0
+          ;;
+        subtitle)
+          case "$codec_name" in
+            webvtt)
+              return 0
+              ;;
+          esac
+          return 1
+          ;;
+        attachment|data)
+          return 1
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+    mkv)
+      case "$codec_type" in
+        video|audio|subtitle|attachment|data)
+          return 0
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+    mka)
+      case "$codec_type" in
+        audio)
+          return 0
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+    mks)
+      case "$codec_type" in
+        subtitle)
+          return 0
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+    mp4|m4v|mov)
+      case "$codec_type" in
+        video|audio)
+          return 0
+          ;;
+        subtitle)
+          case "$codec_name" in
+            mov_text)
+              return 0
+              ;;
+          esac
+          return 1
+          ;;
+        data)
+          case "$codec_tag" in
+            tmcd)
+              return 0
+              ;;
+          esac
+          return 1
+          ;;
+        attachment)
+          return 1
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+    *)
+      case "$codec_type" in
+        video|audio|subtitle|attachment)
+          return 0
+          ;;
+        data)
+          return 1
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      ;;
+  esac
+}
+
+audio_codec_copy_allowed_for_container() {
+  local output_ext="${1,,}"
+  local codec_name="${2,,}"
+
+  [[ "$codec_name" != "unknown" && "$codec_name" != "none" ]] || return 1
+
+  case "$output_ext" in
+    webm)
+      case "$codec_name" in
+        opus|vorbis)
+          return 0
+          ;;
+      esac
+      return 1
+      ;;
+    mp4|mov)
+      case "$codec_name" in
+        aac|alac|ac3|eac3|mp2|mp3|opus|pcm_*)
+          return 0
+          ;;
+      esac
+      return 1
+      ;;
+    m4v)
+      case "$codec_name" in
+        aac|alac|ac3|eac3|mp2|mp3|opus)
+          return 0
+          ;;
+      esac
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+audio_transcode_codec_for_container() {
+  local output_ext="${1,,}"
+
+  case "$output_ext" in
+    mp4|m4v|mov)
+      printf 'aac\n'
+      ;;
+    *)
+      printf 'libopus\n'
+      ;;
+  esac
+}
+
+confirm_audio_transcode_fallback() {
+  local infile="$1"
+  local output_ext="${2,,}"
+  shift 2
+
+  local fallback_codec reply
+  fallback_codec=$(audio_transcode_codec_for_container "$output_ext")
+  [[ -n "$fallback_codec" ]] || die "No fallback audio codec defined for .$output_ext"
+
+  if [[ ! -t 0 || ! -t 2 ]]; then
+    log "incompatible_audio_copy_streams input=$infile output_ext=$output_ext streams=$*"
+    return 1
+  fi
+
+  printf 'The following audio stream(s) cannot be copied into .%s for %s:\n' "$output_ext" "$infile" >&2
+  printf '  %s\n' "$@" >&2
+  read -r -p "Transcode only the incompatible audio stream(s) to ${fallback_codec} instead? [y/N] " reply
+  [[ "$reply" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+declare -a STREAM_MAP_ARGS=()
+declare -a INCOMPATIBLE_AUDIO_STREAMS=()
+MAPPED_VIDEO_COUNT=0
+MAPPED_AUDIO_COUNT=0
+MAPPED_SUBTITLE_COUNT=0
+MAPPED_ATTACHMENT_COUNT=0
+MAPPED_DATA_COUNT=0
+
+build_stream_plan() {
+  local infile="$1"
+  local output_ext="${2,,}"
+  local audio_copy_enabled="${3:-0}"
+  local index codec_name codec_type codec_tag attached_pic
+  local audio_output_index=0
+
+  STREAM_MAP_ARGS=()
+  INCOMPATIBLE_AUDIO_STREAMS=()
+  MAPPED_VIDEO_COUNT=0
+  MAPPED_AUDIO_COUNT=0
+  MAPPED_SUBTITLE_COUNT=0
+  MAPPED_ATTACHMENT_COUNT=0
+  MAPPED_DATA_COUNT=0
+
+  while IFS=',' read -r index codec_name codec_type codec_tag attached_pic; do
+    [[ -n "$index" && -n "$codec_type" ]] || continue
+    if [[ "$codec_type" == "video" && "${attached_pic:-0}" == "1" ]]; then
+      log "dropping_stream index=$index type=video codec=${codec_name:-unknown} attached_pic=1 output_ext=$output_ext input=$infile"
+      continue
+    fi
+    if stream_allowed_for_container "$output_ext" "$codec_type" "${codec_name:-unknown}" "${codec_tag:-}"; then
+      STREAM_MAP_ARGS+=(-map "0:${index}")
+      if [[ "$codec_type" == "audio" ]] && (( audio_copy_enabled )) && ! audio_codec_copy_allowed_for_container "$output_ext" "${codec_name:-unknown}"; then
+        INCOMPATIBLE_AUDIO_STREAMS+=("${audio_output_index}:${index}:${codec_name:-unknown}")
+      fi
+      case "$codec_type" in
+        video)
+          MAPPED_VIDEO_COUNT=$((MAPPED_VIDEO_COUNT + 1))
+          ;;
+        audio)
+          MAPPED_AUDIO_COUNT=$((MAPPED_AUDIO_COUNT + 1))
+          audio_output_index=$((audio_output_index + 1))
+          ;;
+        subtitle)
+          MAPPED_SUBTITLE_COUNT=$((MAPPED_SUBTITLE_COUNT + 1))
+          ;;
+        attachment)
+          MAPPED_ATTACHMENT_COUNT=$((MAPPED_ATTACHMENT_COUNT + 1))
+          ;;
+        data)
+          MAPPED_DATA_COUNT=$((MAPPED_DATA_COUNT + 1))
+          ;;
+      esac
+    else
+      log "dropping_stream index=$index type=${codec_type:-unknown} codec=${codec_name:-unknown} tag=${codec_tag:-unknown} output_ext=$output_ext input=$infile"
+    fi
+  done < <(
+    ffprobe -v error \
+      -show_entries stream=index,codec_name,codec_type,codec_tag_string:stream_disposition=attached_pic \
+      -of csv=p=0 "$infile"
+  )
+
+  ((${#STREAM_MAP_ARGS[@]} > 0)) || die "No compatible streams found for output extension .$output_ext in $infile"
+}
+
+POSITIONAL_ARGS=()
+while (($# > 0)); do
+  case "$1" in
+    -q|--quality)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      V_CRF="$2"
+      V_CRF_EXPLICIT=1
+      shift 2
+      ;;
+    -p|--preset)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      V_PRESET="$2"
+      shift 2
+      ;;
+    -cs|--color-space)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      V_COLOR="$2"
+      shift 2
+      ;;
+    -a|--audio-rate)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      A_BITRATE="$2"
+      shift 2
+      ;;
+    -ac|--audio-copy)
+      AUDIO_COPY=1
+      shift
+      ;;
+    -ex|--extension)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      OUTPUT_EXT="$2"
+      shift 2
+      ;;
+    -su|--suffix)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      OUTPUT_SUFFIX="$2"
+      shift 2
+      ;;
+    -m|--mode)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      MODE="$2"
+      shift 2
+      ;;
+    -ee|--estimate-enable)
+      TARGET_QUALITY_ENABLED=1
+      shift
+      ;;
+    -et|--estimate-target)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      TARGET_QUALITY_ENABLED=1
+      TARGET_QUALITY="$2"
+      shift 2
+      ;;
+    -em|--estimate-metric)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      ESTIMATE_METRIC=$(normalize_estimate_metric "$2")
+      shift 2
+      ;;
+    --estimate-stat)
+      [[ $# -ge 2 ]] || die "Missing value for --estimate-stat"
+      ESTIMATE_STAT=$(normalize_estimate_stat "$2")
+      shift 2
+      ;;
+    -ep|--estimate-preset)
+      [[ $# -ge 2 ]] || die "Missing value for --estimate-preset"
+      ESTIMATE_PRESET="$2"
+      shift 2
+      ;;
+    -ed|--estimate-delta)
+      [[ $# -ge 2 ]] || die "Missing value for --estimate-delta"
+      ESTIMATE_DELTA="$2"
+      shift 2
+      ;;
+    -eb|--estimate-base)
+      [[ $# -ge 2 ]] || die "Missing value for --estimate-base"
+      ESTIMATE_BASE="$2"
+      shift 2
+      ;;
+    -eo|--estimate-only)
+      ESTIMATE_ONLY=1
+      TARGET_QUALITY_ENABLED=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while (($# > 0)); do
+        POSITIONAL_ARGS+=("$1")
+        shift
+      done
+      ;;
+    -*)
+      die "Unknown option: $1"
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+((${#POSITIONAL_ARGS[@]} > 0)) || {
+  usage >&2
+  exit 1
+}
+
+set -- "${POSITIONAL_ARGS[@]}"
+
+SVTAV1_PARAMS="$(mode_params_for "$MODE")" || exit 1
+
+resolve_crf_for_file() {
+  local infile="$1"
+  local result_line result_crf
+
+  result_line=$(
+    crf_estimator_run \
+      "$infile" \
+      "$TARGET_QUALITY" \
+      "$ESTIMATE_DELTA" \
+      "$ESTIMATE_BASE" \
+      "$ESTIMATE_WINDOW_SECONDS" \
+      "$ESTIMATE_SCDET_THRESHOLD" \
+      "$ESTIMATE_CRF_INIT" \
+      "$ESTIMATE_PRESET" \
+      "$ESTIMATE_LO" \
+      "$ESTIMATE_HI" \
+      "0" \
+      "$SVTAV1_PARAMS" \
+      "$V_COLOR" \
+      "$ESTIMATE_METRIC" \
+      "$ESTIMATE_STAT"
+  )
+
+  printf '%s\n' "$result_line" >&2
+  result_crf=$(awk -F= '$1 == "best_crf" { print $2 }' <<<"$result_line")
+  [[ -n "$result_crf" ]] || die "Failed to resolve CRF for $infile"
+  printf '%s\n' "$result_crf"
+}
+
+encode_file() {
+  local infile="$1" ofile effective_crf
+  local -a ffmpeg_args stream_maps
+  local fallback_audio_codec incompatible_entry
+  local audio_output_index input_index codec_name
+  [[ -f "$infile" ]] || {
+    log "Skip: $infile not found"
+    return 1
+  }
+
+  effective_crf="$V_CRF"
+  if ((TARGET_QUALITY_ENABLED)); then
+    effective_crf=$(resolve_crf_for_file "$infile")
+    log "estimated_crf=$effective_crf target_quality=$TARGET_QUALITY estimate_metric=$ESTIMATE_METRIC estimate_stat=$ESTIMATE_STAT estimate_preset=$ESTIMATE_PRESET input=$infile"
+  fi
+
+  if ((ESTIMATE_ONLY)); then
+    return 0
+  fi
+
+  ofile=$(output_path_for_input "$infile")
+  build_stream_plan "$infile" "$OUTPUT_EXT" "$AUDIO_COPY"
+  stream_maps=("${STREAM_MAP_ARGS[@]}")
+
+  if ((AUDIO_COPY)) && ((${#INCOMPATIBLE_AUDIO_STREAMS[@]} > 0)); then
+    local -a incompatible_descriptions
+    for incompatible_entry in "${INCOMPATIBLE_AUDIO_STREAMS[@]}"; do
+      IFS=: read -r audio_output_index input_index codec_name <<<"$incompatible_entry"
+      incompatible_descriptions+=("stream 0:${input_index} codec=${codec_name}")
+    done
+    if ! confirm_audio_transcode_fallback "$infile" "$OUTPUT_EXT" "${incompatible_descriptions[@]}"; then
+      log "audio_copy_cancelled input=$infile output_ext=$OUTPUT_EXT"
+      return 1
+    fi
+    fallback_audio_codec=$(audio_transcode_codec_for_container "$OUTPUT_EXT")
+  fi
+
+  ffmpeg_args=(
+    -hide_banner
+    -i "$infile"
+    "${stream_maps[@]}"
+    -map_metadata 0
+    -map_chapters 0
+  )
+
+  if (( MAPPED_VIDEO_COUNT > 0 )); then
+    ffmpeg_args+=(
+      -c:v libsvtav1
+      -preset "$V_PRESET"
+      -svtav1-params "$SVTAV1_PARAMS"
+      -pix_fmt "$V_COLOR"
+      -crf "$effective_crf"
+    )
+  fi
+
+  if (( MAPPED_AUDIO_COUNT > 0 )) && ((AUDIO_COPY)); then
+    ffmpeg_args+=(-c:a copy)
+    if [[ -n "${fallback_audio_codec:-}" ]]; then
+      for incompatible_entry in "${INCOMPATIBLE_AUDIO_STREAMS[@]}"; do
+        IFS=: read -r audio_output_index input_index codec_name <<<"$incompatible_entry"
+        ffmpeg_args+=(-c:a:"$audio_output_index" "$fallback_audio_codec" -ar:a:"$audio_output_index" 48000 -b:a:"$audio_output_index" "$A_BITRATE")
+      done
+    fi
+  elif (( MAPPED_AUDIO_COUNT > 0 )); then
+    ffmpeg_args+=(-c:a libopus -ar 48000 -b:a "$A_BITRATE")
+  fi
+
+  if (( MAPPED_SUBTITLE_COUNT > 0 )); then
+    ffmpeg_args+=(-c:s copy)
+  fi
+  if (( MAPPED_ATTACHMENT_COUNT > 0 )); then
+    ffmpeg_args+=(-c:t copy)
+  fi
+  if (( MAPPED_DATA_COUNT > 0 )); then
+    ffmpeg_args+=(-c:d copy)
+  fi
+
+  ffmpeg_args+=("$ofile")
+  ffmpeg "${ffmpeg_args[@]}"
+}
+
+failed_files=()
+if ((TARGET_QUALITY_ENABLED)) && ((V_CRF_EXPLICIT)); then
+  log "-q/--quality is set; skipping CRF estimation and using fixed CRF=$V_CRF"
+  TARGET_QUALITY_ENABLED=0
+fi
+
+if ((TARGET_QUALITY_ENABLED)) && [[ -z "$TARGET_QUALITY" ]]; then
+  die "A target quality value is required when estimation is enabled"
+fi
+
+if ((AUDIO_COPY)) && [[ "$A_BITRATE" != "64k" ]]; then
+  log "--audio-copy is set; ignoring -a/--audio-rate=$A_BITRATE"
+fi
+
+validate_crf_bounds
+if ((TARGET_QUALITY_ENABLED)); then
+  validate_estimate_color_space
+fi
+
+for f in "$@"; do
+  encode_file "$f" || failed_files+=("$f")
+done
+
+if ((${#failed_files[@]})); then
+  printf 'Failed to encode %d file(s):\n' "${#failed_files[@]}" >&2
+  printf '  %s\n' "${failed_files[@]}" >&2
+  exit 1
+fi
