@@ -1,0 +1,78 @@
+#compdef av1-softenc
+
+local context state line ret=1
+
+local -a video_globs
+
+video_globs=(
+  '*.(mkv|mp4|webm|mov|avi|m2ts|mts|ts|y4m|ivf|flv|m4v|wmv)(.)'
+)
+
+_av1_softenc_color_spaces() {
+  _values 'pixel format' \
+    'yuv420p[8-bit 4:2:0]' \
+    'yuv420p10le[10-bit 4:2:0]'
+}
+
+_av1_softenc_audio_rates() {
+  _values 'audio bitrate' \
+    '48k[48 kbps]' \
+    '64k[64 kbps]' \
+    '96k[96 kbps]' \
+    '128k[128 kbps]' \
+    '160k[160 kbps]' \
+    '192k[192 kbps]'
+}
+
+_av1_softenc_extensions() {
+  _values 'output extension' \
+    'webm[WebM]' \
+    'mkv[Matroska]' \
+    'mp4[MPEG-4]'
+}
+
+_av1_softenc_modes() {
+  _values 'encoding mode' \
+    'live[Live-action tuned mode]' \
+    'anime[Anime tuned mode]' \
+    'grain[Film grain preservation mode]'
+}
+
+_av1_softenc_estimate_metrics() {
+  _values 'estimate metric' \
+    'xpsnr[XPSNR-based estimation]' \
+    'vmaf[VMAF-based estimation]' \
+    'ssimulacra2[SSIMULACRA2-based estimation]'
+}
+
+_av1_softenc_estimate_stats() {
+  _values 'estimate stat' \
+    'mean[Mean score]' \
+    'p01[1st percentile]' \
+    'p05[5th percentile]' \
+    'p10[10th percentile]' \
+    'p25[25th percentile]' \
+    'p50[50th percentile]'
+}
+
+_arguments -s -S \
+  '(-h --help)'{-h,--help}'[Show help]' \
+  '(-q --quality)'{-q,--quality}'[Video quality (ffmpeg -crf)]:crf:_guard "[0-9]#" "CRF"' \
+  '(-p --preset)'{-p,--preset}'[Video preset (ffmpeg -preset)]:preset:_guard "[0-9]#" "preset number"' \
+  '(-cs --color-space)'{-cs,--color-space}'[Color space (ffmpeg -pix_fmt)]:pixel format:_av1_softenc_color_spaces' \
+  '(-a --audio-rate)'{-a,--audio-rate}'[Audio bitrate (ffmpeg -b:a)]:bitrate:_av1_softenc_audio_rates' \
+  '(-ac --audio-copy)'{-ac,--audio-copy}'[Copy audio stream instead of re-encoding to Opus]' \
+  '(-ex --extension)'{-ex,--extension}'[Output extension]:extension:_av1_softenc_extensions' \
+  '(-su --suffix)'{-su,--suffix}'[Output suffix]:suffix:' \
+  '(-m --mode)'{-m,--mode}'[SVT-AV1 mode]:mode:_av1_softenc_modes' \
+  '(-ee --estimate-enable)'{-ee,--estimate-enable}'[Estimate CRF per file before encoding]' \
+  '(-et --estimate-target)'{-et,--estimate-target}'[Target quality for estimation]:target quality:_guard "[0-9]##(|.[0-9]##)" "target quality"' \
+  '(-em --estimate-metric)'{-em,--estimate-metric}'[Metric used during estimation]:metric:_av1_softenc_estimate_metrics' \
+  '--estimate-stat[Statistic used for search decisions]:stat:_av1_softenc_estimate_stats' \
+  '(-eo --estimate-only)'{-eo,--estimate-only}'[Only estimate CRF and skip output encoding]' \
+  '(-ep --estimate-preset)'{-ep,--estimate-preset}'[Preset used only during CRF estimation]:preset:_guard "[0-9]#" "preset number"' \
+  '(-ed --estimate-delta)'{-ed,--estimate-delta}'[Duration divisor used to choose sample count]:delta:_guard "[0-9]#" "delta"' \
+  '(-eb --estimate-base)'{-eb,--estimate-base}'[Log base used to choose sample count]:base:_guard "[0-9]#" "base"' \
+  '*:input file:_files -g $video_globs' && ret=0
+
+return ret
