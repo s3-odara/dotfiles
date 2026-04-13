@@ -6,7 +6,37 @@ wf-recorder \
 -p global_quality=128 \
 -p compression_level=29 \
 -g "$(slurp)" \
+--audio=$(pactl get-default-sink).monitor \
+-C flac \
+-P compression_level=5 \
 -f recording.mkv
+
+wf-recorder \
+  -c libsvtav1 \
+  -x yuv420p10le \
+  -r 60 \
+  -B 60 \
+  -p preset=7 \
+  -p crf=35 \
+  -p 'svtav1-params=tune=0:ac-bias=0.25:enable-variance-boost=1:variance-boost-strength=1:variance-octile=4:qp-scale-compress-strength=1:sharpness=1:tf-strength=1:luminance-qp-bias=10:enable-qm=1:qm-min=2:chroma-qm-min=4:scm=3' \
+  -g "$(slurp)" \
+  --audio="$(pactl get-default-sink).monitor" \
+  -C flac \
+  -R 48000 \
+  -P compression_level=5 \
+  -f recording.mkv
+
+wf-recorder \
+  -c libx264rgb \
+  -x bgr0 \
+  -p preset=fast \
+  -p crf=19 \
+  -g "$(slurp)" \
+  --audio="$(pactl get-default-sink).monitor" \
+  -C flac \
+  -R 48000 \
+  -P compression_level=5 \
+  -f recording.mkv
 
 doas make -j16 LLVM=1 && doas make modules_install && doas make install
 

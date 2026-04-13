@@ -475,22 +475,13 @@ def StartModifiedDiffJob(buf: number, generation: number, basefile: string)
   )
 enddef
 
-def StartEmptyBaseDiffJob(buf: number, generation: number, head_oid: string)
-  var basefile = tempname()
-  writefile([], basefile)
-
-  var state = BufState(buf)
-  if empty(state) || state.generation != generation
-    DeleteFileIfExists(basefile)
+def StartSavedFileDiffJob(buf: number, generation: number)
+  var state = EnsureState(buf)
+  if state.generation != generation || empty(state.file) || !filereadable(state.file)
     return
   endif
 
-  var head_key = state.repo_root .. "\n" .. state.relpath
-  var old_entry = get(head_cache, head_key, {})
-  DeleteFileIfExists(get(old_entry, 'path', ''))
-  head_cache[head_key] = {path: basefile, head_oid: head_oid}
-  AddTempfile(buf, basefile)
-  StartModifiedDiffJob(buf, generation, basefile)
+  StartModifiedDiffJob(buf, generation, state.file)
 enddef
 
 def StartShowJob(buf: number, generation: number, head_oid: string)
@@ -585,7 +576,9 @@ def StartHeadResolveJob(buf: number, generation: number)
 
       InvalidateHeadCache(current.repo_root, current.relpath)
       if empty(head_oid)
-        StartEmptyBaseDiffJob(buf, generation, head_oid)
+        # In a repo without any commits yet, diff unsaved changes against the
+        # saved worktree file instead of treating the whole buffer as new.
+        StartSavedFileDiffJob(buf, generation)
         return
       endif
       StartShowJob(buf, generation, head_oid)

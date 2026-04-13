@@ -19,9 +19,9 @@ max_bytes = 5242880
 
 [tui]
 alternate_screen = "auto"
-notifications = true
-notification_method = "auto"
 show_tooltips = false
+notifications = ["agent-turn-complete", "approval-requested"]
+notification_method = "bel"
 
 [tools]
 view_image = true
