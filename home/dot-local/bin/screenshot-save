@@ -4,8 +4,6 @@ set -eu
 dir="$HOME/medias/Screenshots"
 mkdir -p "$dir"
 
-selection="$(slurp)"
-[ -n "$selection" ]
-
 file="$dir/$(date '+%Y%m%d-%H%M%S')_print.png"
-grim -g "$selection" "$file"
+#grim -s 1 -g "$(slurp)" "$file"
+grim -s 1 -g "$(slurp)" - | cjxl -d 1 - "$file"

@@ -50,8 +50,9 @@ if [[ "$local_tty" == "/dev/tty1" ]] \
   && [[ -z "$SSH_CONNECTION" && -z "$SSH_TTY" ]] \
   && ! pgrep -x river >/dev/null 2>&1
 then
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
   exec env \
       XDG_CURRENT_DESKTOP=river \
       XDG_SESSION_TYPE=wayland \
-      dbus-run-session -- river
+      river
 fi

@@ -1,7 +1,4 @@
 #!/bin/sh
 set -eu
 
-selection="$(slurp)"
-[ -n "$selection" ]
-
-grim -g "$selection" - | wl-copy --type image/png
+grim -g "$(slurp)" - | wl-copy --type image/png
