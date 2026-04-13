@@ -722,6 +722,7 @@ crf_estimator_binary_search_crf() {
 
   local last_direction=""
   local consecutive_direction_count=0
+  local iteration_count=0
   local hi_checked=0
   local lo_checked=0
   local hi_score=""
@@ -742,6 +743,7 @@ crf_estimator_binary_search_crf() {
       direction="down"
       hi=$((mid - 1))
     fi
+    iteration_count=$((iteration_count + 1))
 
     if [[ "$direction" == "$last_direction" ]]; then
       consecutive_direction_count=$((consecutive_direction_count + 1))
@@ -750,7 +752,7 @@ crf_estimator_binary_search_crf() {
       consecutive_direction_count=1
     fi
 
-    if (( consecutive_direction_count >= 2 )) && [[ "$direction" == "up" ]] && (( ! hi_checked )); then
+    if (( iteration_count == 2 && consecutive_direction_count >= 2 )) && [[ "$direction" == "up" ]] && (( ! hi_checked )); then
       stats=$(crf_estimator_score_scene_at_crf "$input" "$scene_start" "$scene_end" "$boundary_hi" "$preset" "$pix_fmt" "$svtav1_params_extra" "$normalize_filter" "$workdir" "$metric" "$selected_stat" "$input_duration")
       hi_score=$(crf_estimator_record_search_score "$workdir" "$boundary_hi" "$stats")
       hi_checked=1
@@ -760,7 +762,7 @@ crf_estimator_binary_search_crf() {
       fi
     fi
 
-    if (( consecutive_direction_count >= 2 )) && [[ "$direction" == "down" ]] && (( ! lo_checked )); then
+    if (( iteration_count == 2 && consecutive_direction_count >= 2 )) && [[ "$direction" == "down" ]] && (( ! lo_checked )); then
       stats=$(crf_estimator_score_scene_at_crf "$input" "$scene_start" "$scene_end" "$boundary_lo" "$preset" "$pix_fmt" "$svtav1_params_extra" "$normalize_filter" "$workdir" "$metric" "$selected_stat" "$input_duration")
       lo_score=$(crf_estimator_record_search_score "$workdir" "$boundary_lo" "$stats")
       lo_checked=1
@@ -770,26 +772,6 @@ crf_estimator_binary_search_crf() {
       fi
     fi
   done
-
-  if (( ! lo_checked )); then
-    stats=$(crf_estimator_score_scene_at_crf "$input" "$scene_start" "$scene_end" "$boundary_lo" "$preset" "$pix_fmt" "$svtav1_params_extra" "$normalize_filter" "$workdir" "$metric" "$selected_stat" "$input_duration")
-    lo_score=$(crf_estimator_record_search_score "$workdir" "$boundary_lo" "$stats")
-    lo_checked=1
-  fi
-  if crf_estimator_float_lt "$lo_score" "$target"; then
-    crf_estimator_search_boundary_result "clamped_low" "$boundary_lo"
-    return 0
-  fi
-
-  if (( ! hi_checked )); then
-    stats=$(crf_estimator_score_scene_at_crf "$input" "$scene_start" "$scene_end" "$boundary_hi" "$preset" "$pix_fmt" "$svtav1_params_extra" "$normalize_filter" "$workdir" "$metric" "$selected_stat" "$input_duration")
-    hi_score=$(crf_estimator_record_search_score "$workdir" "$boundary_hi" "$stats")
-    hi_checked=1
-  fi
-  if crf_estimator_float_ge "$hi_score" "$target"; then
-    crf_estimator_search_boundary_result "clamped_high" "$boundary_hi"
-    return 0
-  fi
 
   crf_estimator_search_boundary_result "ok" "$lo"
 }
