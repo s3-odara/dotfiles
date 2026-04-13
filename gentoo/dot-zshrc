@@ -7,7 +7,7 @@
 _prepend_fpath_if_dir() {
   local dir="$1"
   [[ -d "$dir" ]] || return 0
-  fpath=("$dir" $fpath)
+  fpath=(${XDG_CONFIG_HOME:-$HOME/.config}/zsh/completions "$dir" $fpath)
 }
 
 _source_first_readable() {

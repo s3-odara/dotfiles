@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ffmpeg vulkan-radeon ccache vapoursynth-plugin-vship-amd-git jq
 
 set -euo pipefail
 
