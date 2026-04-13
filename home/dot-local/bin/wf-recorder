@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Configurable defaults
+MODE="swenc"              # hwenc | swenc | rgb
+FPS=60                    # -r
+V_PRESET=8                # swenc only
+V_CRF=25                  # swenc only
+V_GLOBAL_QUALITY=100      # hwenc only
+OUTPUT_FILE="recording.mkv"
+NO_AUDIO=0                # 0 = audio on, 1 = no audio
+
+usage() {
+  cat >&2 <<EOF
+Usage: $0 [-m hwenc|swenc|rgb] [-r fps] [-p preset] [-q crf] [-Q global_quality] [-f output_file] [-n]
+
+  -m MODE   Encoder mode: hwenc or swenc or rgb(default: $MODE)
+  -r FPS    Frame rate for recording (default: $FPS)
+  -p N      Video preset for swenc (libsvtav1) (default: $V_PRESET)
+  -q N      CRF for swenc (libsvtav1) (default: $V_CRF)
+  -Q N      global_quality for hwenc (av1_vaapi) (default: $V_GLOBAL_QUALITY)
+  -f FILE   Output file (default: $OUTPUT_FILE)
+  -n        Disable audio recording
+  -h        Show this help
+EOF
+}
+
+while getopts "m:r:p:q:Q:f:nh" opt; do
+  case "$opt" in
+    m) MODE="$OPTARG" ;;
+    r) FPS="$OPTARG" ;;
+    p) V_PRESET="$OPTARG" ;;
+    q) V_CRF="$OPTARG" ;;
+    Q) V_GLOBAL_QUALITY="$OPTARG" ;;
+    f) OUTPUT_FILE="$OPTARG" ;;
+    n) NO_AUDIO=1 ;;
+    h) usage; exit 0 ;;
+    *) usage; exit 1 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+case "$MODE" in
+  hwenc|swenc|rgb) ;;
+  *)
+    echo "Error: MODE must be 'hwenc' or 'swenc' or 'rgb': $MODE" >&2
+    usage
+    exit 1
+    ;;
+esac
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Error: required command not found: $1" >&2
+    exit 1
+  }
+}
+
+require_cmd wf-recorder
+require_cmd slurp
+
+AUDIO_SOURCE=""
+if [ "$NO_AUDIO" -eq 0 ]; then
+  require_cmd pactl
+  AUDIO_SOURCE="$(pactl get-default-sink).monitor"
+fi
+
+build_audio_args() {
+  AUDIO_ARGS=()
+  if [ "$NO_AUDIO" -eq 0 ]; then
+    AUDIO_ARGS=(
+      --audio="$AUDIO_SOURCE"
+      -C flac
+      -R 48000
+      -P compression_level=5
+    )
+  fi
+}
+
+run_hwenc() {
+  build_audio_args
+  exec wf-recorder \
+    -c av1_vaapi \
+    -d /dev/dri/renderD128 \
+    -F scale_vaapi=format=p010 \
+    -r "$FPS" \
+    -p rc_mode=CQP \
+    -p global_quality="$V_GLOBAL_QUALITY" \
+    -p compression_level=29 \
+    -g "$(slurp)" \
+    "${AUDIO_ARGS[@]}" \
+    -f "$OUTPUT_FILE"
+}
+
+run_swenc() {
+  build_audio_args
+  exec wf-recorder \
+    -c libsvtav1 \
+    -x yuv420p10le \
+    -r "$FPS" \
+    -B "$FPS" \
+    -p preset="$V_PRESET" \
+    -p crf="$V_CRF" \
+    -p 'svtav1-paramsarams=tune=1:scm=3:enable-qm=1:qm-min=4:qm-max=15:chroma-qm-min=10:chroma-qm-max=15:tf-strength=1:sharpness=1:enable-variance-boost=1:variance-boost-strength=2:variance-octile=5:qp-scale-compress-strength=1:luminance-qp-bias=10:ac-bias=0.5' \
+    -g "$(slurp)" \
+    "${AUDIO_ARGS[@]}" \
+    -f "$OUTPUT_FILE"
+}
+
+run_rgb() {
+  build_audio_args
+  exec wf-recorder \
+    -c libx264rgb \
+    -x bgr0 \
+    -p preset=veryfast \
+    -p crf="$V_CRF" \
+    -f recording.mkv
+    -g "$(slurp)" \
+    "${AUDIO_ARGS[@]}" \
+    -f "$OUTPUT_FILE"
+}
+
+case "$MODE" in
+  hwenc) run_hwenc ;;
+  swenc) run_swenc ;;
+  rgb) run_rgb ;;
+esac
