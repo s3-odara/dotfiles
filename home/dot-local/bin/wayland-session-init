@@ -32,19 +32,12 @@ spawn_tracked fcitx5
 if ! wlr-randr --output eDP-1 --scale 1.5; then
   printf '%s\n' 'wayland-session-init: unable to apply scale to eDP-1; continuing' >&2
 fi
-if ! dbus-update-activation-environment WAYLAND_DISPLAY; then
+if ! dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE; then
   printf '%s\n' 'wayland-session-init: failed to update dbus activation environment; continuing' >&2
 fi
 
 spawn_tracked "$HOME/.local/bin/wob-run"
 spawn_tracked waybar
 spawn_tracked fnott
-
-umask 077
-cat > "$XDG_RUNTIME_DIR/river.env" <<EOF
-XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
-WAYLAND_DISPLAY=$WAYLAND_DISPLAY
-DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-}
-EOF
 
 spawn_tracked "$HOME/.local/bin/session-idle"

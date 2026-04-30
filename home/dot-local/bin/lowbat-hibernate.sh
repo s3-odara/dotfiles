@@ -2,7 +2,7 @@
 set -eu
 umask 077
 
-THRESHOLD="${THRESHOLD:-7}"     # %
+THRESHOLD="${THRESHOLD:-5}"     # %
 INTERVAL="${INTERVAL:-60}"     # 秒
 RUNDIR="${XDG_RUNTIME_DIR:-/tmp}"
 
@@ -43,8 +43,8 @@ is_discharging() {
 }
 
 run_action() {
-  if [ -x "$HOME/.local/bin/lock-and-suspend" ]; then
-    "$HOME/.local/bin/lock-and-suspend" || true
+  if [ -x "/usr/local/bin/suspend-then-hibernate.sh" ]; then
+    doas poweroff || true
   else
     return 1
   fi

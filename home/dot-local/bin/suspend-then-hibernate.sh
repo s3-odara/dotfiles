@@ -5,11 +5,11 @@ set -euo pipefail
 HIBERNATE_AFTER_SEC="${HIBERNATE_AFTER_SEC:-14400}"  # 例: 4時間
 BAT_CAP_FILE="${BAT_CAP_FILE:-/sys/class/power_supply/BAT0/capacity}"
 BAT_FORCE_HIBERNATE_PCT="${BAT_FORCE_HIBERNATE_PCT:-8}"
-ELAPSED_TOLERANCE_SEC="${ELAPSED_TOLERANCE_SEC:-45}" # RTC/時刻差の吸収
-
 LOCKFILE="${LOCKFILE:-/run/suspend-then-hibernate.lock}"
 
 LOGTAG="suspend-then-hibernate"
+
+bt_cleanup_needed=0
 
 log() {
   logger -t "$LOGTAG" -- "$*" || true
@@ -24,7 +24,9 @@ require_root() {
 
 require_cmds() {
   command -v rtcwake >/dev/null 2>&1 || { log "ERROR: rtcwake not found"; exit 1; }
-  [[ -w /sys/power/state ]] || { log "ERROR: /sys/power/state not writable"; exit 1; }
+  command -v flock   >/dev/null 2>&1 || { log "ERROR: flock not found"; exit 1; }
+  grep -qw disk /sys/power/state || { log "ERROR: disk not supported"; exit 1; }
+  grep -qw mem /sys/power/state || { log "ERROR: mem not supported"; exit 1; }
 }
 
 get_bat_pct() {
@@ -37,15 +39,8 @@ get_bat_pct() {
   fi
 }
 
-disable_wakealarm_best_effort() {
-  # rtcwake が消してくれるケースもあるが、念のため両方試す
-  if command -v rtcwake >/dev/null 2>&1; then
-    rtcwake -m disable >/dev/null 2>&1 || true
-  fi
-  for rtc in /sys/class/rtc/rtc*; do
-    [[ -w "$rtc/wakealarm" ]] || continue
-    echo 0 > "$rtc/wakealarm" 2>/dev/null || true
-  done
+cleanup() {
+  poweron_bt_best_effort
 }
 
 acquire_lock() {
@@ -62,44 +57,89 @@ stop_incus_before_hibernate() {
     return 0
   fi
 
-  local -a instances
-  mapfile -t instances < <(incus list --project user-1000 --format csv -c ns 2>/dev/null | awk -F, '$2 == "RUNNING" { print $1 }')
-
-  if (( ${#instances[@]} == 0 )); then
-    log "No running incus instances; skip stop before hibernate"
+  log "Requesting incus stop --all before hibernate (project=user-1000)"
+  if incus stop --all --project user-1000 --timeout 30 >/dev/null 2>&1; then
+    log "incus stop --all completed"
     return 0
   fi
 
-  log "Stopping incus instances before hibernate: ${instances[*]}"
-  if ! incus stop "${instances[@]}" --project user-1000 --timeout 30; then
-    log "Clean incus stop timed out or failed; forcing stop"
-    if ! incus stop "${instances[@]}" --project user-1000 --force; then
-      log "Failed to force stop one or more incus instances; continue to hibernate"
-    fi
+  log "incus stop --all timed out or failed; trying --force"
+  if incus stop --all --project user-1000 --force >/dev/null 2>&1; then
+    log "incus stop --all --force completed"
+  else
+    log "Failed to stop incus instances; continue to hibernate"
+  fi
+
+  return 0
+}
+
+poweroff_bt_best_effort() {
+  bt_cleanup_needed=0
+
+  if ! command -v bluetoothctl >/dev/null 2>&1; then
+    log "bluetoothctl not found; skip BT power off"
+    return 0
+  fi
+
+  local powered
+  powered="$(
+    bluetoothctl show 2>/dev/null \
+      | awk -F': ' '/Powered:/ {print $2; exit}'
+  )"
+
+  if [[ "$powered" != "yes" ]]; then
+    log "BT already off; skip BT power off"
+    return 0
+  fi
+
+  if bluetoothctl power off >/dev/null 2>&1; then
+    bt_cleanup_needed=1
+    log "BT power off requested"
+  else
+    log "Failed to power off BT; continue"
+  fi
+}
+
+poweron_bt_best_effort() {
+  (( bt_cleanup_needed )) || return 0
+  bt_cleanup_needed=0
+
+  if ! command -v bluetoothctl >/dev/null 2>&1; then
+    log "bluetoothctl not found; skip BT power on"
+    return 0
+  fi
+
+  if bluetoothctl power on >/dev/null 2>&1; then
+    log "BT power on requested"
+  else
+    log "Failed to power on BT"
   fi
 }
 
 force_hibernate_now() {
   log "Force hibernate now (reason: $1)"
+  poweroff_bt_best_effort
   stop_incus_before_hibernate
   sync || true
 
-  if ! ( echo disk > /sys/power/state ); then
+  if ! echo disk > /sys/power/state; then
     log "ERROR: failed to write 'disk' to /sys/power/state"
     exit 1
   fi
 
-  log "WARN: returned from hibernate request unexpectedly"
+  log "Returned after hibernate resume; exit"
   exit 0
 }
 
 main() {
+  local bat start_epoch end_epoch elapsed
+
   require_root
   require_cmds
   acquire_lock
 
-  # 異常終了時にもアラームを消しに行く
-  trap 'disable_wakealarm_best_effort' EXIT INT TERM
+  trap cleanup EXIT
+  trap 'exit 130' INT TERM
 
   bat="$(get_bat_pct)"
   if [[ -n "$bat" ]] && (( bat <= BAT_FORCE_HIBERNATE_PCT )); then
@@ -109,38 +149,21 @@ main() {
   start_epoch="$(date +%s)"
   log "Suspend requested: rtcwake mem for ${HIBERNATE_AFTER_SEC}s (start=${start_epoch})"
 
-  bt_connected_before=()
-  if command -v bluetoothctl >/dev/null 2>&1; then
-    mapfile -t bt_connected_before < <(bluetoothctl devices Connected | awk '{print $2}')
-  fi
-
-  for mac in "${bt_connected_before[@]}"; do
-    [[ -n "$mac" ]] || continue
-    bluetoothctl disconnect "$mac" >/dev/null 2>&1 || true
-  done
-  log "BT disconnect requested (macs=${bt_connected_before[*]:-none})"
-
   rtcwake -m mem -s "$HIBERNATE_AFTER_SEC"
 
   end_epoch="$(date +%s)"
   elapsed="$(( end_epoch - start_epoch ))"
   log "Resumed: end=${end_epoch}, elapsed=${elapsed}s"
 
-  disable_wakealarm_best_effort
+  if (( elapsed >= HIBERNATE_AFTER_SEC )); then
+    force_hibernate_now "elapsed ${elapsed}s >= ${HIBERNATE_AFTER_SEC}s"
+  fi
 
-  for mac in "${bt_connected_before[@]}"; do
-    [[ -n "$mac" ]] || continue
-    bluetoothctl connect "$mac" >/dev/null 2>&1 || true
-  done
-  log "BT connect requested (macs=${bt_connected_before[*]:-none})"
+  poweron_bt_best_effort
 
   if [[ -x /usr/local/bin/cpu-scaling.sh ]]; then
     /usr/local/bin/cpu-scaling.sh || true
     log "cpu-scaling.sh executed"
-  fi
-
-  if (( elapsed + ELAPSED_TOLERANCE_SEC >= HIBERNATE_AFTER_SEC )); then
-    force_hibernate_now "elapsed ${elapsed}s >= ${HIBERNATE_AFTER_SEC}s"
   fi
 
   log "Wake was earlier than threshold; skip hibernate (elapsed=${elapsed}s)"

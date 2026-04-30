@@ -259,9 +259,5 @@ fi
 
 # tmux
 if [[ -z "$TMUX" && -n "$PS1" ]]; then
-  if [[ -n "$TMUX_FORCE_NEW" ]]; then
-    tmux new-session
-  else
     tmux attach || tmux new
-  fi
 fi

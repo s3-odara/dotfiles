@@ -38,8 +38,7 @@ wf-recorder \
   -P compression_level=5 \
   -f recording.mkv
 
-doas make -j16 LLVM=1 && doas make modules_install && doas make install
+make O=${XDG_CACHE_HOME}/kernel/new -j16 LLVM=1 && doas make O=${XDG_CACHE_HOME}/kernel/new LLVM=1 modules_install && doas make O=${XDG_CACHE_HOME}/kernel/new LLVM=1 install
 
-doas make LLVM=1 oldconfig
+make LLVM=1 O=${XDG_CACHE_HOME}/kernel/new oldconfig
 
-doas make menuconfig

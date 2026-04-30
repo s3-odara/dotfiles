@@ -2,14 +2,14 @@
     .vertical_gap = 3,
     .horizontal_gap = 3,
     .default_window_width = 0.99,
-    .center_focused_window = .never,
+    .center_focused_window = .single,
     .no_csd = true,
     .animation_duration = 200,
 
     .border = .{
         .width = 3,
-        .focused_color = .{ .r = 147, .g = 161, .b = 161, .a = 1.0 },
-        .unfocused_color = .{ .r = 88, .g = 110, .b = 117, .a = 1.0 },
+        .focused_color = .{ .r = 189, .g = 206, .b = 148, .a = 1.0 },
+        .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
 
     .spawn_at_startup = .{},
@@ -30,6 +30,8 @@
         .{ .key = "l", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_right },
         .{ .key = "i", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
         .{ .key = "o", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
+        .{ .key = "u", .modifiers = .{ .mod4 = true }, .action = .{ .set_window_width = 0.99 } },
+        .{ .key = "BackSpace", .modifiers = .{ .mod4 = true }, .action = .{ .set_window_width = 0.5 } },
 
         .{ .key = "comma", .modifiers = .{ .mod4 = true }, .action = .focus_output_left },
         .{ .key = "period", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
@@ -44,6 +46,7 @@
         .{ .key = "j", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_below },
         .{ .key = "k", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_workspace_above },
         .{ .key = "j", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_workspace_below },
+        .{ .key = "t", .modifiers = .{ .mod4 = true }, .action = .toggle_workspace_floating },
 
         .{ .key = "1", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 1 } },
         .{ .key = "2", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 2 } },
@@ -102,5 +105,26 @@
             .modifiers = .{},
             .action = .{ .spawn = .{ "/home/odara/.local/bin/brightness-wob", "5%-" } },
         },
+        .{
+            .key = "XF86AudioPlay",
+            .modifiers = .{},
+            .action = .{ .spawn = .{ "playerctl", "play-pause" } },
+        },
+        .{
+            .key = "XF86AudioPrev",
+            .modifiers = .{},
+            .action = .{ .spawn = .{ "playerctl", "previous" } },
+        },
+        .{
+            .key = "XF86AudioNext",
+            .modifiers = .{},
+            .action = .{ .spawn = .{ "playerctl", "next" } },
+        },
+    },
+
+    .pointer_bindings = .{
+        // Button: left, right, middle
+        .{ .button = .left, .modifiers = .{ .mod4 = true }, .action = .move_window },
+        .{ .button = .right, .modifiers = .{ .mod4 = true }, .action = .resize_window },
     },
 }

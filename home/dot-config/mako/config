@@ -10,7 +10,7 @@ border-radius=10
 padding=15
 width=350
 height=150
-output=eDP-1
+#output=eDP-1
 layer=overlay
 
 # --- アイコン ---
