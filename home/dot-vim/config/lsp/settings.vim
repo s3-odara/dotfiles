@@ -222,6 +222,68 @@ def g:LspJsonlsWorkspaceConfig(): dict<any>
   }
 enddef
 
+def g:LspCsslsWorkspaceConfig(): dict<any>
+  return {
+    css: {
+      validate: v:true,
+      hover: {
+        documentation: v:true,
+        references: v:true,
+      },
+      completion: {
+        completePropertyWithSemicolon: v:true,
+        triggerPropertyValueCompletion: v:true,
+      },
+      lint: {
+        duplicateProperties: 'warning',
+        emptyRules: 'warning',
+        unknownAtRules: 'warning',
+      },
+      format: {
+        enable: v:true,
+      },
+    },
+    scss: {
+      validate: v:true,
+      hover: {
+        documentation: v:true,
+        references: v:true,
+      },
+      completion: {
+        completePropertyWithSemicolon: v:true,
+        triggerPropertyValueCompletion: v:true,
+      },
+      lint: {
+        duplicateProperties: 'warning',
+        emptyRules: 'warning',
+        unknownAtRules: 'ignore',
+      },
+      format: {
+        enable: v:true,
+      },
+    },
+    less: {
+      validate: v:true,
+      hover: {
+        documentation: v:true,
+        references: v:true,
+      },
+      completion: {
+        completePropertyWithSemicolon: v:true,
+        triggerPropertyValueCompletion: v:true,
+      },
+      lint: {
+        duplicateProperties: 'warning',
+        emptyRules: 'warning',
+        unknownAtRules: 'ignore',
+      },
+      format: {
+        enable: v:true,
+      },
+    },
+  }
+enddef
+
 def g:LspHarperWorkspaceConfig(): dict<any>
   return {
     'harper-ls': {

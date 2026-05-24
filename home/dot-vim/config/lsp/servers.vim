@@ -277,6 +277,20 @@ def RegisterHtml(servers: list<dict<any>>)
   )
 enddef
 
+def RegisterCssls(servers: list<dict<any>>)
+  var opts = {
+    workspaceConfig: g:LspCsslsWorkspaceConfig(),
+  }
+  AddLspServerIfExecutable(
+    servers,
+    'cssls',
+    ['css', 'scss', 'less'],
+    ['vscode-css-language-server', 'vscode-css-languageserver'],
+    ['--stdio'],
+    opts
+  )
+enddef
+
 def RegisterBashls(servers: list<dict<any>>)
   var opts = {
     workspaceConfig: {
@@ -424,6 +438,7 @@ def g:RegisterLspServers()
   RegisterRustAnalyzer(servers)
   RegisterZls(servers)
   RegisterHtml(servers)
+  RegisterCssls(servers)
   RegisterBashls(servers)
   RegisterRuff(servers)
   RegisterTy(servers)

@@ -38,3 +38,6 @@
 	forcepush = push --force-with-lease --force-if-includes
 [tag]
 	gpgsign = true
+
+[includeIf "gitdir:/home/user/iniad/.git/modules/"]
+    path = "/home/user/.config/git/iniad.gitconfig"

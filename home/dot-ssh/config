@@ -1,5 +1,8 @@
 Include ~/.ssh/custom_config
 
+# use gpg ssh key
+IdentityFile ~/.ssh/yubikey.pub
+
 # Ensure KnownHosts are unreadable if leaked - it is otherwise easier to know which hosts your keys have access to.
 HashKnownHosts no
 # Host keys the client accepts - order here is honored by OpenSSH
