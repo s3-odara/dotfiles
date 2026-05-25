@@ -42,3 +42,4 @@ make O=${XDG_CACHE_HOME}/kernel/new -j16 LLVM=1 && doas make O=${XDG_CACHE_HOME}
 
 make LLVM=1 O=${XDG_CACHE_HOME}/kernel/new oldconfig
 
+uv run jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
