@@ -12,6 +12,8 @@
         .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
 
+    .cursor = .{ .theme = "Adwaita", .size = 36 },
+
     .spawn_at_startup = .{},
 
     .keybindings = .{
