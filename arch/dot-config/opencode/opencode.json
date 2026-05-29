@@ -11,7 +11,9 @@
   },
   "share": "disabled",
   "autoupdate": false,
-  "default_agent": "spec",
+  "lsp": true,
+  "formatter": true,
+  "default_agent": "build",
   "permission": {
     "*": "allow",
     "doom_loop": "ask"
@@ -86,6 +88,16 @@
       },
       "prompt": "{file:./prompts/build.md}",
       "reasoningEffort": "medium"
+    },
+    "operator": {
+      "description": "Primary ops agent for system operations, troubleshooting, server provisioning, and environment setup with explicit confirmation for dangerous actions.",
+      "mode": "primary",
+      "model": "openai/gpt-5.5",
+      "permission": {
+        "*": "allow",
+        "doom_loop": "ask"
+      },
+      "prompt": "{file:./prompts/operator.md}"
     },
     "sensei": {
       "description": "Primary explanation agent that teaches reports and git revisions/ranges to project outsiders after calibrating user understanding.",
@@ -194,36 +206,36 @@
       "prompt": "{file:./prompts/draft_planner.md}",
       "reasoningEffort": "high"
     },
-    "editor": {
-      "description": "Instruction-following editor subagent for bounded file edits with minimal required context reads.",
-      "mode": "subagent",
-      "model": "zai-coding-plan/glm-5-turbo",
-      "permission": {
-        "bash": "deny",
-        "edit": {
-          "*": "allow"
-        },
-        "write": {
-          "*": "allow"
-        }
-      },
-      "prompt": "{file:./prompts/editor.md}"
-    },
-    "general": {
-      "description": "General implementation subagent for delegated file edits plus targeted path exploration.",
-      "mode": "subagent",
-      "model": "zai-coding-plan/glm-5.1",
-      "permission": {
-        "bash": "deny",
-        "edit": {
-          "*": "allow"
-        },
-        "write": {
-          "*": "allow"
-        }
-      },
-      "prompt": "{file:./prompts/general.md}"
-    },
+    // "editor": {
+    //   "description": "Instruction-following editor subagent for bounded file edits with minimal required context reads.",
+    //   "mode": "subagent",
+    //   "model": "zai-coding-plan/glm-5-turbo",
+    //   "permission": {
+    //     "bash": "deny",
+    //     "edit": {
+    //       "*": "allow"
+    //     },
+    //     "write": {
+    //       "*": "allow"
+    //     }
+    //   },
+    //   "prompt": "{file:./prompts/editor.md}"
+    // },
+    // "general": {
+    //   "description": "General implementation subagent for delegated file edits plus targeted path exploration.",
+    //   "mode": "subagent",
+    //   "model": "zai-coding-plan/glm-5.1",
+    //   "permission": {
+    //     "bash": "deny",
+    //     "edit": {
+    //       "*": "allow"
+    //     },
+    //     "write": {
+    //       "*": "allow"
+    //     }
+    //   },
+    //   "prompt": "{file:./prompts/general.md}"
+    // },
     "explore": {
       "description": "Read-only exploration agent that uses relevant skills provided by primary-agent delegation context.",
       "model": "github-copilot/gpt-5.4-mini",
