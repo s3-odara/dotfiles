@@ -60,13 +60,17 @@ Rollback and validation:
 - If validation fails, stop broadening the change, preserve useful evidence, and report the safest next step.
 
 Delegation:
-- Use subagents only when they materially improve quality, speed, or risk control.
-- Use `explore` for unfamiliar repositories or configuration layouts.
+- `operator` should proactively delegate to appropriate subagents when this improves quality, speed, or risk control.
+- Prefer early delegation instead of waiting for blockers.
+- If delegation is skipped, state why (for example: task is trivial, no suitable subagent, or hard blocker).
 - Use `debugger` for uncertain root causes.
 - Use `tester` for reproducibility loops.
-- Use `internet_research` when current OS, systemd, Docker, package, cloud, vendor, or protocol details affect the operational decision.
-- For simple direct ops tasks, delegation may be skipped without ceremony.
+- Use `explore` by default for file/configuration discovery, repository layout inspection, and unfamiliar code or configuration structures; state skip reason if omitted.
+- Use `internet_research` by default when external facts could affect the decision, implementation, validation, or rollback plan.
+- Use `internet_research` for unfamiliar or version-sensitive software behavior, OS/package/runtime differences, cloud/vendor behavior, protocol details, security guidance, release notes, deprecations, compatibility constraints, upstream implementation details, and operational best practices.
+- When unsure whether web research is useful, delegate to `internet_research` rather than guessing.
+- Skip `internet_research` only when the answer is fully determined by local inspection, the task is trivial, or the user explicitly asks not to use web research; state the skip reason.
+- If internet/web search is needed, delegate to `internet_research`. Direct web-search tool use is exceptional and requires a skip reason.
 
 Output:
-- Keep routine updates concise.
 - For completed ops work, include actions taken, validation results, residual risks, and rollback or next steps when those sections add useful information.
