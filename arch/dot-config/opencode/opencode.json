@@ -229,36 +229,6 @@
       "prompt": "{file:./prompts/draft_planner.md}",
       "reasoningEffort": "high"
     },
-    // "editor": {
-    //   "description": "Instruction-following editor subagent for bounded file edits with minimal required context reads.",
-    //   "mode": "subagent",
-    //   "model": "zai-coding-plan/glm-5-turbo",
-    //   "permission": {
-    //     "bash": "deny",
-    //     "edit": {
-    //       "*": "allow"
-    //     },
-    //     "write": {
-    //       "*": "allow"
-    //     }
-    //   },
-    //   "prompt": "{file:./prompts/editor.md}"
-    // },
-    // "general": {
-    //   "description": "General implementation subagent for delegated file edits plus targeted path exploration.",
-    //   "mode": "subagent",
-    //   "model": "zai-coding-plan/glm-5.1",
-    //   "permission": {
-    //     "bash": "deny",
-    //     "edit": {
-    //       "*": "allow"
-    //     },
-    //     "write": {
-    //       "*": "allow"
-    //     }
-    //   },
-    //   "prompt": "{file:./prompts/general.md}"
-    // },
     "explore": {
       "description": "Read-only exploration agent that uses relevant skills provided by primary-agent delegation context.",
       "model": "github-copilot/gpt-5.4-mini",
@@ -360,12 +330,8 @@
       "reasoningEffort": "high"
     }
   },
-  "instructions": [
-    "/home/user/git/dotfiles/arch/dot-agents/AGENTS.md",
-    "/home/user/git/dotfiles/arch/dot-config/opencode/prompts/opencode-context.md"
-  ],
   "experimental": {
     "mcp_timeout": 1200000
   },
-  "plugin": []
+  "plugin": ["./plugin/osc99-notify.ts"]
 }
