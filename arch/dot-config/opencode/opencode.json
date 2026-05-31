@@ -1,20 +1,26 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "github-copilot/claude-opus-4.5",
+  "model": "openai/gpt-5.5",
   "small_model": "github-copilot/gpt-5.4-mini",
   "command": {
     "review": {
-      "template": "Review target: $ARGUMENTS\n",
-      "agent": "reviewer",
-      "subtask": false
+      "agent": "review_orchestrator",
+      "subtask": true,
+      "template": "Review target: $ARGUMENTS\n"
     }
   },
   "share": "disabled",
   "autoupdate": false,
-  "default_agent": "spec",
+  "lsp": true,
+  "formatter": true,
+  "default_agent": "operator",
   "permission": {
-    "*": "allow",
-    "doom_loop": "ask"
+    "read": {
+      "~/.agents/research/*.md": "allow"
+    },
+    "external_directory": {
+      "~/.agents/research": "allow"
+    }
   },
   "mcp": {
     "context7": {
@@ -27,6 +33,27 @@
     "deepwiki": {
       "type": "remote",
       "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "exa": {
+      "type": "remote",
+      "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa",
+      "headers": {
+        "x-api-key": "{env:EXAAI_API_KEY}"
+      },
+      "enabled": true
+    },
+    "parallel-search": {
+      "type": "remote",
+      "url": "https://search.parallel.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:PARALLELAI_API_KEY}"
+      },
+      "enabled": true
+    },
+    "readability": {
+      "type": "local",
+      "command": ["npx", "-y", "@mizchi/readability", "--mcp"],
+      "enabled": true
     }
   },
   "agent": {
@@ -34,258 +61,244 @@
       "disable": true
     },
     "idea": {
-      "mode": "primary",
       "description": "Primary ideation agent for early-stage exploration and problem framing before planning; hand off to `spec` by switching agents with the same chat history.",
-      "model": "github-copilot/claude-opus-4.5",
+      "mode": "primary",
+      "model": "github-copilot/gpt-5.4-mini",
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "write": {
-          "*": "deny"
-        },
-        "question": "allow"
+        }
       },
       "prompt": "{file:./prompts/idea.md}"
     },
     "spec": {
-      "mode": "primary",
       "description": "Primary planning agent that handles both ambiguous and well-scoped requests through iterative specification elicitation and systematic planning workflow.",
+      "mode": "primary",
       "model": "openai/gpt-5.5",
-      "reasoningEffort": "high",
       "permission": {
         "edit": {
           "*": "deny",
           ".agents/plans/*.md": "allow"
         },
-        "write": {
-          "*": "deny",
-          ".agents/plans/*.md": "allow"
+        "bash": {
+          "*": "deny"
         },
         "external_directory": {
-          ".agents/plans": "allow",
-          ".agents/plans/draft": "allow"
+          "~/.agents/research": "allow"
         },
+        "question": "allow",
         "read": {
-          ".agents/plans/draft/*.md": "allow"
-        },
-        "question": "allow"
+          ".agents/plans/draft/*.md": "allow",
+          "~/.agents/research/*.md": "allow"
+        }
       },
-      "prompt": "{file:./prompts/spec.md}"
+      "prompt": "{file:./prompts/spec.md}",
+      "reasoningEffort": "high"
     },
     "build": {
-      "model": "openai/gpt-5.5",
-      "reasoningEffort": "medium",
-      "description": "Primary build/validation agent with proactive best-effort delegation to testing and debugging subagents.",
-      "permission": {
-        "edit": {
-          "*": "allow"
-        },
-        "write": {
-          "*": "allow"
-        }
-      },
-      "prompt": "{file:./prompts/build.md}"
+      "disable": true
     },
-    "reviewer": {
+    "Implementer": {
+      "description": "Primary implementation/validation agent with proactive best-effort delegation to testing and debugging subagents.",
       "mode": "primary",
       "model": "openai/gpt-5.5",
-      "reasoningEffort": "high",
-      "description": "Primary orchestrated reviewer for code written by others, with exploration, optional research, multi-perspective subreviews, and report output.",
       "permission": {
+        "edit": {
+          "*": "allow"
+        }
+      },
+      "prompt": "{file:./prompts/Implementer.md}",
+      "reasoningEffort": "medium"
+    },
+    "operator": {
+      "description": "Primary ops agent for system operations, troubleshooting, server provisioning, and environment setup with explicit confirmation for dangerous actions.",
+      "mode": "primary",
+      "model": "openai/gpt-5.5",
+      "permission": {
+        "*": "allow",
+        "doom_loop": "ask",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "external_directory": "allow"
+      },
+      "prompt": "{file:./prompts/operator.md}"
+    },
+    "sensei": {
+      "description": "Primary explanation agent that teaches reports and git revisions/ranges to project outsiders after calibrating user understanding.",
+      "mode": "primary",
+      "model": "openai/gpt-5.5",
+      "permission": {
+        "bash": {
+          "*": "deny",
+          "git diff*": "ask",
+          "git log*": "ask",
+          "git merge-base*": "ask",
+          "git rev-list*": "ask",
+          "git rev-parse*": "ask",
+          "git show*": "ask",
+          "git status*": "ask",
+          "git *&&*": "deny",
+          "git *--output*": "deny",
+          "git *;*": "deny",
+          "git *>*": "deny",
+          "git *|*": "deny"
+        },
+        "edit": {
+          "*": "deny"
+        }
+      },
+      "prompt": "{file:./prompts/sensei.md}",
+      "reasoningEffort": "medium"
+    },
+    "review_orchestrator": {
+      "description": "Primary orchestrated reviewer for code written by others, with exploration, optional research, multi-perspective subreviews, and report output.",
+      "mode": "subagent",
+      "model": "openai/gpt-5.5",
+      "permission": {
+        "bash": "allow",
         "edit": {
           "*": "deny",
           ".agents/reports/*.md": "allow"
         },
-        "write": {
-          "*": "deny",
-          ".agents/reports/*.md": "allow"
-        },
         "external_directory": {
-          ".agents/reports": "allow"
+          ".agents/reports": "allow",
+          "~/.agents/research": "allow"
         },
-        "bash": "allow",
-        "question": "allow"
+        "question": "allow",
+        "task": {
+          "*": "allow"
+        },
+        "read": {
+          "~/.agents/research/*.md": "allow"
+        }
       },
-      "prompt": "{file:./prompts/reviewer.md}"
+      "prompt": "{file:./prompts/review_orchestrator.md}",
+      "reasoningEffort": "high"
     },
     "debugger": {
+      "description": "Performs command-driven bug investigation with reproduction, root-cause analysis, and evidence-only reporting.",
       "mode": "all",
       "model": "openai/gpt-5.5",
-      "reasoningEffort": "medium",
-      "description": "Performs command-driven bug investigation with reproduction, root-cause analysis, and evidence-only reporting.",
       "permission": {
-        "external_directory": {
-          "/tmp/*": "allow",
-          ".agents/reports": "allow"
-        },
-        "read": {
-          "/tmp/*": "allow",
-          ".agents/reports/*.md": "allow"
-        },
         "edit": {
           "*": "deny",
-          "/tmp/**": "allow",
-          ".agents/reports/*.md": "allow"
+          ".agents/reports/*.md": "allow",
+          "/tmp/**": "allow"
         },
-        "write": {
-          "*": "deny",
-          "/tmp/**": "allow",
-          ".agents/reports/*.md": "allow"
+        "external_directory": {
+          "/tmp/*": "allow"
+        },
+        "task": {
+          "*": "allow"
+        },
+        "read": {
+          "/tmp/*": "allow"
         }
       },
-      "prompt": "{file:./prompts/debugger.md}"
+      "prompt": "{file:./prompts/debugger.md}",
+      "reasoningEffort": "medium"
     },
     "draft_planner": {
+      "description": "Creates direction-setting draft plan files for user approval before detailed final planning.",
       "mode": "subagent",
       "model": "github-copilot/gpt-5.4-mini",
-      "reasoningEffort": "high",
-      "description": "Creates direction-setting draft plan files for user approval before detailed final planning.",
       "permission": {
         "edit": {
           "*": "deny",
           ".agents/plans/draft/*.md": "allow"
-        },
-        "write": {
-          "*": "deny",
-          ".agents/plans/draft/*.md": "allow"
-        },
-        "external_directory": {
-          ".agents/plans/draft": "allow"
         }
       },
-      "prompt": "{file:./prompts/draft_planner.md}"
-    },
-    "editor": {
-      "mode": "subagent",
-      "model": "zai-coding-plan/glm-5-turbo",
-      "description": "Instruction-following editor subagent for bounded file edits with minimal required context reads.",
-      "permission": {
-        "edit": {
-          "*": "allow"
-        },
-        "write": {
-          "*": "allow"
-        },
-        "bash": "deny"
-      },
-      "prompt": "{file:./prompts/editor.md}"
-    },
-    "general": {
-      "mode": "subagent",
-      "model": "zai-coding-plan/glm-5.1",
-      "description": "General implementation subagent for delegated file edits plus targeted path exploration.",
-      "permission": {
-        "edit": {
-          "*": "allow"
-        },
-        "write": {
-          "*": "allow"
-        },
-        "bash": "deny"
-      },
-      "prompt": "{file:./prompts/general.md}"
+      "prompt": "{file:./prompts/draft_planner.md}",
+      "reasoningEffort": "high"
     },
     "explore": {
-      "model": "github-copilot/gpt-5.4-mini",
-      "reasoningEffort": "high",
       "description": "Read-only exploration agent that uses relevant skills provided by primary-agent delegation context.",
+      "model": "github-copilot/gpt-5.4-mini",
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "write": {
-          "*": "deny"
         }
       },
-      "prompt": "{file:./prompts/explore.md}"
+      "prompt": "{file:./prompts/explore.md}",
+      "reasoningEffort": "high"
     },
     "plan_reviewer": {
+      "description": "Performs strict read-only review of final plan and test-spec files (`*.md`) with actionable revisions.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
-      "description": "Performs strict read-only review of final plan and test-spec files (`*.md`) with actionable revisions.",
-      "reasoningEffort": "low",
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "write": {
-          "*": "deny"
         }
       },
-      "prompt": "{file:./prompts/plan_reviewer.md}"
+      "prompt": "{file:./prompts/plan_reviewer.md}",
+      "reasoningEffort": "low"
     },
     "code_reviewer": {
+      "description": "Read-only code review worker for review_orchestrator-orchestrated reviews. Use only when delegated by review_orchestrator; not an entrypoint for user review requests.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
-      "description": "Performs strict read-only code review with severity-ordered findings and concrete file/line evidence.",
-      "reasoningEffort": "medium",
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "write": {
+        }
+      },
+      "prompt": "{file:./prompts/code_reviewer.md}",
+      "reasoningEffort": "medium"
+    },
+    "code_reviewer_crosscheck": {
+      "description": "Independent read-only code review cross-check worker using an alternate model for review_orchestrator-orchestrated reviews.",
+      "mode": "subagent",
+      "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "permission": {
+        "edit": {
           "*": "deny"
         }
       },
-      "prompt": "{file:./prompts/code_reviewer.md}"
+      "prompt": "{file:./prompts/code_reviewer.md}",
+      "reasoningEffort": "medium"
     },
     "internet_research": {
+      "description": "Performs targeted internet research when primary planning agents have material knowledge uncertainty.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
-      "reasoningEffort": "medium",
-      "description": "Performs targeted internet research when primary planning agents have material knowledge uncertainty.",
       "permission": {
         "edit": {
           "*": "deny",
-          ".agents/research/*.md": "allow"
-        },
-        "write": {
-          "*": "deny",
-          ".agents/research/*.md": "allow"
+          "~/.agents/research/*.md": "allow"
         },
         "external_directory": {
-          ".agents/research": "allow"
-        }
+          "~/.agents/research/**": "allow"
+        },
+        "webfetch": "allow",
+        "websearch": "allow"
       },
-      "prompt": "{file:./prompts/internet_research.md}"
+      "prompt": "{file:./prompts/internet_research.md}",
+      "reasoningEffort": "medium"
     },
     "tester": {
+      "description": "Read-only test runner that triages failures and writes failure-report files when suites fail.",
       "mode": "subagent",
       "model": "github-copilot/gpt-5.4-mini",
-      "reasoningEffort": "high",
-      "description": "Read-only test runner that triages failures and writes failure-report files when suites fail.",
       "permission": {
-        "external_directory": {
-          "/tmp/*": "allow",
-          ".agents/reports": "allow"
-        },
-        "read": {
-          "/tmp/*": "allow",
-          ".agents/reports/*.md": "allow"
-        },
         "edit": {
           "*": "ask",
-          "/tmp/**": "allow",
-          "/private/tmp/**": "allow",
-          ".agents/reports/*.md": "allow"
+          ".agents/reports/*.md": "allow",
+          "/tmp/**": "allow"
         },
-        "write": {
-          "*": "ask",
-          "/tmp/**": "allow",
-          "/private/tmp/**": "allow",
-          ".agents/reports/*.md": "allow"
+        "external_directory": {
+          "/tmp/*": "allow"
+        },
+        "read": {
+          "/tmp/*": "allow"
         }
       },
-      "prompt": "{file:./prompts/tester.md}"
+      "prompt": "{file:./prompts/tester.md}",
+      "reasoningEffort": "high"
     }
   },
-  "instructions": [
-    "/home/user/git/dotfiles/arch/dot-codex/AGENTS.md",
-    "./prompts/shared/opencode-context.md"
-  ],
   "experimental": {
     "mcp_timeout": 1200000
   },
-  "plugin": []
+  "plugin": ["./plugin/osc99-notify.ts"]
 }

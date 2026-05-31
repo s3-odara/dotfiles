@@ -2,6 +2,7 @@
 
 # --- Secrets ---
 /home/dot-ssh/id_*
+!/home/dot-ssh/id_25519.pub
 /home/dot-ssh/known_hosts
 /home/dot-ssh/authorized_keys
 /home/dot-ssh/known_hosts.old

@@ -10,6 +10,7 @@ Standing delegation policy:
 - `debugger` should proactively delegate to appropriate subagents when this improves quality, speed, or risk control.
 - Prefer early delegation instead of waiting for blockers.
 - If delegation is skipped, state why.
+- Subagents receive appropriate constraints and working style as system prompts; delegation prompts should include only task-specific purpose, target, inputs, one-off constraints, and extra information expected back.
 
 Delegation strategy:
 - Delegate targeted read-only path and architecture discovery to `explore`.
@@ -87,4 +88,3 @@ Filename policy (strict):
   `.agents/reports/YYYYMMDD-HHMM-<kebab-task-slug>.md`
 - Never overwrite existing files.
 - If collision occurs, append `-v2`, `-v3`, etc.
-

@@ -1,77 +1,67 @@
 ---
 name: web-search
-description: Analyze user information needs, collect web sources, evaluate reliability, and synthesize grounded answers with supporting evidence.
+description: Provide web search query design, source discovery, result triage, and fetch-decision methodology.
 ---
 
-# Web Research and Analysis
+# Web Search Query and Source Discovery Methodology
 
 ## Objective
 
-Analyze the user's information needs, gather appropriate information from the web, evaluate and synthesize it, and produce evidence-based intelligence together with the underlying information sources.
+Provide practical methodology for discovering relevant web sources through search queries, source selection, result triage, and fetch decisions.
 
-## Step 1: Analyze the request
+This skill does not own the full research workflow, final synthesis, research-file output, or final conclusions. Those responsibilities belong to the calling agent, usually `internet_research`.
 
-- Interpret from the user's question what they absolutely want to know.
-- Interpret from the user's question what they would preferably also know.
-- Break each of these down into at least five sub-questions.
+## Role boundary
 
-## Step 2: Plan the search
+- This skill helps with web query design, source discovery, result triage, and fetch decisions.
+- This skill does not decide the final research structure, write research files, or produce final conclusions.
+- The calling agent owns orchestration, evaluation depth, synthesis, uncertainty handling, and output format.
 
-- Determine the categories of information to search. Multiple categories may be selected.  
-  Examples: official websites, academic paper search, encyclopedic sources, news, bulletin boards, forums, statistical data, known URLs
-- Design multiple search queries for each sub-question.  
-  Examples: broad exploratory queries, exact-match queries, English versions, synonyms, date-constrained queries
-- For queries that are not language- or region-dependent, search in English with the US region.
+## Search query design
 
-## Step 3: Collect information sources
+- Use broad exploratory queries to map the topic.
+- Use exact-match queries for specific errors, phrases, APIs, names, or claims.
+- Use English queries for language-neutral technical topics.
+- Use local-language queries when the topic is region-specific.
+- Use synonyms, alternate product names, historical names, and related terminology.
+- Use date-constrained queries for recent or time-sensitive claims.
+- Use site-specific queries for official docs, GitHub, standards bodies, issue trackers, government/statistical sources, or known authoritative domains.
 
-- Gather information sources from the web.
-- For each source, record the following:
-  - Title
-  - URL
-  - Publisher or source
-  - Date
-  - Key points
-- Exclude clearly irrelevant sources or sources of notably poor quality at this stage.
+## Source category selection
 
-## Step 4: Evaluate
+Choose source categories based on the question:
 
-Evaluate and filter each information source using the following criteria.
+- Official documentation or vendor announcements
+- Source repositories, issues, pull requests, and release notes
+- Standards, specifications, RFCs, or protocol documents
+- Academic papers or preprints
+- Government, statistical, or regulatory sources
+- News reports
+- Forums, Q&A, and community discussions
+- Known URLs provided by the caller
 
-### Relevance
-- Does it match the user's request?
+## Result triage
 
-### Reliability
-- Who published it? What is their expertise or reputation?
-- Is it a primary source or not?
-- Does the source have bias or a conflict of interest?
-- Is it a peer-reviewed paper or an authoritative publication?
+Prefer sources that are:
 
-### Information Quality
-- Are the claims supported by evidence, or are they merely assertions?
-- Are verifiable supporting sources provided?
-- Do equally reliable sources make contradictory claims?
-- Is the information current, or might it be outdated?
-- Are statistics presented with appropriate context?
+- Primary or close to primary
+- Recent enough for the claim
+- Specific to the question
+- Transparent about evidence, dates, and authorship
+- Corroborated by other reliable sources
 
-### Logical Analysis
+Avoid sources that are:
 
-- Does the reasoning withstand scrutiny?
-- Are there logical leaps or fallacies?
-- What assumptions underlie the claims?
-- What is missing from this analysis?
+- SEO-oriented summaries with no primary references
+- Outdated for version-sensitive topics
+- Anonymous or unverifiable when authority matters
+- Pure opinion presented as fact
+- Duplicated syndications of the same original article
 
-## Step 5: Synthesize
+## Fetch decision
 
-- Cross-check claims across sources and identify contradictions or inconsistencies.
-- Where appropriate, resolve inconsistencies by prioritizing more reliable and more recent sources.
-- Explicitly preserve uncertainties that cannot be resolved.
-- Based on the collected information sources, context, existing knowledge, and overall judgment, refine them into intelligence that satisfies the user's request.
-
-## Step 6: Generate the response
-
-The output should include the following:
-
-1. Clearly organized intelligence summarizing the key points
-2. A list of the main information sources used
-3. Unknowns and unresolved uncertainties
+- Use search snippets only when they are sufficient for a low-risk, non-specific fact.
+- Fetch the page when exact wording, dates, API behavior, claims, or citations matter.
+- Prefer known authoritative URLs when the caller provides them.
+- Use full-content extraction for long articles, specs, docs, or pages where snippets are incomplete.
+- Avoid fetching sources that are clearly irrelevant or low quality.

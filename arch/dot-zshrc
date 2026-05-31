@@ -120,6 +120,7 @@ autoload -Uz promptinit
 promptinit
 
 export PURE_CMD_MAX_EXEC_TIME=1
+export PURE_GIT_PULL=0
 export PURE_PROMPT_SYMBOL="%%"
 
 zstyle ':prompt:pure:user' color '#04b5b5'
