@@ -4,8 +4,8 @@
   "small_model": "github-copilot/gpt-5.4-mini",
   "command": {
     "review": {
-      "agent": "reviewer",
-      "subtask": false,
+      "agent": "review_orchestrator",
+      "subtask": true,
       "template": "Review target: $ARGUMENTS\n"
     }
   },
@@ -13,10 +13,14 @@
   "autoupdate": false,
   "lsp": true,
   "formatter": true,
-  "default_agent": "build",
+  "default_agent": "operator",
   "permission": {
-    "*": "allow",
-    "doom_loop": "ask"
+    "read": {
+      "~/.agents/research/*.md": "allow"
+    },
+    "external_directory": {
+      "~/.agents/research": "allow"
+    }
   },
   "mcp": {
     "context7": {
@@ -63,10 +67,6 @@
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "question": "allow",
-        "write": {
-          "*": "deny"
         }
       },
       "prompt": "{file:./prompts/idea.md}"
@@ -80,34 +80,34 @@
           "*": "deny",
           ".agents/plans/*.md": "allow"
         },
+        "bash": {
+          "*": "deny"
+        },
         "external_directory": {
-          ".agents/plans": "allow",
-          ".agents/plans/draft": "allow"
+          "~/.agents/research": "allow"
         },
         "question": "allow",
         "read": {
-          ".agents/plans/draft/*.md": "allow"
-        },
-        "write": {
-          "*": "deny",
-          ".agents/plans/*.md": "allow"
+          ".agents/plans/draft/*.md": "allow",
+          "~/.agents/research/*.md": "allow"
         }
       },
       "prompt": "{file:./prompts/spec.md}",
       "reasoningEffort": "high"
     },
     "build": {
-      "description": "Primary build/validation agent with proactive best-effort delegation to testing and debugging subagents.",
+      "disable": true
+    },
+    "Implementer": {
+      "description": "Primary implementation/validation agent with proactive best-effort delegation to testing and debugging subagents.",
+      "mode": "primary",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "allow"
-        },
-        "write": {
-          "*": "allow"
         }
       },
-      "prompt": "{file:./prompts/build.md}",
+      "prompt": "{file:./prompts/Implementer.md}",
       "reasoningEffort": "medium"
     },
     "operator": {
@@ -118,7 +118,8 @@
         "*": "allow",
         "doom_loop": "ask",
         "webfetch": "deny",
-        "websearch": "deny"
+        "websearch": "deny",
+        "external_directory": "allow"
       },
       "prompt": "{file:./prompts/operator.md}"
     },
@@ -129,33 +130,29 @@
       "permission": {
         "bash": {
           "*": "deny",
-          "git *&&*": "deny",
-          "git *--output*": "deny",
-          "git *;*": "deny",
-          "git *>*": "deny",
-          "git *|*": "deny",
           "git diff*": "ask",
           "git log*": "ask",
           "git merge-base*": "ask",
           "git rev-list*": "ask",
           "git rev-parse*": "ask",
           "git show*": "ask",
-          "git status*": "ask"
+          "git status*": "ask",
+          "git *&&*": "deny",
+          "git *--output*": "deny",
+          "git *;*": "deny",
+          "git *>*": "deny",
+          "git *|*": "deny"
         },
         "edit": {
-          "*": "deny"
-        },
-        "question": "allow",
-        "write": {
           "*": "deny"
         }
       },
       "prompt": "{file:./prompts/sensei.md}",
       "reasoningEffort": "medium"
     },
-    "reviewer": {
+    "review_orchestrator": {
       "description": "Primary orchestrated reviewer for code written by others, with exploration, optional research, multi-perspective subreviews, and report output.",
-      "mode": "primary",
+      "mode": "subagent",
       "model": "openai/gpt-5.5",
       "permission": {
         "bash": "allow",
@@ -164,15 +161,18 @@
           ".agents/reports/*.md": "allow"
         },
         "external_directory": {
-          ".agents/reports": "allow"
+          ".agents/reports": "allow",
+          "~/.agents/research": "allow"
         },
         "question": "allow",
-        "write": {
-          "*": "deny",
-          ".agents/reports/*.md": "allow"
+        "task": {
+          "*": "allow"
+        },
+        "read": {
+          "~/.agents/research/*.md": "allow"
         }
       },
-      "prompt": "{file:./prompts/reviewer.md}",
+      "prompt": "{file:./prompts/review_orchestrator.md}",
       "reasoningEffort": "high"
     },
     "debugger": {
@@ -183,27 +183,16 @@
         "edit": {
           "*": "deny",
           ".agents/reports/*.md": "allow",
-          "/private/tmp/**": "allow",
           "/tmp/**": "allow"
         },
         "external_directory": {
-          ".agents/reports": "allow",
-          "/nix/store/*": "allow",
-          "/private/tmp/*": "allow",
           "/tmp/*": "allow"
+        },
+        "task": {
+          "*": "allow"
         },
         "read": {
-          ".agents/reports/*.md": "allow",
-          "/nix/store": "allow",
-          "/nix/store/*": "allow",
-          "/private/tmp/*": "allow",
           "/tmp/*": "allow"
-        },
-        "write": {
-          "*": "deny",
-          ".agents/reports/*.md": "allow",
-          "/private/tmp/**": "allow",
-          "/tmp/**": "allow"
         }
       },
       "prompt": "{file:./prompts/debugger.md}",
@@ -217,13 +206,6 @@
         "edit": {
           "*": "deny",
           ".agents/plans/draft/*.md": "allow"
-        },
-        "external_directory": {
-          ".agents/plans/draft": "allow"
-        },
-        "write": {
-          "*": "deny",
-          ".agents/plans/draft/*.md": "allow"
         }
       },
       "prompt": "{file:./prompts/draft_planner.md}",
@@ -234,9 +216,6 @@
       "model": "github-copilot/gpt-5.4-mini",
       "permission": {
         "edit": {
-          "*": "deny"
-        },
-        "write": {
           "*": "deny"
         }
       },
@@ -250,23 +229,29 @@
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "write": {
-          "*": "deny"
         }
       },
       "prompt": "{file:./prompts/plan_reviewer.md}",
       "reasoningEffort": "low"
     },
     "code_reviewer": {
-      "description": "Performs strict read-only code review with severity-ordered findings and concrete file/line evidence.",
+      "description": "Read-only code review worker for review_orchestrator-orchestrated reviews. Use only when delegated by review_orchestrator; not an entrypoint for user review requests.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "deny"
-        },
-        "write": {
+        }
+      },
+      "prompt": "{file:./prompts/code_reviewer.md}",
+      "reasoningEffort": "medium"
+    },
+    "code_reviewer_crosscheck": {
+      "description": "Independent read-only code review cross-check worker using an alternate model for review_orchestrator-orchestrated reviews.",
+      "mode": "subagent",
+      "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "permission": {
+        "edit": {
           "*": "deny"
         }
       },
@@ -280,17 +265,13 @@
       "permission": {
         "edit": {
           "*": "deny",
-          ".agents/research/*.md": "allow"
+          "~/.agents/research/*.md": "allow"
         },
         "external_directory": {
-          ".agents/research": "allow"
+          "~/.agents/research/**": "allow"
         },
         "webfetch": "allow",
-        "websearch": "allow",
-        "write": {
-          "*": "deny",
-          ".agents/research/*.md": "allow"
-        }
+        "websearch": "allow"
       },
       "prompt": "{file:./prompts/internet_research.md}",
       "reasoningEffort": "medium"
@@ -303,27 +284,13 @@
         "edit": {
           "*": "ask",
           ".agents/reports/*.md": "allow",
-          "/private/tmp/**": "allow",
           "/tmp/**": "allow"
         },
         "external_directory": {
-          ".agents/reports": "allow",
-          "/nix/store/*": "allow",
-          "/private/tmp/*": "allow",
           "/tmp/*": "allow"
         },
         "read": {
-          ".agents/reports/*.md": "allow",
-          "/nix/store": "allow",
-          "/nix/store/*": "allow",
-          "/private/tmp/*": "allow",
           "/tmp/*": "allow"
-        },
-        "write": {
-          "*": "ask",
-          ".agents/reports/*.md": "allow",
-          "/private/tmp/**": "allow",
-          "/tmp/**": "allow"
         }
       },
       "prompt": "{file:./prompts/tester.md}",

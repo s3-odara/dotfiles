@@ -26,6 +26,22 @@ const EVENT_MESSAGES: Record<string, { title: string; body: string }> = {
   },
 }
 
+type EventWithSessionID = {
+  properties?: {
+    sessionID?: unknown
+  }
+}
+
+type ClientWithSessionGet = {
+  session?: {
+    get?: (input: { path: { id: string } }) => Promise<{
+      data?: {
+        parentID?: unknown
+      }
+    }>
+  }
+}
+
 const textEncoder = new TextEncoder()
 let nextNotificationID = 0
 
@@ -79,13 +95,27 @@ function notify(title: string, body: string) {
   writeOSC99(`i=${id}:p=body:e=1`, body)
 }
 
-export default (async () => {
+async function isChildSession(client: ClientWithSessionGet, event: EventWithSessionID) {
+  const sessionID = event.properties?.sessionID
+  if (typeof sessionID !== "string") return false
+
+  try {
+    const session = await client.session?.get?.({ path: { id: sessionID } })
+    return typeof session?.data?.parentID === "string" && session.data.parentID.length > 0
+  } catch {
+    return false
+  }
+}
+
+export default (async ({ client }) => {
   return {
     event: async ({ event }) => {
       if (!NOTIFICATION_EVENTS.has(event.type)) return
 
       const message = EVENT_MESSAGES[event.type]
       if (!message) return
+
+      if (event.type === "session.idle" && (await isChildSession(client, event))) return
 
       notify(message.title, message.body)
     },
