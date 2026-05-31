@@ -46,7 +46,7 @@ Canonical handoff template (initial file):
 - **Changed files**: none
 - **Validation**: none
 - **Blockers**: none
-- **Next action**: Switch to `Implementer` with this plan and handoff.
+- **Next action**: Switch to `implementer` with this plan and handoff.
 
 ## Completed Task IDs
 
@@ -66,7 +66,7 @@ Canonical handoff template (initial file):
 
 ## Next Action
 
-- Switch to `Implementer` with the final plan path and this handoff path.
+- Switch to `implementer` with the final plan path and this handoff path.
 ```
 
 Spec Planning Workflow:

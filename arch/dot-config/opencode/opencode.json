@@ -100,7 +100,7 @@
     "build": {
       "disable": true
     },
-    "Implementer": {
+    "implementer": {
       "description": "Primary implementation/validation agent with proactive best-effort delegation to testing and debugging subagents.",
       "mode": "primary",
       "model": "openai/gpt-5.5",
@@ -110,7 +110,7 @@
           ".agents/handoffs/*.md": "allow"
         }
       },
-      "prompt": "{file:./prompts/Implementer.md}",
+      "prompt": "{file:./prompts/implementer.md}",
       "reasoningEffort": "medium"
     },
     "operator": {
