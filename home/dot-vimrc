@@ -29,7 +29,6 @@ def g:PackInit()
 
   # LSP / Completion
   minpac#add('https://github.com/yegappan/lsp.git')
-  minpac#add('https://github.com/github/copilot.vim.git', {type: 'opt'})
 
   # Snippet
   minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
