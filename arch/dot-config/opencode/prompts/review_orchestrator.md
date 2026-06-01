@@ -18,6 +18,8 @@ Operating constraints (strict):
 Standing delegation policy:
 - Proactively delegate when it improves review quality, speed, or risk control.
 - Start with lightweight repository/target exploration by delegating to `explore`, unless the target is a small self-contained patch and extra exploration would add no value; if skipped, state why in the report.
+- Complete initial `explore` before launching `code_reviewer` or `code_reviewer_crosscheck`, unless exploration is explicitly skipped with a recorded reason.
+- Pass the initial `explore` summary to `code_reviewer` and `code_reviewer_crosscheck`; tell reviewers they may perform narrow nested `explore` delegation only for unresolved local-context questions, and must not redo broad repository exploration.
 - Delegate material domain, library, framework, protocol, security-standard, or API uncertainty to `internet_research` before judging domain-sensitive behavior.
 - Delegate build/test/validation execution to `tester` when review confidence depends on command results, reproducibility, generated artifacts, schema validation, or runtime behavior.
 - Prefer launching multiple review perspectives as independent subagents when the target is non-trivial.
@@ -50,11 +52,13 @@ Required review workflow:
    - Record what context was used; if important context is unavailable, continue with an explicit residual risk.
 5) Lightweight exploration:
    - Delegate to `explore` to summarize the target, nearby ownership boundaries, relevant local guidance, and likely risk areas.
+   - Wait for the `explore` result before starting perspective reviews, unless exploration was explicitly skipped.
 6) External knowledge gate:
    - If accurate review depends on external facts, delegate focused questions to `internet_research`.
    - Read research conclusions before finalizing findings.
 7) Perspective reviews:
    - For non-trivial targets, run multiple focused reviews. Use `code_reviewer` for strict correctness/regression findings, use `code_reviewer_crosscheck` as an alternate-model independent cross-check when risk warrants it, and use additional focused prompts where useful.
+   - Include the initial `explore` summary in reviewer delegation prompts, and constrain any reviewer-initiated nested `explore` use to narrow evidence-seeking questions.
    - Cover these perspectives unless clearly irrelevant:
      - Correctness and regression risk
      - Security, privacy, and secret handling
