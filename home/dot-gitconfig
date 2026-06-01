@@ -5,6 +5,7 @@
 [commit]
 	gpgsign = true
 	verbose = true
+	template = /home/user/.gitmessage
 [merge]
 	tool = vimdiff
 	ff = false

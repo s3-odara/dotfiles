@@ -1,0 +1,13 @@
+# Write a Conventional Commit message.
+# Format:
+#   <type>(<scope>): <subject>
+#
+#   <body>
+#
+# Subject:
+#   - keep under 50 characters
+#   - do not end with a period
+#
+# Body:
+#   - explain why the change was needed
+#   - wrap lines at 72 characters
