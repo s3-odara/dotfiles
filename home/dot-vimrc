@@ -26,6 +26,7 @@ def g:PackInit()
   minpac#add('https://github.com/mattn/emmet-vim.git')
   minpac#add('https://github.com/mao-yining/undotree.vim')
   minpac#add('https://github.com/girishji/easyjump.vim.git')
+  minpac#add('https://github.com/madox2/vim-ai.git')
 
   # LSP / Completion
   minpac#add('https://github.com/yegappan/lsp.git')
