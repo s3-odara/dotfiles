@@ -7,6 +7,9 @@ if exists('b:did_ai_commit_ftplugin')
 endif
 b:did_ai_commit_ftplugin = 1
 
+packadd vim-ai
+source ~/.vim/config/plugins/vim-ai.vim
+
 var ai_commit_prompt = ''
 
 def EditableBodyEnd(): number
