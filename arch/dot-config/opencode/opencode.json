@@ -191,7 +191,8 @@
           "/tmp/**": "allow"
         },
         "external_directory": {
-          "/tmp/*": "allow"
+          "/tmp/*": "allow",
+          "~/.agents/research/": "allow"
         },
         "task": {
           "*": "allow"
@@ -277,6 +278,7 @@
           "~/.agents/research/*.md": "allow"
         },
         "external_directory": {
+          "~/.agents/research": "allow",
           "~/.agents/research/**": "allow"
         },
         "webfetch": "allow",
