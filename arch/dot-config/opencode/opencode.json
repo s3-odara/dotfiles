@@ -7,6 +7,11 @@
       "agent": "review_orchestrator",
       "subtask": true,
       "template": "Review input (code target, handoff file, or both): $ARGUMENTS\n"
+    },
+    "debug": {
+      "agent": "debugger",
+      "subtask": true,
+      "template": "Bug investigation input (symptoms, repro command, logs, or target files): $ARGUMENTS\n"
     }
   },
   "share": "disabled",
@@ -49,11 +54,6 @@
         "Authorization": "Bearer {env:PARALLELAI_API_KEY}"
       },
       "enabled": true
-    },
-    "readability": {
-      "type": "local",
-      "command": ["npx", "-y", "@mizchi/readability", "--mcp"],
-      "enabled": true
     }
   },
   "agent": {
@@ -73,13 +73,12 @@
     },
     "spec": {
       "description": "Primary planning agent that handles both ambiguous and well-scoped requests through iterative specification elicitation and systematic planning workflow.",
-      "mode": "primary",
+      "mode": "all",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "deny",
-          ".agents/plans/*.md": "allow",
-          ".agents/handoffs/*.md": "allow"
+          ".agents/**": "allow"
         },
         "bash": {
           "*": "deny"
@@ -103,20 +102,20 @@
     },
     "implementer": {
       "description": "Primary implementation/validation agent with proactive best-effort delegation to testing and debugging subagents.",
-      "mode": "primary",
+      "mode": "all",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
-          "*": "allow",
-          ".agents/handoffs/*.md": "allow"
-        }
+          "*": "allow"
+        },
+        "external_directory": "allow"
       },
       "prompt": "{file:./prompts/implementer.md}",
       "reasoningEffort": "medium"
     },
     "operator": {
       "description": "Primary ops agent for system operations, troubleshooting, server provisioning, and environment setup with explicit confirmation for dangerous actions.",
-      "mode": "primary",
+      "mode": "all",
       "model": "openai/gpt-5.5",
       "permission": {
         "*": "allow",
@@ -127,45 +126,33 @@
       },
       "prompt": "{file:./prompts/operator.md}"
     },
-    "sensei": {
-      "description": "Primary explanation agent that teaches reports and git revisions/ranges to project outsiders after calibrating user understanding.",
+    "delegator": {
+      "description": "Primary goal orchestration agent that analyzes user goals, decomposes them into sub-tasks, and delegates execution to specialized agents.",
       "mode": "primary",
       "model": "openai/gpt-5.5",
       "permission": {
-        "bash": {
-          "*": "deny",
-          "git diff*": "ask",
-          "git log*": "ask",
-          "git merge-base*": "ask",
-          "git rev-list*": "ask",
-          "git rev-parse*": "ask",
-          "git show*": "ask",
-          "git status*": "ask",
-          "git *&&*": "deny",
-          "git *--output*": "deny",
-          "git *;*": "deny",
-          "git *>*": "deny",
-          "git *|*": "deny"
-        },
         "edit": {
           "*": "deny"
+        },
+        "external_directory": "allow",
+        "question": "allow",
+        "task": {
+          "*": "allow"
         }
       },
-      "prompt": "{file:./prompts/sensei.md}",
-      "reasoningEffort": "medium"
+      "prompt": "{file:./prompts/delegator.md}",
+      "reasoningEffort": "high"
     },
     "review_orchestrator": {
       "description": "Primary orchestrated reviewer for explicit code targets, canonical handoffs, or both, with exploration, optional research, multi-perspective subreviews, and report output.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
       "permission": {
-        "bash": "allow",
         "edit": {
           "*": "deny",
-          ".agents/reports/*.md": "allow"
+          ".agents/**": "allow"
         },
         "external_directory": {
-          ".agents/reports": "allow",
           "~/.agents/research": "allow"
         },
         "question": "allow",
@@ -183,17 +170,17 @@
     },
     "debugger": {
       "description": "Performs command-driven bug investigation with reproduction, root-cause analysis, and evidence-only reporting.",
-      "mode": "all",
+      "mode": "subagent",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "deny",
-          ".agents/reports/*.md": "allow",
+          ".agents/**": "allow",
           "/tmp/**": "allow"
         },
         "external_directory": {
           "/tmp/*": "allow",
-          "~/.agents/research/": "allow"
+          "~/.agents/**": "allow"
         },
         "task": {
           "*": "allow"
@@ -204,19 +191,6 @@
       },
       "prompt": "{file:./prompts/debugger.md}",
       "reasoningEffort": "medium"
-    },
-    "draft_planner": {
-      "description": "Creates direction-setting draft plan files for user approval before detailed final planning.",
-      "mode": "subagent",
-      "model": "openai/gpt-5.4-mini",
-      "permission": {
-        "edit": {
-          "*": "deny",
-          ".agents/plans/draft/*.md": "allow"
-        }
-      },
-      "prompt": "{file:./prompts/draft_planner.md}",
-      "reasoningEffort": "high"
     },
     "explore": {
       "description": "Read-only exploration agent that uses relevant skills provided by primary-agent delegation context.",
@@ -276,11 +250,10 @@
       "permission": {
         "edit": {
           "*": "deny",
-          "~/.agents/research/*.md": "allow"
+          "~/.agents/research/*": "allow"
         },
         "external_directory": {
-          "~/.agents/": "allow",
-          "~/.agents/research/**": "allow"
+          "~/.agents/**": "allow"
         },
         "webfetch": "allow",
         "websearch": "allow"
@@ -295,7 +268,7 @@
       "permission": {
         "edit": {
           "*": "ask",
-          ".agents/reports/*.md": "allow",
+          ".agents/**": "allow",
           "/tmp/**": "allow"
         },
         "external_directory": {
