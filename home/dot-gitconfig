@@ -36,6 +36,7 @@
 	autosquash = true
 [alias]
 	forcepush = push --force-with-lease --force-if-includes
+	diffedit = "!f() { vimdiff <(git show HEAD:\"$1\") \"$1\"; }; f"
 [tag]
 	gpgsign = true
 
