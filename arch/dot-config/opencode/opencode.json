@@ -207,14 +207,14 @@
     "plan_reviewer": {
       "description": "Performs strict read-only review of final plan and test-spec files (`*.md`) with actionable revisions.",
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
+      "model": "openai/gpt-5.4-mini",
       "permission": {
         "edit": {
           "*": "deny"
         }
       },
       "prompt": "{file:./prompts/plan_reviewer.md}",
-      "reasoningEffort": "low"
+      "reasoningEffort": "medium"
     },
     "code_reviewer": {
       "description": "Read-only code review worker for review_orchestrator-orchestrated reviews. Use only when delegated by review_orchestrator; not an entrypoint for user review requests.",
@@ -279,7 +279,7 @@
         }
       },
       "prompt": "{file:./prompts/tester.md}",
-      "reasoningEffort": "high"
+      "reasoningEffort": "medium"
     }
   },
   "experimental": {
