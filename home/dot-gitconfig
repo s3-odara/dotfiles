@@ -1,44 +1,59 @@
 [user]
-	email = haruta@s3-odara.net
-	name = s3-odara
-	signingkey = F1A2E293CE3B8617!
+        email = haruta@s3-odara.net
+        name = s3-odara
+        signingkey = F1A2E293CE3B8617!
+        useConfigOnly = true
 [commit]
-	gpgsign = true
-	verbose = true
+        gpgsign = true
+        verbose = true
 [merge]
-	tool = vimdiff
-	ff = false
+        tool = vimdiff
+        ff = false
+        defaultToUpstream = false
 [push]
-	autoSetupRemote = true
+        autoSetupRemote = false
+        default = nothing
 [gpg]
-	format = openpgp
+        format = openpgp
+[branch]
+        autoSetupMerge = false
+        autoSetupRebase = never
 [diff]
-	algorithm = patience
-	tool = vimdiff
+        algorithm = patience
+        tool = vimdiff
+        wordRegex = "[a-zA-Z0-9_]+|[ぁ-ん]+|[ァ-ヶー]+|[一-龥々〇〆]+|."
 [difftool]
-	prompt = true
+        prompt = true
+[mergetool "vimdiff"]
+        layout = LOCAL,BASE,REMOTE / MERGED
 [pull]
-    ff = only
+        ff = only
+        rebase = false
 [color "blame"]
-    highlightRecent = "#60655f", 4181 days ago, "#646d63", 2584 days ago, "#687566", 1597 days ago, "#6c7d69", 987 days ago, "#70856c", 610 days ago, "#738d70", 377 days ago, "#779673", 233 days ago, "#7b9e76", 144 days ago, "#7ea779", 89 days ago, "#82af7c", 55 days ago, "#86b87f", 34 days ago, "#89c082", 21 days ago, "#8dc985", 13 days ago, "#90d287", 8 days ago, "#94db8a", 5 days ago, "#97e48d", 3 days ago, "#9bed90", 2 days ago, "#9ef693", 1 days ago, "#a2ff95"
+        highlightRecent = "#60655f", 4181 days ago, "#646d63", 2584 days ago, "#687566", 1597 days ago, "#6c7d69", 987 days ago, "#70856c", 610 days ago, "#738d70", 377 days ago, "#779673", 233 days ago, "#7b9e76", 144 days ago, "#7ea779", 89 days ago, "#82af7c", 55 days ago, "#86b87f", 34 days ago, "#89c082", 21 days ago, "#8dc985", 13 days ago, "#90d287", 8 days ago, "#94db8a", 5 days ago, "#97e48d", 3 days ago, "#9bed90", 2 days ago, "#9ef693", 1 days ago, "#a2ff95"
 [blame]
-	coloring = highlightRecent
-	date = human
+        coloring = highlightRecent
+        date = human
 [credential]
-	helper = store
+        helper = store
 [core]
-	untrackedCache = true
-	pager = less -R -iMFJ --mouse --wheel-lines=5
+        untrackedCache = true
+        pager = less -R -iMFJ --mouse --wheel-lines=5
+[pager]
+        diff = "sh -c 'if command -v diff-highlight >/dev/null 2>&1; then diff-highlight; elif command -v git-diff-highlight >/dev/null 2>&1; then git-diff-highlight; elif test -x /usr/share/git/diff-highlight/diff-highlight; then /usr/share/git/diff-highlight/diff-highlight; else cat; fi | less -R -iMFJ --mouse --wheel-lines=5'"
 [fetch]
-	prune = true
+        prune = true
 [rebase]
-	autostash = true
-	autosquash = true
+        autostash = true
+        autosquash = true
 [alias]
-	forcepush = push --force-with-lease --force-if-includes
-	diffedit = "!f() { vimdiff <(git show HEAD:\"$1\") \"$1\"; }; f"
+        forcepush = push --force-with-lease --force-if-includes
+        diffedit = "!f() { vimdiff <(git show HEAD:\"$1\") \"$1\"; }; f"
+        wdiff = diff --color-words
 [tag]
-	gpgsign = true
+        gpgsign = true
 
 [includeIf "gitdir:/home/user/iniad/.git/modules/"]
-    path = "/home/user/.config/git/iniad.gitconfig"
+        path = "/home/user/.config/git/iniad.gitconfig"
+[rerere]
+        enabled = true

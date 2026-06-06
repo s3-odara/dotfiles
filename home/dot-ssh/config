@@ -2,7 +2,7 @@ Include ~/.ssh/custom_config
 
 # use gpg ssh key
 IdentityFile ~/.ssh/yubikey.pub
-IdentitiesOnly yes
+IdentitiesOnly no
 
 # Ensure KnownHosts are unreadable if leaked - it is otherwise easier to know which hosts your keys have access to.
 HashKnownHosts no

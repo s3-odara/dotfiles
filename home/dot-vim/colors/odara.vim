@@ -126,6 +126,7 @@ call s:hi('DiffAdd', s:none, '#27311A')
 call s:hi('DiffChange', s:none, '#17322E')
 call s:hi('DiffDelete', s:none, '#362630')
 call s:hi('DiffText', s:bg0, s:teal)
+call s:hi('DiffTextAdd', s:bg0, s:olive_bright)
 
 " Syntax groups mapped from Orbit token colors
 call s:hi('Comment', s:muted2, s:none)
