@@ -19,14 +19,6 @@
   "lsp": true,
   "formatter": true,
   "default_agent": "operator",
-  "permission": {
-    "read": {
-      "~/.agents/research/*.md": "allow"
-    },
-    "external_directory": {
-      "~/.agents/research": "allow"
-    }
-  },
   "mcp": {
     "context7": {
       "type": "remote",
@@ -60,20 +52,9 @@
     "plan": {
       "disable": true
     },
-    "idea": {
-      "description": "Primary ideation agent for early-stage exploration and problem framing before planning; hand off to `spec` by switching agents with the same chat history.",
-      "mode": "primary",
-      "model": "openai/gpt-5.4-mini",
-      "permission": {
-        "edit": {
-          "*": "deny"
-        }
-      },
-      "prompt": "{file:./prompts/idea.md}"
-    },
     "spec": {
-      "description": "Primary planning agent that handles both ambiguous and well-scoped requests through iterative specification elicitation and systematic planning workflow.",
-      "mode": "all",
+      "description": "Specification agent that inspects relevant context and writes small, concrete, testable specs under .agents/specs.",
+      "mode": "subagent",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
@@ -83,18 +64,42 @@
         "bash": {
           "*": "deny"
         },
-        "external_directory": {
-          "~/.agents/research/": "allow",
-          "~/.agents/research/**": "allow"
-        },
         "question": "allow",
+        "task": {
+          "*": "allow"
+        },
         "read": {
-          ".agents/plans/draft/*.md": "allow",
-          ".agents/handoffs/*.md": "allow",
-          "~/.agents/research/*.md": "allow"
+          ".agents/specs/*.md": "allow",
+          ".agents/plans/*.md": "allow",
+          ".agents/research/*.md": "allow"
         }
       },
       "prompt": "{file:./prompts/spec.md}",
+      "reasoningEffort": "high"
+    },
+    "planner": {
+      "description": "Planning agent that reads specs and existing plans, then writes focused implementation plans under .agents/plans.",
+      "mode": "subagent",
+      "model": "openai/gpt-5.5",
+      "permission": {
+        "edit": {
+          "*": "deny",
+          ".agents/**": "allow"
+        },
+        "bash": {
+          "*": "deny"
+        },
+        "question": "allow",
+        "task": {
+          "*": "allow"
+        },
+        "read": {
+          ".agents/specs/*.md": "allow",
+          ".agents/plans/*.md": "allow",
+          ".agents/research/*.md": "allow"
+        }
+      },
+      "prompt": "{file:./prompts/planner.md}",
       "reasoningEffort": "high"
     },
     "build": {
@@ -108,7 +113,10 @@
         "edit": {
           "*": "allow"
         },
-        "external_directory": "allow"
+        "external_directory": "allow",
+        "task": {
+          "*": "allow"
+        }
       },
       "prompt": "{file:./prompts/implementer.md}",
       "reasoningEffort": "medium"
@@ -121,8 +129,7 @@
         "*": "allow",
         "doom_loop": "ask",
         "webfetch": "deny",
-        "websearch": "deny",
-        "external_directory": "allow"
+        "websearch": "deny"
       },
       "prompt": "{file:./prompts/operator.md}"
     },
@@ -152,17 +159,15 @@
           "*": "deny",
           ".agents/**": "allow"
         },
-        "external_directory": {
-          "~/.agents/research": "allow"
-        },
         "question": "allow",
         "task": {
           "*": "allow"
         },
         "read": {
-          ".agents/handoffs/*.md": "allow",
+          ".agents/specs/*.md": "allow",
           ".agents/plans/*.md": "allow",
-          "~/.agents/research/*.md": "allow"
+          ".agents/impl-reports/*.md": "allow",
+          ".agents/research/*.md": "allow"
         }
       },
       "prompt": "{file:./prompts/review_orchestrator.md}",
@@ -179,8 +184,7 @@
           "/tmp/**": "allow"
         },
         "external_directory": {
-          "/tmp/*": "allow",
-          "~/.agents/**": "allow"
+          "/tmp/*": "allow"
         },
         "task": {
           "*": "allow"
@@ -204,22 +208,11 @@
       "prompt": "{file:./prompts/explore.md}",
       "reasoningEffort": "medium"
     },
-    "plan_reviewer": {
-      "description": "Performs strict read-only review of final plan and test-spec files (`*.md`) with actionable revisions.",
-      "mode": "subagent",
-      "model": "openai/gpt-5.4-mini",
-      "permission": {
-        "edit": {
-          "*": "deny"
-        }
-      },
-      "prompt": "{file:./prompts/plan_reviewer.md}",
-      "reasoningEffort": "medium"
-    },
     "code_reviewer": {
       "description": "Read-only code review worker for review_orchestrator-orchestrated reviews. Use only when delegated by review_orchestrator; not an entrypoint for user review requests.",
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
+      "hidden": true,
+      "model": "openai/gpt-5.4-mini",
       "permission": {
         "edit": {
           "*": "deny"
@@ -234,7 +227,8 @@
     "code_reviewer_crosscheck": {
       "description": "Independent read-only code review cross-check worker using an alternate model for review_orchestrator-orchestrated reviews.",
       "mode": "subagent",
-      "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+      "hidden": true,
+      "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "deny"
@@ -250,10 +244,7 @@
       "permission": {
         "edit": {
           "*": "deny",
-          "~/.agents/research/*": "allow"
-        },
-        "external_directory": {
-          "~/.agents/**": "allow"
+          ".agents/research/**": "allow"
         },
         "webfetch": "allow",
         "websearch": "allow"
