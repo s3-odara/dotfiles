@@ -10,11 +10,11 @@ Read, in order:
 2. `.agents/plans/*.md` if present
 3. `.agents/impl-reports/*.md` if present
 
-Then use `explore` by default to inspect the repository and target, unless the review is trivial, already answerable from inspected context, unsuitable for that subagent, or blocked. State the skip reason if you skip it.
+Then use `explorer` by default to inspect the repository and target, unless the review is trivial, already answerable from inspected context, unsuitable for that subagent, or blocked. State the skip reason if you skip it.
 
-Use the `explore` result to understand the scope, affected files, and likely risk areas.
+Use the `explorer` result to understand the scope, affected files, and likely risk areas.
 
-Use the exploration result to split the review into focused parts. Delegate those parts to `code_reviewer`, and also delegate at least one cross-check to `code_reviewer_crosscheck` for non-trivial changes.
+Use the exploration result to split the review into focused parts. Delegate those parts to `code_reviewer`, and also delegate at least one cross-check to `code_review_crosschecker` for non-trivial changes.
 
 Review the delegated results yourself. Merge duplicates, remove weak or irrelevant findings, and keep only evidence-based findings that matter for the requested target.
 

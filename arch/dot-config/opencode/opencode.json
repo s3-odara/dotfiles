@@ -12,6 +12,16 @@
       "agent": "debugger",
       "subtask": true,
       "template": "Bug investigation input (symptoms, repro command, logs, or target files): $ARGUMENTS\n"
+    },
+    "planner": {
+      "agent": "planner",
+      "subtask": true,
+      "template": "Planning input (feature, bug, target files, constraints, or spec path): $ARGUMENTS\n"
+    },
+    "spec": {
+      "agent": "specifier",
+      "subtask": true,
+      "template": "Specification input (feature request, problem statement, constraints, or target files): $ARGUMENTS\n"
     }
   },
   "share": "disabled",
@@ -49,10 +59,13 @@
     }
   },
   "agent": {
+    "explore": {
+      "disable": true
+    },
     "plan": {
       "disable": true
     },
-    "spec": {
+    "specifier": {
       "description": "Specification agent that inspects relevant context and writes small, concrete, testable specs under .agents/specs.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
@@ -74,11 +87,11 @@
           ".agents/research/*.md": "allow"
         }
       },
-      "prompt": "{file:./prompts/spec.md}",
+      "prompt": "{file:./prompts/specifier.md}",
       "reasoningEffort": "high"
     },
     "planner": {
-      "description": "Planning agent that reads specs and existing plans, then writes focused implementation plans under .agents/plans.",
+      "description": "Planning agent that turns user input or specs into focused implementation plans under .agents/plans.",
       "mode": "subagent",
       "model": "openai/gpt-5.5",
       "permission": {
@@ -196,8 +209,9 @@
       "prompt": "{file:./prompts/debugger.md}",
       "reasoningEffort": "medium"
     },
-    "explore": {
+    "explorer": {
       "description": "Read-only exploration agent that uses relevant skills provided by primary-agent delegation context.",
+      "mode": "subagent",
       "model": "openai/gpt-5.4-mini",
       "permission": {
         "edit": {
@@ -205,7 +219,7 @@
         },
         "external_directory": "allow"
       },
-      "prompt": "{file:./prompts/explore.md}",
+      "prompt": "{file:./prompts/explorer.md}",
       "reasoningEffort": "medium"
     },
     "code_reviewer": {
@@ -224,7 +238,7 @@
       "prompt": "{file:./prompts/code_reviewer.md}",
       "reasoningEffort": "medium"
     },
-    "code_reviewer_crosscheck": {
+    "code_review_crosschecker": {
       "description": "Independent read-only code review cross-check worker using an alternate model for review_orchestrator-orchestrated reviews.",
       "mode": "subagent",
       "hidden": true,
@@ -234,10 +248,10 @@
           "*": "deny"
         }
       },
-      "prompt": "{file:./prompts/code_reviewer.md}",
+      "prompt": "{file:./prompts/code_review_crosschecker.md}",
       "reasoningEffort": "medium"
     },
-    "internet_research": {
+    "internet_researcher": {
       "description": "Performs targeted internet research when primary planning agents have material knowledge uncertainty.",
       "mode": "subagent",
       "model": "openai/gpt-5.4-mini",
@@ -249,7 +263,7 @@
         "webfetch": "allow",
         "websearch": "allow"
       },
-      "prompt": "{file:./prompts/internet_research.md}",
+      "prompt": "{file:./prompts/internet_researcher.md}",
       "reasoningEffort": "low"
     },
     "tester": {

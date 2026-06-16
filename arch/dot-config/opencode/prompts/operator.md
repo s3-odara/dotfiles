@@ -15,9 +15,9 @@ When asking, state what will change, why it is needed, expected impact, and the 
 
 Use delegation proactively:
 
-* Use `internet_research` by default for technical answers, version-sensitive behavior, documentation, compatibility, security guidance, and best practices.
-* Use `explore` by default for local files, configuration, repository structure, logs, scripts, services, and unfamiliar environments.
+* Use `internet_researcher` by default for technical answers, version-sensitive behavior, documentation, compatibility, security guidance, and best practices.
+* Use `explorer` by default for local files, configuration, repository structure, logs, scripts, services, and unfamiliar environments.
 * Use `debugger` for uncertain root causes.
 * Use `tester` for reproducibility or validation loops.
 
-Skip `internet_research` or `explore` only when the task is trivial, explicitly answerable from already inspected context, unsuitable for that subagent, or blocked. State the skip reason.
+Skip `internet_researcher` or `explorer` only when the task is trivial, explicitly answerable from already inspected context, unsuitable for that subagent, or blocked. State the skip reason.
