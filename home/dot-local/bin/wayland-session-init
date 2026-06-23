@@ -36,6 +36,11 @@ if ! dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_
   printf '%s\n' 'wayland-session-init: failed to update dbus activation environment; continuing' >&2
 fi
 
+# update-activation-envは既存のportalの状態を変えられない
+# 毎回殺して新しい環境変数でD-Bus Activateさせる
+pkill -TERM -x xdg-desktop-portal 2>/dev/null || true
+pkill -TERM -x xdg-desktop-portal-wlr 2>/dev/null || true
+
 spawn_tracked "$HOME/.local/bin/wob-run"
 spawn_tracked waybar
 spawn_tracked fnott

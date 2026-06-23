@@ -7,6 +7,7 @@ current_file="$state_dir/current"
 pid_file="$state_dir/pid"
 default_wm="${WAYLAND_WM:-machi}"
 crash_count=0
+first_run=1
 
 mkdir -p "$state_dir"
 trap 'rm -f "$pid_file"' EXIT INT TERM
@@ -33,6 +34,26 @@ while :; do
     "$wm" </dev/null &
     child_pid=$!
     printf '%s\n' "$child_pid" >"$pid_file"
+
+    # update-activation-envは既存のportalの状態を変えられない
+    # 初回以外は殺して新しい環境変数でD-Bus Activateさせる
+    if [ "$first_run" -eq 0 ] && command -v dbus-update-activation-environment >/dev/null 2>&1; then
+        new_wd=
+        i=0
+        while [ "$i" -lt 10 ]; do
+            new_wd="$(ls "${XDG_RUNTIME_DIR}"/wayland-* 2>/dev/null | head -n 1)"
+            [ -n "$new_wd" ] && break
+            sleep 0.1
+            i=$((i + 1))
+        done
+        if [ -n "$new_wd" ]; then
+            export WAYLAND_DISPLAY="${new_wd##*/}"
+            dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null || true
+            pkill -TERM -x xdg-desktop-portal 2>/dev/null || true
+            pkill -TERM -x xdg-desktop-portal-wlr 2>/dev/null || true
+        fi
+    fi
+    first_run=0
 
     status=0
     wait "$child_pid" || status=$?

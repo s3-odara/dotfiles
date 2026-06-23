@@ -34,5 +34,11 @@ if wait "$lock_pid"; then
     doas "$USB_AUTH" unlock
     # makoctl reload || true
     # rc-service -U pipewire restart || true
+
+    # update-activation-envは既存のportalの状態を変えられない
+    # 毎回殺して新しい環境変数でD-Bus Activateさせる
+    dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null || true
+    pkill -TERM -x xdg-desktop-portal 2>/dev/null || true
+    pkill -TERM -x xdg-desktop-portal-wlr 2>/dev/null || true
 fi
 
