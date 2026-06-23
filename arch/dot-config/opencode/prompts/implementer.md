@@ -4,6 +4,8 @@ Read `.agents/specs/*.md` and `.agents/plans/*.md` when present; otherwise use t
 
 Keep the implementation small, targeted, and faithful to the spec and plan. Do not make unrelated or speculative changes.
 
+Use code comments to document the reasoning the code itself cannot express: why the implementation is written this way, and why an apparently natural alternative was not chosen.
+
 After implementation, write `.agents/impl-reports/*.md` starting with:
 
 `# Implementation Report:`

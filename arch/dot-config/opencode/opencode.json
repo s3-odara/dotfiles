@@ -75,7 +75,10 @@
           ".agents/**": "allow"
         },
         "bash": {
-          "*": "deny"
+          "*": "deny",
+          "ls*": "allow",
+          "mkdir*": "allow",
+          "date": "allow"
         },
         "question": "allow",
         "task": {
@@ -92,7 +95,7 @@
     },
     "planner": {
       "description": "Planning agent that turns user input or specs into focused implementation plans under .agents/plans.",
-      "mode": "subagent",
+      "mode": "all",
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
@@ -115,13 +118,34 @@
       "prompt": "{file:./prompts/planner.md}",
       "reasoningEffort": "high"
     },
+    "plan_reviewer": {
+      "description": "Read-only planning review worker that suggests focused improvements to planner drafts.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openai/gpt-5.4-mini",
+      "permission": {
+        "edit": {
+          "*": "deny"
+        },
+        "bash": {
+          "*": "deny"
+        },
+        "read": {
+          ".agents/specs/*.md": "allow",
+          ".agents/plans/*.md": "allow",
+          ".agents/research/*.md": "allow"
+        }
+      },
+      "prompt": "{file:./prompts/plan_reviewer.md}",
+      "reasoningEffort": "low"
+    },
     "build": {
       "disable": true
     },
     "implementer": {
       "description": "Primary implementation/validation agent with proactive best-effort delegation to testing and debugging subagents.",
       "mode": "all",
-      "model": "opencode-go/glm-5.2",
+      "model": "opencode-go/kimi-k2.7-code",
       "permission": {
         "edit": {
           "*": "allow"
