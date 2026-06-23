@@ -96,11 +96,15 @@ bindkey -v  # vi mode
 bindkey '^H' history-incremental-pattern-search-backward
 [[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
 [[ -n "${terminfo[kcud1]:-}" ]] && bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
+
 # Alias
 alias cp='cp -i'
 alias mv='mv -i'
 alias rm='rm -I'
 alias ls='ls --color=auto'
+
+# PATH
+export PATH="$HOME/.local/bin:$PATH"
 
 # Keep GPG_TTY fresh and inform gpg-agent.
 _gpg_update_tty() {
