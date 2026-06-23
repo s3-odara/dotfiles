@@ -180,12 +180,6 @@ _source_first_readable \
 typeset -gA ZSH_HIGHLIGHT_STYLES
 ZSH_HIGHLIGHT_STYLES[comment]='fg=#6c7ea6'
 
-# zsh-syntax-highlighting should stay last.
-_source_first_readable \
-  /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
-  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
-  >/dev/null 2>&1
-
 if [[ -o interactive && -n $TMUX ]]; then
   function exit {
     if (( $# == 0 )); then
@@ -204,3 +198,11 @@ if command -v tmux >/dev/null 2>&1 && [[ -z "$TMUX" && -n "$PS1" ]]; then
     tmux attach || tmux new
   fi
 fi
+
+eval "$(mise activate zsh)"
+
+# zsh-syntax-highlighting should stay last.
+_source_first_readable \
+  /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  >/dev/null 2>&1
