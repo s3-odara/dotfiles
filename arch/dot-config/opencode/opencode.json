@@ -178,7 +178,7 @@
     "delegator": {
       "description": "Primary goal orchestration agent that analyzes user goals, decomposes them into sub-tasks, and delegates execution to specialized agents.",
       "mode": "primary",
-      "model": "openai/gpt-5.5",
+      "model": "opencode-go/glm-5.2",
       "permission": {
         "edit": {
           "*": "allow"
@@ -195,7 +195,7 @@
     "review_orchestrator": {
       "description": "Primary orchestrated reviewer for explicit code targets, canonical handoffs, or both, with exploration, optional research, multi-perspective subreviews, and report output.",
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
+      "model": "opencode-go/glm-5.2",
       "permission": {
         "edit": {
           "*": "deny",
@@ -256,7 +256,7 @@
       "description": "Read-only code review worker for review_orchestrator-orchestrated reviews. Use only when delegated by review_orchestrator; not an entrypoint for user review requests.",
       "mode": "subagent",
       "hidden": true,
-      "model": "openai/gpt-5.4-mini",
+      "model": "opencode-go/minimax-m3",
       "permission": {
         "edit": {
           "*": "deny"
