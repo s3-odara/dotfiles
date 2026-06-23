@@ -199,7 +199,9 @@ if command -v tmux >/dev/null 2>&1 && [[ -z "$TMUX" && -n "$PS1" ]]; then
   fi
 fi
 
-eval "$(mise activate zsh)"
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
 
 # zsh-syntax-highlighting should stay last.
 _source_first_readable \
