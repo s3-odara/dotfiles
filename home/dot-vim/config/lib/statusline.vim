@@ -1,6 +1,10 @@
 vim9script
 
 def BranchText(): string
+  if !exists('*gitbranch#name')
+    return ''
+  endif
+
   var head = gitbranch#name()
   return empty(head) ? '' : head
 enddef
