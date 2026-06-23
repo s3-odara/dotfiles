@@ -1,0 +1,96 @@
+name: Update Vim plugin revs
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Monday 05:42 UTC, avoiding the crowded top of the hour.
+    - cron: '42 5 * * 1'
+
+# Least-privilege permissions for the standard GITHUB_TOKEN.
+permissions:
+  contents: write
+  pull-requests: write
+
+# Serialize updates to the static bot branch so concurrent runs do not race.
+concurrency:
+  group: update-vim-plugin-revs
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Verify dependencies
+        run: |
+          command -v git
+          command -v perl
+          command -v jq
+          command -v gh
+
+      - name: Update plugin revisions
+        id: update
+        run: |
+          ./home/dot-vim/scripts/update_plugin_revs.sh \
+            --packages-file home/dot-vim/config/packages.vim \
+            --summary-file "$RUNNER_TEMP/vim-plugin-rev-updates.md"
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- home/dot-vim/config/packages.vim; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes to packages.vim"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git checkout -B update/vim-plugin-revs
+          git add home/dot-vim/config/packages.vim
+          {
+            echo "update vim plugin revs"
+            echo
+            cat "$RUNNER_TEMP/vim-plugin-rev-updates.md"
+          } > "$RUNNER_TEMP/commit-message.txt"
+          git commit -F "$RUNNER_TEMP/commit-message.txt"
+          git fetch origin update/vim-plugin-revs || true
+          git push --force-with-lease origin update/vim-plugin-revs
+
+      - name: Create or update PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          default_branch=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name')
+          pr_list_json=$(gh pr list \
+            --head update/vim-plugin-revs \
+            --base "$default_branch" \
+            --state open \
+            --json number)
+          pr_number=$(printf '%s\n' "$pr_list_json" | jq -r '.[0].number // empty')
+
+          if [[ -n "$pr_number" ]]; then
+            gh pr edit "$pr_number" \
+              --title "update vim plugin revs" \
+              --body-file "$RUNNER_TEMP/vim-plugin-rev-updates.md"
+          else
+            gh pr create \
+              --base "$default_branch" \
+              --head update/vim-plugin-revs \
+              --title "update vim plugin revs" \
+              --body-file "$RUNNER_TEMP/vim-plugin-rev-updates.md"
+          fi

@@ -1,40 +1,9 @@
 vim9script
 scriptencoding utf-8
 
-const MINPAC_DIR = expand('~/.vim/pack/minpac/opt/minpac')
 const XDG_STATE_DIR = empty($XDG_STATE_HOME) ? expand('~/.local/state') : $XDG_STATE_HOME
 const SWAP_DIR = XDG_STATE_DIR .. '/vim/swap'
 const UNDO_DIR = XDG_STATE_DIR .. '/vim/undo'
-
-def EnsureMinpacInstalled()
-  if isdirectory(MINPAC_DIR)
-    return
-  endif
-
-  system(['git', 'clone', 'https://github.com/k-takata/minpac', MINPAC_DIR])
-  packadd minpac
-enddef
-
-def g:PackInit()
-  packadd minpac
-  minpac#init()
-
-  minpac#add('https://github.com/k-takata/minpac.git', {type: 'opt'})
-
-  # UI / Tools
-  minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git')
-  minpac#add('https://github.com/mattn/emmet-vim.git')
-  minpac#add('https://github.com/mao-yining/undotree.vim')
-  minpac#add('https://github.com/girishji/easyjump.vim.git')
-  minpac#add('https://github.com/madox2/vim-ai.git', {type: 'opt'})
-
-  # LSP / Completion
-  minpac#add('https://github.com/yegappan/lsp.git')
-
-  # Snippet
-  minpac#add('https://github.com/hrsh7th/vim-vsnip.git')
-  minpac#add('https://github.com/hrsh7th/vim-vsnip-integ.git')
-enddef
 
 def EnsureCacheDirs()
   if !isdirectory(SWAP_DIR)
@@ -45,16 +14,12 @@ def EnsureCacheDirs()
   endif
 enddef
 
-EnsureMinpacInstalled()
-
-command! -bar PackUpdate call g:PackInit() | call minpac#update()
-command! -bar PackClean  call g:PackInit() | call minpac#clean()
-command! -bar PackStatus packadd minpac | call minpac#status()
 &directory = SWAP_DIR .. '//'
 &undodir = UNDO_DIR .. '//'
 
 EnsureCacheDirs()
 
+source ~/.vim/config/packages.vim
 source ~/.vim/config/core.vim
 source ~/.vim/config/lib/ime.vim
 source ~/.vim/config/completion.vim
