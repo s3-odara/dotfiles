@@ -25,7 +25,7 @@ def g:PackInit()
 
   # UI / Tools
   minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git', {
-    rev: 'a3a00a642921b7b1c3b812bc6066b2231914b3ec',
+    rev: 'f62cd85043975b189d32db8b07bd7b05e63a7cff',
   })
   minpac#add('https://github.com/mattn/emmet-vim.git', {
     rev: '92ef2f74f4093edc99db5e9e4cf7e40116a85bd6',
