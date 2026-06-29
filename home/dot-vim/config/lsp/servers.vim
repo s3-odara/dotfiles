@@ -248,6 +248,20 @@ def RegisterZls(servers: list<dict<any>>)
   )
 enddef
 
+def RegisterGleam(servers: list<dict<any>>)
+  var opts = {
+    rootSearch: ['gleam.toml', '.git'],
+  }
+  AddLspServerIfExecutable(
+    servers,
+    'gleam',
+    ['gleam'],
+    ['gleam'],
+    ['lsp'],
+    opts
+  )
+enddef
+
 def RegisterHtml(servers: list<dict<any>>)
   var opts = {
     workspaceConfig: {
@@ -437,6 +451,7 @@ def g:RegisterLspServers()
   RegisterLuaLs(servers)
   RegisterRustAnalyzer(servers)
   RegisterZls(servers)
+  RegisterGleam(servers)
   RegisterHtml(servers)
   RegisterCssls(servers)
   RegisterBashls(servers)
