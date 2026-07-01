@@ -15,7 +15,6 @@
 /home/dot-gnupg/tofu.db
 /home/dot-gnupg/sshcontrol
 /home/dot-gnupg/reader_*.status
-/home/dot-gnupg/.#lk*
 
 /home/dot-config/secrets/
 /arch/dot-codex/auth.json

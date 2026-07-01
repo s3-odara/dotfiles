@@ -1,33 +1,52 @@
 # Prompt
-autoload -Uz vcs_info
+autoload -Uz vcs_info add-zsh-hook
+
+setopt prompt_subst
+setopt transient_rprompt
+
+# Git info
 
 zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' check-for-changes true
 
-zstyle ':vcs_info:git:*' formats       ' on %F{yellow}%b%f%c%u%m'
-zstyle ':vcs_info:git:*' actionformats ' on %F{yellow}%b%f (%F{magenta}%a%f)%c%u%m'
+# %b: branch
+# %c: staged
+# %u: unstaged
+# %m: misc, used here for untracked
+zstyle ':vcs_info:git:*' formats \
+  ' %F{244}on%f %F{yellow}%b%f%c%u%m'
 
-zstyle ':vcs_info:git:*' stagedstr     ' %F{green}●%f'
-zstyle ':vcs_info:git:*' unstagedstr   ' %F{red}●%f'
+zstyle ':vcs_info:git:*' actionformats \
+  ' %F{244}on%f %F{yellow}%b%f %F{magenta}(%a)%f%c%u%m'
+
+zstyle ':vcs_info:git:*' stagedstr   ' %F{green}+%f'
+zstyle ':vcs_info:git:*' unstagedstr ' %F{red}!%f'
 
 zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
+
 +vi-git-untracked() {
   [[ "$1" == "1" ]] || return 0
 
   local untracked
-  untracked=$(command git ls-files --others --exclude-standard 2>/dev/null | command head -n 1)
 
-  if [[ -n "$untracked" ]]; then
-    hook_com[misc]=' %F{magenta}●%f'   # ← untracked
-  else
-    hook_com[misc]=''
-  fi
+  untracked=$(
+    command git ls-files \
+      --others \
+      --exclude-standard \
+      --directory \
+      --no-empty-directory \
+      2>/dev/null |
+      command sed -n '1{p;q;}'
+  )
+
+  hook_com[misc]="${untracked:+ %F{magenta}?%f}"
 }
 
 add-zsh-hook precmd vcs_info
 
-# Command duration on RPROMPT (>= 3s)
-zmodload -F zsh/datetime b:EPOCHREALTIME 2>/dev/null || true
+# Command duration on RPROMPT
+
+zmodload zsh/datetime 2>/dev/null || true
 
 typeset -gF __cmd_start=0.0
 
@@ -44,21 +63,21 @@ _cmdtimer_precmd() {
   local out
   local -i total h m s
 
-  # default: show nothing
   RPROMPT=''
 
-  (( __cmd_start > 0 )) || return
+  (( __cmd_start > 0 )) || return 0
 
   if (( ${+EPOCHREALTIME} )); then
     elapsed=$(( EPOCHREALTIME - __cmd_start ))
   else
     elapsed=$(( SECONDS - __cmd_start ))
   fi
+
   __cmd_start=0.0
 
-  (( elapsed >= 3.0 )) || return
+  (( elapsed >= 3.0 )) || return 0
 
-  total=$(( elapsed + 0.5 ))   # 四捨五入（切り捨てなら total=$(( elapsed ))
+  total=$(( elapsed + 0.5 ))
 
   h=$(( total / 3600 ))
   m=$(( (total % 3600) / 60 ))
@@ -78,7 +97,6 @@ _cmdtimer_precmd() {
 add-zsh-hook preexec _cmdtimer_preexec
 add-zsh-hook precmd  _cmdtimer_precmd
 
-setopt transient_rprompt
-
-PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
-%# '
+# Prompt
+PROMPT='%F{cyan}%~%f${vcs_info_msg_0_}
+%(?..%F{red}[%?] %f)%F{green}%%%f '
