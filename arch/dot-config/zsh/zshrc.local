@@ -1,0 +1,26 @@
+# Prompt (Pure)
+autoload -Uz promptinit
+promptinit
+
+export PURE_CMD_MAX_EXEC_TIME=1
+export PURE_GIT_PULL=0
+export PURE_PROMPT_SYMBOL="%%"
+
+zstyle ':prompt:pure:user' color '#ef7655'
+zstyle ':prompt:pure:host' color '#639dff'
+zstyle ':prompt:pure:git:branch' color '#a5a645'
+zstyle ':prompt:pure:prompt:*' color '#33add6'
+zstyle ':prompt:pure:path' color '#5db47b'
+zstyle ':prompt:pure:execution_time' color '#a5a645'
+zstyle ':prompt:pure:git:dirty' color '#da7fa2'
+zstyle ':prompt:pure:git:action' color '#d87fa2'
+zstyle ':prompt:pure:git:arrow' color '#33add6'
+zstyle ':prompt:pure:git:stash' show yes
+
+prompt pure
+RPROMPT+='%F{#8798e8}%T'
+
+# mise
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi

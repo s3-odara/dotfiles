@@ -150,93 +150,10 @@ _gpg_update_tty() {
 }
 add-zsh-hook precmd _gpg_update_tty
 
-# Prompt
-autoload -Uz vcs_info
-
-zstyle ':vcs_info:*' enable git
-zstyle ':vcs_info:git:*' check-for-changes true
-
-zstyle ':vcs_info:git:*' formats       ' on %F{yellow}%b%f%c%u%m'
-zstyle ':vcs_info:git:*' actionformats ' on %F{yellow}%b%f (%F{magenta}%a%f)%c%u%m'
-
-zstyle ':vcs_info:git:*' stagedstr     ' %F{green}●%f'
-zstyle ':vcs_info:git:*' unstagedstr   ' %F{red}●%f'
-
-zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
-+vi-git-untracked() {
-  [[ "$1" == "1" ]] || return 0
-
-  local untracked
-  untracked=$(command git ls-files --others --exclude-standard 2>/dev/null | command head -n 1)
-
-  if [[ -n "$untracked" ]]; then
-    hook_com[misc]=' %F{magenta}●%f'   # ← untracked 
-  else
-    hook_com[misc]=''
-  fi
-}
-
-add-zsh-hook precmd vcs_info
-
-# Command duration on RPROMPT (>= 3s)
-zmodload -F zsh/datetime b:EPOCHREALTIME 2>/dev/null || true
-
-typeset -gF __cmd_start=0.0
-
-_cmdtimer_preexec() {
-  if (( ${+EPOCHREALTIME} )); then
-    __cmd_start=$EPOCHREALTIME
-  else
-    __cmd_start=$SECONDS
-  fi
-}
-
-_cmdtimer_precmd() {
-  local -F elapsed=0.0
-  local out
-  local -i total h m s
-
-  # default: show nothing
-  RPROMPT=''
-
-  (( __cmd_start > 0 )) || return
-
-  if (( ${+EPOCHREALTIME} )); then
-    elapsed=$(( EPOCHREALTIME - __cmd_start ))
-  else
-    elapsed=$(( SECONDS - __cmd_start ))
-  fi
-  __cmd_start=0.0
-
-  (( elapsed >= 3.0 )) || return
-
-  total=$(( elapsed + 0.5 ))   # 四捨五入（切り捨てなら total=$(( elapsed ))
-
-  h=$(( total / 3600 ))
-  m=$(( (total % 3600) / 60 ))
-  s=$(( total % 60 ))
-
-  if (( h > 0 )); then
-    printf -v out '%dh%02dm%02ds' $h $m $s
-  elif (( m > 0 )); then
-    printf -v out '%dm%02ds' $m $s
-  else
-    printf -v out '%.1fs' $elapsed
-  fi
-
-  RPROMPT="%F{cyan}${out}%f"
-}
-
-add-zsh-hook preexec _cmdtimer_preexec
-add-zsh-hook precmd  _cmdtimer_precmd
-
-setopt transient_rprompt
-
-PROMPT='%F{green}%n%f@%F{blue}%m%f:%~${vcs_info_msg_0_}
-%# '
-
-# alias
-alias ls='ls --color=auto'
+# Local configuration should run before plugins, and before syntax highlighting.
+_zshrc_local="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zshrc.local"
+[[ -r "$_zshrc_local" ]] && source "$_zshrc_local"
+unset _zshrc_local
 
 # Plugins
 _zsh_autosuggest_strategy_snippets() {
