@@ -5,6 +5,7 @@ promptinit
 export PURE_CMD_MAX_EXEC_TIME=1
 export PURE_GIT_PULL=0
 export PURE_PROMPT_SYMBOL="%%"
+export PASSWORD_STORE_DIR="${PASSWORD_STORE_DIR:-$HOME/git/envfile}"
 
 zstyle ':prompt:pure:user' color '#ef7655'
 zstyle ':prompt:pure:host' color '#639dff'

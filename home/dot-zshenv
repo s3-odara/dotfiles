@@ -11,7 +11,7 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 # Common tools
 export EDITOR="${EDITOR:-vim}"
 export PAGER="${PAGER:-less}"
-export LESS='-iMFJ --mouse --wheel-lines=5'
+export LESS='-iRMFJ --mouse --wheel-lines=5'
 export LESSSECURE=1
 export LF_PLAYER_GPU=1
 

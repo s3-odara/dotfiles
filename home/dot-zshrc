@@ -160,7 +160,9 @@ alias rm='rm -I'
 alias ls='ls --color=auto'
 
 # PATH
-export PATH="$HOME/.local/bin:$PATH"
+if [[ ":${PATH:-}:" != *":$HOME/.local/bin:"* ]]; then
+  export PATH="$HOME/.local/bin${PATH:+:$PATH}"
+fi
 
 # Keep GPG_TTY fresh and inform gpg-agent.
 _gpg_update_tty() {
