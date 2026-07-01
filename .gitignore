@@ -37,6 +37,7 @@
 /home/dot-local/share/recently-used.xbel
 /home/dot-local/share/opencode/
 /home/dot-local/share/opentui/
+/home/dot-local/share/mise/
 
 /home/dot-vim/pack/minpac/
 
@@ -62,3 +63,4 @@
 /home/dot-config/lf/player-guard
 /home/dot-config/lf/preview-guard
 /home/dot-local/src/river-inputctl/river-inputctl.bin
+/home/dot-local/src/river-inputctl/gen/
