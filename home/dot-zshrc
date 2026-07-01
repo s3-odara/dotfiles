@@ -123,7 +123,6 @@ zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
 bindkey -v  # vi mode
 
-bindkey '^H' history-incremental-pattern-search-backward
 [[ -n "${terminfo[kcuu1]:-}" ]] && bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
 [[ -n "${terminfo[kcud1]:-}" ]] && bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
 bindkey '^[[A' up-line-or-beginning-search
@@ -132,6 +131,27 @@ bindkey '^[OA' up-line-or-beginning-search
 bindkey '^[OB' down-line-or-beginning-search
 bindkey -M isearch '^M' accept-search
 bindkey -M isearch '^J' accept-search
+
+bindkey '^H' history-incremental-pattern-search-backward
+
+if (( $+commands[fzf-tmux] )); then
+  fzf-history-insert() {
+    local selected
+
+    if [[ -n "$TMUX" ]]; then
+      selected=$(fc -rln 1 | fzf-tmux -p --query "$LBUFFER") || return
+    else
+      selected=$(fc -rln 1 | fzf --query "$LBUFFER") || return
+    fi
+
+    BUFFER="$selected"
+    CURSOR=${#BUFFER}
+    zle reset-prompt
+  }
+fi
+
+zle -N fzf-history-insert
+bindkey '^H' fzf-history-insert
 
 # Alias
 alias cp='cp -i'
