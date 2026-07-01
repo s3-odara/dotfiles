@@ -9,7 +9,7 @@
 [merge]
         tool = vimdiff
         ff = false
-        defaultToUpstream = false
+        defaultToUpstream = true
 [push]
         autoSetupRemote = false
         default = nothing
