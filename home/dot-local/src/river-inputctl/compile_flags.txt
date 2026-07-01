@@ -1,0 +1,6 @@
+-O2
+-Wall
+-Wextra
+-pedantic
+-std=c11
+-Igen
