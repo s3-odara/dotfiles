@@ -28,11 +28,6 @@ _compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 mkdir -p -- "${_compdump:h}" 2>/dev/null
 compinit -d "${_compdump}"
 
-setopt COMPLETE_IN_WORD
-setopt AUTO_LIST
-setopt AUTO_MENU
-setopt AUTO_PARAM_SLASH
-
 zstyle ':completion:*' menu select
 zstyle ':completion:*' completer _complete _approximate
 zstyle ':completion:*' group-name ''
@@ -40,13 +35,32 @@ zstyle ':completion:*' insert-tab false
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' list-dirs-first true
 zstyle ':completion:*' show-ambiguity true
-zstyle ':completion:*' squeeze-slashes true
+zstyle ':completion:*' squeeze-slashes false
 zstyle ':completion:*' use-cache true
 zstyle ':completion:*' matcher-list \
-    'r:|[._-/]=* r:|=*' \
-    'l:|=* r:|=*'
+    '' \
+    'm:{a-zA-Z}={A-Za-z}' \
+    'm:{a-zA-Z}={A-Za-z} r:|[-_./]=* r:|=*' \
+zstyle ':completion:*:approximate:*' max-errors 3 numeric
 
-zstyle ':completion:*:approximate:*' max-errors 1 numeric
+# Options
+
+# Completion
+
+setopt ALWAYS_TO_END # 補完確定時に後ろに飛ぶ
+setopt COMPLETE_IN_WORD
+setopt AUTO_LIST # AUTO_COMPLETEをしてればAUTO_LISTとAUTO_MENUはnoop
+setopt AUTO_MENU
+setopt NO_MENU_COMPLETE
+setopt AUTO_PARAM_SLASH
+setopt NO_LIST_BEEP
+setopt GLOB_COMPLETE
+
+# Expansion and Globbing
+autoload -Uz zargs
+setopt EXTENDED_GLOB
+setopt NO_GLOB_DOTS
+setopt GLOB_STAR_SHORT
 
 # Shell behavior
 KEYTIMEOUT=5
@@ -82,6 +96,10 @@ setopt NO_CLOBBER
 setopt NO_CLOBBER_EMPTY
 setopt NO_RM_STAR_SILENT
 setopt NO_RM_STAR_WAIT
+setopt IGNORE_EOF
+
+# Shell emulation
+setopt APPEND_CREATE # no_clobberの時でも>>で新規作成できる
 
 # Hooks
 autoload -Uz add-zsh-hook
@@ -99,6 +117,8 @@ bindkey '^[[A' up-line-or-beginning-search
 bindkey '^[[B' down-line-or-beginning-search
 bindkey '^[OA' up-line-or-beginning-search
 bindkey '^[OB' down-line-or-beginning-search
+bindkey -M isearch '^M' accept-search
+bindkey -M isearch '^J' accept-search
 
 # Alias
 alias cp='cp -i'
@@ -123,8 +143,8 @@ export PURE_CMD_MAX_EXEC_TIME=1
 export PURE_GIT_PULL=0
 export PURE_PROMPT_SYMBOL="%%"
 
-zstyle ':prompt:pure:user' color '#04b5b5'
-zstyle ':prompt:pure:host' color '#dd8364'
+zstyle ':prompt:pure:user' color '#ef7655'
+zstyle ':prompt:pure:host' color '#639dff'
 zstyle ':prompt:pure:git:branch' color '#a5a645'
 zstyle ':prompt:pure:prompt:*' color '#33add6'
 zstyle ':prompt:pure:path' color '#5db47b'
@@ -191,14 +211,11 @@ if [[ -o interactive && -n $TMUX ]]; then
 fi
 
 # tmux
-if command -v tmux >/dev/null 2>&1 && [[ -z "$TMUX" && -n "$PS1" ]]; then
-  if [[ -n "$TMUX_FORCE_NEW" ]]; then
-    tmux new-session
-  else
+if [[ -z "$TMUX" && -n "$PS1" ]]; then
     tmux attach || tmux new
-  fi
 fi
 
+# mise
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 fi
