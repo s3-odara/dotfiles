@@ -53,8 +53,7 @@ zstyle ':completion:*' use-cache true
 zstyle ':completion:*' matcher-list \
     '' \
     'm:{a-zA-Z}={A-Za-z}' \
-    'm:{a-zA-Z}={A-Za-z} r:|[-_./]=* r:|=*' \
-    'm:{a-zA-Z}={A-Za-z} l:|=* r:|=*' 
+    'm:{a-zA-Z}={A-Za-z} r:|[-_./]=* r:|=*'
 zstyle ':completion:*:approximate:*' max-errors 3 numeric
 
 # Options
@@ -302,4 +301,3 @@ _source_first_readable \
   /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh \
   /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
   >/dev/null 2>&1
-
