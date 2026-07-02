@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+
 usage() {
   cat <<'USAGE'
 Usage: spawn-tmux-child-common.sh --skill NAME --task TEXT --cwd DIR --prompt-template FILE [options]
@@ -260,6 +262,7 @@ export PI_CHILD_RUNNER_STATUS_PATH=$(printf '%q' "$status_json")
 export PI_CHILD_RUNNER_TASK_FILE=$(printf '%q' "$task_file")
 export PI_CHILD_RUNNER_LOCK_FILE=$(printf '%q' "$lock_file")
 export PI_CHILD_RUNNER_LOCK_KEY=$(printf '%q' "$lock_key")
+export PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR=$(printf '%q' "$script_dir")
 pi_args=(--prompt-template $(printf '%q' "$prompt_template") --no-session -p)
 RUNNER
 

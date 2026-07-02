@@ -35,6 +35,15 @@ Use the `explorer` result to understand the scope, affected files, and likely ri
 
 Use the exploration result to split the review into focused parts. Delegate those parts to `code-reviewer`.
 
+After spawning each child, capture stdout (an absolute status JSON path like `/home/.../.agents/status/pi-code-reviewer-xxx-<timestamp>.json`). Extract the run-id by taking the filename (basename) and removing the `.json` extension. Then block until all children finish:
+
+```bash
+"${PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR:-$HOME/.config/pi/agent/skills/scripts}/wait-for-children.sh" \
+  --run-id <id1> --run-id <id2> --agents-dir .agents
+```
+
+The script prints a JSON summary to stdout and exits 0 only when every child succeeded. Use the summary to locate each child's artifact_path for the next step.
+
 After evaluating the results, continue to curate findings.
 
 ## 4. Curate findings
@@ -51,7 +60,7 @@ Judge the implementation against the spec first. Treat the plan as guidance. Tre
 - Do not edit project files.
 - Do not implement fixes. Do not mutate git state. Use only read-only inspection commands.
 - Treat missing artifacts, non-success statuses, timeouts, and child launch failures as diagnostics in the aggregate report.
-- Use child status JSON, sentinels, and artifacts for completion detection.
+- Use `${PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR}/wait-for-children.sh` for completion detection instead of polling sentinels manually. Pass every child run-id and block until the script exits.
 - Keep the orchestration shell small and role-specific; do not create a reusable scheduler or hidden runtime abstraction.
 
 ## Output

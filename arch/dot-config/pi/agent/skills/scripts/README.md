@@ -6,6 +6,7 @@ Shared tmux child-runner contract used by bundled skill directories.
 
 - `spawn-tmux-child-common.sh` — validates inputs, creates `.agents/` output directories, starts a detached tmux session, and records status, logs, and sentinels for one child Pi run.
 - `skill-wrapper.sh` — shared per-skill wrapper implementation. Public skill-specific `scripts/spawn-tmux-child.sh` files remain executable stubs that call this wrapper.
+- `wait-for-children.sh` — blocks until one or more tmux children finish, then prints a JSON summary. Accepts multiple `--run-id` arguments plus `--timeout` / `--poll`. Exits 0 when all children succeeded, non-zero otherwise.
 
 ## Contract
 
