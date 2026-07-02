@@ -1,0 +1,25 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "medium",
+  "theme": "system",
+  "enabledModels": [
+    "openai-codex/*",
+    "opencode-go/*"
+  ],
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  },
+  "retry": {
+    "enabled": true,
+    "maxRetries": 3
+  },
+  "warnings": {
+    "missingMcpServers": true,
+    "missingLanguageServers": true,
+    "unsupportedThinking": true
+  },
+  "lastChangelogVersion": "0.80.2"
+}

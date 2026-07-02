@@ -74,7 +74,7 @@
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
-          "*": "deny",
+          "*": "allow",
           ".agents/**": "allow",
         "external_directory": "allow"
         },
@@ -103,7 +103,7 @@
       "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
-          "*": "deny",
+          "*": "allow",
           ".agents/**": "allow"
         },
         "bash": {
@@ -198,7 +198,7 @@
       "model": "opencode-go/glm-5.2",
       "permission": {
         "edit": {
-          "*": "deny",
+          "*": "allow",
           ".agents/**": "allow"
         },
         "question": "allow",
@@ -274,7 +274,7 @@
       "description": "Independent read-only code review cross-check worker using an alternate model for review_orchestrator-orchestrated reviews.",
       "mode": "subagent",
       "hidden": true,
-      "model": "opencode/nemotron-3-ultra-free",
+      "model": "opencode-go/qwen3.7-plus",
       "permission": {
         "edit": {
           "*": "deny"
@@ -290,7 +290,7 @@
       "model": "openai/gpt-5.4-mini",
       "permission": {
         "edit": {
-          "*": "deny",
+          "*": "allow",
           ".agents/research/**": "allow"
         },
         "webfetch": "allow",

@@ -1,6 +1,6 @@
 ---
 name: web-search
-description: Provide web search query design, source discovery, result triage, and fetch-decision methodology.
+description: Provide web search query design, source discovery, result triage, and fetch-decision methodology for Pi research workflows.
 ---
 
 # Web Search Query and Source Discovery Methodology
@@ -9,13 +9,13 @@ description: Provide web search query design, source discovery, result triage, a
 
 Provide practical methodology for discovering relevant web sources through search queries, source selection, result triage, and fetch decisions.
 
-This skill does not own the full research workflow, final synthesis, research-file output, or final conclusions. Those responsibilities belong to the calling agent, usually `internet_research`.
+This skill does not own the full research workflow, final synthesis, research-file output, or final conclusions. Those responsibilities belong to the calling Pi prompt or skill, usually `internet-researcher`.
 
 ## Role boundary
 
 - This skill helps with web query design, source discovery, result triage, and fetch decisions.
 - This skill does not decide the final research structure, write research files, or produce final conclusions.
-- The calling agent owns orchestration, evaluation depth, synthesis, uncertainty handling, and output format.
+- The calling Pi workflow owns orchestration, evaluation depth, synthesis, uncertainty handling, and output format.
 
 ## Search query design
 
