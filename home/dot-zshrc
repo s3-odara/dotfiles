@@ -148,10 +148,10 @@ if (( $+commands[fzf-tmux] )); then
     CURSOR=${#BUFFER}
     zle reset-prompt
   }
-fi
 
-zle -N fzf-history-insert
-bindkey '^H' fzf-history-insert
+  zle -N fzf-history-insert
+  bindkey '^H' fzf-history-insert
+fi
 
 # Alias
 alias cp='cp -i'
