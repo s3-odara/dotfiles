@@ -1,34 +1,48 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import registerSkillTmuxRunner from "../extension-src/skill-tmux-runner.ts";
+import registerSkillTmuxAutoRunner from "../extension-src/skill-tmux/auto.ts";
+import registerSkillTmuxManualRunner from "../extension-src/skill-tmux/manual.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
 process.env.PI_CODING_AGENT_DIR = root;
 
-function makePi() {
+function makePi(options: { sendUserMessage?: boolean } = {}) {
   const handlers: Record<string, (...args: any[]) => unknown> = {};
   const tools: any[] = [];
+  const userMessages: any[] = [];
+  const pi: any = {
+    on(eventName: string, handler: (...args: any[]) => unknown) {
+      handlers[eventName] = handler;
+    },
+    registerTool(tool: any) {
+      tools.push(tool);
+    },
+  };
+  if (options.sendUserMessage !== false) {
+    pi.sendUserMessage = (content: string, options?: any) => {
+      userMessages.push({ content, options });
+    };
+  }
   return {
     handlers,
     tools,
-    pi: {
-      on(eventName: string, handler: (...args: any[]) => unknown) {
-        handlers[eventName] = handler;
-      },
-      registerTool(tool: any) {
-        tools.push(tool);
-      },
-    },
+    userMessages,
+    pi,
   };
 }
 
+function registerBoth(pi: any) {
+  registerSkillTmuxManualRunner(pi);
+  registerSkillTmuxAutoRunner(pi);
+}
+
 const first = makePi();
-registerSkillTmuxRunner(first.pi);
+registerBoth(first.pi);
 assert.equal(typeof first.handlers.input, "function", "first runtime should register input hook");
 
 const second = makePi();
-registerSkillTmuxRunner(second.pi);
+registerBoth(second.pi);
 assert.equal(typeof second.handlers.input, "function", "reload/rebind should register input hook again");
 assert.equal(typeof second.handlers.tool_result, "function", "runtime should register tool_result hook");
 assert.equal(second.tools.length, 1, "runtime should register exactly one tool");
@@ -132,6 +146,55 @@ assert.equal(execCalls[0].args.includes("--no-wait"), false);
 assert.equal(execCalls[0].options.signal, signal);
 assert.equal(successToolResult.details.status, "success");
 assert.equal(successToolResult.details.artifactPath, "/tmp/artifact.md");
+
+const noWaitExecCalls: any[] = [];
+const noWaitSignal = new AbortController().signal;
+(second.pi as any).exec = (command: string, args: string[], options?: { signal?: AbortSignal }) => {
+  noWaitExecCalls.push({ command, args, options });
+  if (command.endsWith("run-skill-background.sh")) {
+    return {
+      stdout: "ARTIFACT_PATH='/tmp/started.md'\nSUCCESS_SENTINEL='/tmp/started.success'\nFAILURE_SENTINEL='/tmp/started.failure'\n",
+      stderr: "",
+      code: 0,
+      killed: false,
+    };
+  }
+  return { stdout: "OVERALL='success'\n", stderr: "", code: 0, killed: false };
+};
+const noWaitToolResult = await second.tools[0].execute(
+  "tool-call-no-wait",
+  { skill: "code-reviewer", task: "Review async", cwd: root, noWait: true },
+  noWaitSignal,
+  undefined,
+  { cwd: root },
+);
+assert.equal(noWaitToolResult.details.status, "started");
+assert.equal(noWaitToolResult.details.artifactPath, "/tmp/started.md");
+assert(noWaitExecCalls[0].args.includes("--no-wait"));
+// Give the detached watcher promise a tick to run its fake wait helper and notification.
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(noWaitExecCalls.length, 2);
+assert.match(noWaitExecCalls[1].command, /wait-for-children\.sh$/);
+assert.deepEqual(noWaitExecCalls[1].args, ["--success", "/tmp/started.success", "--failure", "/tmp/started.failure", "--timeout", "1800", "--poll", "1"]);
+assert.equal(noWaitExecCalls[1].options.signal, noWaitSignal);
+assert.equal(second.userMessages.length, 1);
+assert.match(second.userMessages[0].content, /run_skill completed: code-reviewer/);
+assert.match(second.userMessages[0].content, /Artifact: \/tmp\/started\.md/);
+assert.deepEqual(second.userMessages[0].options, { deliverAs: "followUp" });
+
+const noFollowUpRuntime = makePi({ sendUserMessage: false });
+registerSkillTmuxAutoRunner(noFollowUpRuntime.pi);
+(noFollowUpRuntime.pi as any).exec = () => { throw new Error("should not launch without follow-up support"); };
+const noFollowUpResult = await noFollowUpRuntime.tools[0].execute(
+  "tool-call-no-follow-up",
+  { skill: "code-reviewer", task: "Review async", cwd: root, noWait: true },
+  undefined,
+  undefined,
+  { cwd: root },
+);
+assert.equal(noFollowUpResult.isError, true);
+assert.equal(noFollowUpResult.details.status, "failed");
+assert.match(noFollowUpResult.details.error, /follow-up message support/);
 
 const invalidSkillResult = await second.tools[0].execute(
   "tool-call-2",

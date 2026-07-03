@@ -1,6 +1,6 @@
 {
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "glm-5.2",
   "defaultThinkingLevel": "high",
   "theme": "system",
   "enabledModels": [
