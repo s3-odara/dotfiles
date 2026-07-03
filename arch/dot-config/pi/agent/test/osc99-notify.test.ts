@@ -6,7 +6,7 @@ import {
   formatOsc99Sequence,
   tmuxWrapLayers,
   wrapForTmuxLayers,
-} from "../extension/osc99-notify/index.ts";
+} from "../extension-src/osc99-notify/index.ts";
 
 assert.equal(encodeBase64("pi ✓"), Buffer.from("pi ✓", "utf8").toString("base64"));
 

@@ -63,7 +63,7 @@ function statusPathFromStdout(stdout: string): string {
 }
 
 function wrapperPath(skill: string) {
-  return join(root, "skills", skill, "scripts", "spawn-tmux-child.sh");
+  return join(root, "skills", "scripts", "spawn-skill-tmux-child.sh");
 }
 
 function slug(value: string) {
@@ -72,6 +72,7 @@ function slug(value: string) {
 
 async function runWrapper(fixture: SkillFixture, skill: Skill, extraEnv: Record<string, string> = {}) {
   const result = spawnSync(wrapperPath(skill.name), [
+    "--skill", skill.name,
     "--task", `Check ${skill.name}`,
     "--cwd", fixture.cwd,
     "--timeout", "1",
@@ -102,7 +103,6 @@ async function testSkillMetadataAndWrappers() {
     assert.match(markdown, /Primary artifact path/);
     assert.match(markdown, /\.agents\//);
     if (skill.readonly) assert.match(markdown, /Do not edit|Do not edit project files|Do not edit files/);
-    await stat(wrapperPath(skill.name));
   }
 }
 
@@ -118,6 +118,7 @@ async function testConcurrentReadonlyWrappersDoNotCollide() {
   const selected = skills.filter((skill) => skill.readonly).slice(0, 2);
   const run = (skill) => new Promise((resolve, reject) => {
     const child = spawn(wrapperPath(skill.name), [
+      "--skill", skill.name,
       "--task", "Concurrent read check",
       "--cwd", fixture.cwd,
       "--timeout", "1",
@@ -135,6 +136,7 @@ async function testConcurrentReadonlyWrappersDoNotCollide() {
 async function testInternetResearcherUnavailableMcpWritesFailureArtifact() {
   const fixture = await makeFixture();
   const result = spawnSync(wrapperPath("internet-researcher"), [
+    "--skill", "internet-researcher",
     "--task", "Research with unavailable MCP tools",
     "--cwd", fixture.cwd,
     "--timeout", "1",
@@ -153,6 +155,7 @@ async function testInternetResearcherUnavailableMcpWritesFailureArtifact() {
 async function testInternetResearcherUnavailableMcpWritesLimitationArtifact() {
   const fixture = await makeFixture();
   const result = spawnSync(wrapperPath("internet-researcher"), [
+    "--skill", "internet-researcher",
     "--task", "Research with unavailable MCP tools",
     "--cwd", fixture.cwd,
     "--timeout", "1",

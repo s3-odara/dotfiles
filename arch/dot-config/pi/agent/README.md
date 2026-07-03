@@ -26,11 +26,13 @@ Missing optional LSP/MCP pieces should be treated as warnings. They should not b
 
 ## Layout
 
-- `extension/` — package extension entry points.
-- `extension/osc99-notify/` — OSC99 notification formatting and event registration.
-- `extension/webfetch/` — URL fetch tool with protocol, timeout, byte, and redirect controls.
+- `extensions/` — Pi auto-discovered extension entry points only.
+- `extension-src/` — internal extension implementation modules, kept outside Pi auto-discovery.
+- `extension-src/osc99-notify/` — OSC99 notification formatting and event registration.
+- `extension-src/webfetch/` — URL fetch tool with protocol, timeout, byte, and redirect controls.
+- `extension-src/skill-tmux-runner.ts` — user-input hook that rewrites explicit `/skill:name` requests only when the skill is listed in the tmux-managed manifest.
 - `skills/` — bundled Pi skills plus the user-specific `web-search` methodology skill.
-- `skills/scripts/` — shared tmux child-runner and wrapper used by per-skill executable stubs.
+- `skills/scripts/` — central tmux-managed skill manifest, launcher, coordinators, wait helper, and common child runner.
 - `scripts/` — repository validation scripts.
 - `test/` — unit and contract tests run via `npm test`.
 - `prompts/`, `themes/`, `settings.json` — Pi agent configuration.
@@ -49,7 +51,7 @@ The spec selects `@spences10/pi-lsp`. This dotfiles phase preserves that package
 
 These dotfiles use Pi's built-in `opencode-go` and `openai-codex` providers instead of redefining them in `models.json`. For `opencode-go`, authenticate with Pi's native provider support (`/login opencode-go`, `auth.json`, or `OPENCODE_API_KEY` as documented by Pi). Do not set an `opencode-go` `baseUrl` override here; Pi already knows the native endpoint, and a literal `$OPENCODE_GO_BASE_URL` is not a valid URL at request time.
 
-Child skills use Pi's default model unless their wrapper is explicitly invoked with `--provider`, `--model`, or `--thinking`.
+Child skills use Pi's default model unless the central launcher is explicitly invoked with `--provider`, `--model`, or `--thinking`.
 
 ## Prompt templates and skills
 
@@ -71,7 +73,7 @@ The eight tmux child roles live as bundled skills in this directory:
 - `code-reviewer`
 - `plan-reviewer`
 
-`web-search` is retained here as a user-specific methodology skill. The Pi copy in this directory is the canonical location; the legacy OpenCode copy that previously lived under `arch/dot-agents/skills/web-search/` was removed to avoid a duplicate-skill collision with this one.
+`web-search` is retained here as a user-specific methodology skill. It is not listed in `skills/scripts/tmux-managed-skills.tsv`, so explicit `/skill:web-search` prompts fall through to Pi's native skill expansion instead of being launched in tmux. The Pi copy in this directory is the canonical location; the legacy OpenCode copy that previously lived under `arch/dot-agents/skills/web-search/` was removed to avoid a duplicate-skill collision with this one.
 
 ## OSC99 notifications
 

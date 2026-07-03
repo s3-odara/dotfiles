@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fetchUrl, registerWebfetchTool, validateHttpUrl } from "../extension/webfetch/index.ts";
+import { fetchUrl, registerWebfetchTool, validateHttpUrl } from "../extension-src/webfetch/index.ts";
 
 await assert.rejects(async () => validateHttpUrl("file:///etc/passwd"), /only http and https/);
 await assert.rejects(async () => validateHttpUrl("not a url"), /invalid URL/);

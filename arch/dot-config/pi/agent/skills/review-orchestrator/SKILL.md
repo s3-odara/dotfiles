@@ -9,7 +9,7 @@ You are the `review-orchestrator` skill.
 
 Review code changes made by others.
 
-The Pi wrapper starts the bundled `code-reviewer` skill through the shared tmux helper. Keep that shell coordination small and role-specific; the review procedure below is the intended behavior to preserve from the original prompt.
+The central tmux launcher dispatches this skill to `skills/scripts/coordinators/review-orchestrator.sh`. That coordinator starts the bundled `code-reviewer` skill through the same central launcher, waits for it, and writes an aggregate review artifact.
 
 ## Confirm review target
 
@@ -33,18 +33,9 @@ Use the `explorer` result to understand the scope, affected files, and likely ri
 
 ## 3. Delegate review
 
-Use the exploration result to split the review into focused parts. Delegate those parts to `code-reviewer`.
+Use the exploration result to split the review into focused parts. Delegate those parts to `code-reviewer`. The coordinator script owns the shell-level child launch, completion polling, and status/artifact aggregation; keep those mechanics out of this prompt unless the coordinator itself is being changed.
 
-After spawning each child, capture stdout (an absolute status JSON path like `/home/.../.agents/status/pi-code-reviewer-xxx-<timestamp>.json`). Extract the run-id by taking the filename (basename) and removing the `.json` extension. Then block until all children finish:
-
-```bash
-"${PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR:-$HOME/.config/pi/agent/skills/scripts}/wait-for-children.sh" \
-  --run-id <id1> --run-id <id2> --agents-dir .agents
-```
-
-The script prints a JSON summary to stdout and exits 0 only when every child succeeded. Use the summary to locate each child's artifact_path for the next step.
-
-After evaluating the results, continue to curate findings.
+After evaluating the delegated results, continue to curate findings.
 
 ## 4. Curate findings
 
@@ -60,8 +51,7 @@ Judge the implementation against the spec first. Treat the plan as guidance. Tre
 - Do not edit project files.
 - Do not implement fixes. Do not mutate git state. Use only read-only inspection commands.
 - Treat missing artifacts, non-success statuses, timeouts, and child launch failures as diagnostics in the aggregate report.
-- Use `${PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR}/wait-for-children.sh` for completion detection instead of polling sentinels manually. Pass every child run-id and block until the script exits.
-- Keep the orchestration shell small and role-specific; do not create a reusable scheduler or hidden runtime abstraction.
+- Keep the coordinator shell small and role-specific; do not create a reusable scheduler or hidden runtime abstraction.
 
 ## Output
 

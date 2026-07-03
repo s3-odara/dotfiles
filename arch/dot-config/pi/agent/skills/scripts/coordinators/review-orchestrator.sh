@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: spawn-tmux-child.sh --task TEXT --cwd DIR [options]
+Usage: review-orchestrator.sh --task TEXT --cwd DIR [options]
 
 Options are forwarded to child review helpers where applicable: --timeout,
 --model, --provider, --thinking, --pi-bin, --keep-pane, and --auto-exit.
@@ -85,7 +85,7 @@ while [[ $# -gt 0 ]]; do
     --keep-pane) keep_pane=true; auto_exit=false; shift ;;
     --auto-exit) auto_exit=true; shift ;;
     --help) usage; exit 0 ;;
-    --prompt-template|--artifact|--artifact-dir|--lock-key|--lock-timeout) die "$1 is not supported by this coordinator wrapper" ;;
+    --prompt-template|--artifact|--artifact-dir|--lock-key|--lock-timeout|--skill) die "$1 is not supported by this coordinator" ;;
     *) die "unknown argument: $1" ;;
   esac
 done
@@ -98,9 +98,8 @@ done
 cwd=$(cd "$cwd" && pwd -P)
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-skills_dir=$(cd "$script_dir/../.." && pwd -P)
-reviewer_wrapper="$skills_dir/code-reviewer/scripts/spawn-tmux-child.sh"
-[[ -x "$reviewer_wrapper" ]] || die "code-reviewer wrapper is not executable: $reviewer_wrapper"
+launcher="$script_dir/../spawn-skill-tmux-child.sh"
+[[ -x "$launcher" ]] || die "central launcher is not executable: $launcher"
 
 agents_dir="$cwd/.agents"
 mkdir -p "$agents_dir/reviews" "$agents_dir/status" "$agents_dir/logs"
@@ -109,7 +108,7 @@ task_slug=$(slugify "$task")
 run_id="pi-review-orchestrator-${task_slug}-${timestamp}-$$-$(random_suffix)"
 aggregate="$agents_dir/reviews/${run_id}.md"
 
-forward=(--task "$task" --cwd "$cwd" --timeout "$timeout_seconds")
+forward=(--skill code-reviewer --task "$task" --cwd "$cwd" --timeout "$timeout_seconds")
 [[ -n "$model" ]] && forward+=(--model "$model")
 [[ -n "$provider" ]] && forward+=(--provider "$provider")
 [[ -n "$thinking" ]] && forward+=(--thinking "$thinking")
@@ -118,7 +117,7 @@ forward=(--task "$task" --cwd "$cwd" --timeout "$timeout_seconds")
 [[ "$auto_exit" == true ]] && forward+=(--auto-exit)
 
 set +e
-reviewer_stdout=$("$reviewer_wrapper" "${forward[@]}" 2>"$agents_dir/logs/${run_id}-code-reviewer.launch.stderr")
+reviewer_stdout=$("$launcher" "${forward[@]}" 2>"$agents_dir/logs/${run_id}-code-reviewer.launch.stderr")
 reviewer_launch=$?
 set -e
 reviewer_status=$(printf '%s\n' "$reviewer_stdout" | last_json_path)

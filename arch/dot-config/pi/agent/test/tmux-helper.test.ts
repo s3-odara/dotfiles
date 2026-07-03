@@ -204,5 +204,6 @@ await testConcurrentNamesDoNotCollide();
 
 const policyWords = await readdir(join(root, "skills", "scripts"));
 assert(policyWords.includes("spawn-tmux-child-common.sh"));
-assert(policyWords.includes("skill-wrapper.sh"));
+assert(policyWords.includes("spawn-skill-tmux-child.sh"));
+assert(policyWords.includes("tmux-managed-skills.tsv"));
 console.log("tmux helper tests passed");

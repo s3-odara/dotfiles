@@ -4,13 +4,14 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 
 const root = new URL("..", import.meta.url).pathname;
-const extensionPath = join(root, "extension", "index.ts");
+const extensionPath = join(root, "extensions", "index.ts");
 const source = await readFile(extensionPath, "utf8");
 const typescriptSources = [
   extensionPath,
-  join(root, "extension", "types.ts"),
-  join(root, "extension", "osc99-notify", "index.ts"),
-  join(root, "extension", "webfetch", "index.ts"),
+  join(root, "extension-src", "types.ts"),
+  join(root, "extension-src", "osc99-notify", "index.ts"),
+  join(root, "extension-src", "webfetch", "index.ts"),
+  join(root, "extension-src", "skill-tmux-runner.ts"),
 ];
 
 function fail(message: string) {
@@ -18,7 +19,7 @@ function fail(message: string) {
   process.exitCode = 1;
 }
 
-if (!/import\s+type\s+\{\s*ExtensionAPI\s*\}\s+from\s+["']\.\/types\.ts["'];/.test(source)) {
+if (!/import\s+type\s+\{\s*ExtensionAPI\s*\}\s+from\s+["']\.\.\/extension-src\/types\.ts["'];/.test(source)) {
   fail("extension entry must use the local ExtensionAPI interface, not an unpinned external package");
 }
 
@@ -26,7 +27,7 @@ if (!/export\s+default\s+function\s+piCodingKit\s*\(\s*pi\s*:\s*ExtensionAPI\s*\
   fail("extension entry must keep the documented default Pi factory signature");
 }
 
-if (!source.includes('from "./osc99-notify/index.ts"') || !source.includes('from "./webfetch/index.ts"')) {
+if (!source.includes('from "../extension-src/osc99-notify/index.ts"') || !source.includes('from "../extension-src/webfetch/index.ts"') || !source.includes('from "../extension-src/skill-tmux-runner.ts"')) {
   fail("extension entry must import TypeScript implementation modules directly");
 }
 

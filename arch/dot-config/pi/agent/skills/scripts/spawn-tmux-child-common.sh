@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+script_path=${BASH_SOURCE[0]}
+script_dir_part=${script_path%/*}
+if [[ "$script_dir_part" == "$script_path" ]]; then
+  script_dir_part=.
+fi
+script_dir=$(cd "$script_dir_part" && pwd -P)
 
 usage() {
   cat <<'USAGE'

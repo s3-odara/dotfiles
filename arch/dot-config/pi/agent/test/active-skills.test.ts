@@ -64,7 +64,7 @@ esac
 }
 
 function wrapperPath(skill: string) {
-  return join(root, "skills", skill, "scripts", "spawn-tmux-child.sh");
+  return join(root, "skills", "scripts", "spawn-skill-tmux-child.sh");
 }
 
 function statusPathFromStdout(stdout: string): string {
@@ -82,14 +82,13 @@ async function testSkillMetadataAndWrappers() {
     assert.match(frontmatter, /^description:\s*\S.+$/m);
     assert.match(markdown, /\.agents\//);
     if (skill.readonly) assert.match(markdown, /Do not edit|should not fix code/);
-    await stat(wrapperPath(skill.name));
   }
 }
 
 async function testImplementerAndDebuggerArtifacts() {
   const fixture = await makeFixture();
   for (const skill of skills.slice(0, 2)) {
-    const result = spawnSync(wrapperPath(skill.name), ["--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1"], {
+    const result = spawnSync(wrapperPath(skill.name), ["--skill", skill.name, "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1"], {
       cwd: root,
       env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
       encoding: "utf8",
@@ -111,7 +110,7 @@ async function testImplementerAndDebuggerArtifacts() {
 async function testImplementerLockTimeout() {
   const fixture = await makeFixture();
   const run = (timeout: string) => new Promise<string>((resolve, reject) => {
-    const child = spawn(wrapperPath("implementer"), ["--task", "Same workspace", "--cwd", fixture.cwd, "--timeout", "3"], {
+    const child = spawn(wrapperPath("implementer"), ["--skill", "implementer", "--task", "Same workspace", "--cwd", fixture.cwd, "--timeout", "3"], {
       env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, PI_FAKE_MODE: "slow", PI_IMPLEMENTER_LOCK_TIMEOUT: timeout },
     });
     let stdout = "";
@@ -134,7 +133,7 @@ async function testImplementerLockTimeout() {
 
 async function testReviewOrchestratorAggregatesChildDiagnostics() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
     cwd: root,
     env: {
       ...process.env,
@@ -154,7 +153,7 @@ async function testReviewOrchestratorAggregatesChildDiagnostics() {
 
 async function testReviewOrchestratorSuccessRetainsFindingsAndUniquePaths() {
   const fixture = await makeFixture();
-  const run = () => spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
+  const run = () => spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
     cwd: root,
     env: {
       ...process.env,
@@ -175,7 +174,7 @@ async function testReviewOrchestratorSuccessRetainsFindingsAndUniquePaths() {
 
 async function testReviewOrchestratorLaunchFailure() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--pi-bin", "missing-pi"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--pi-bin", "missing-pi"], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
     encoding: "utf8",
@@ -189,7 +188,7 @@ async function testReviewOrchestratorLaunchFailure() {
 
 async function testReviewOrchestratorTimeout() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, PI_FAKE_MODE: "slow" },
     encoding: "utf8",
@@ -202,7 +201,7 @@ async function testReviewOrchestratorTimeout() {
 
 async function testReviewOrchestratorReportsPollingTimeoutWhileStarted() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, FAKE_TMUX_PRESERVE_STARTED: "1" },
     encoding: "utf8",
@@ -219,7 +218,7 @@ async function testReviewOrchestratorPreservesBackslashEscapesInStatusJson() {
   const fixture = await makeFixture();
   const escapedCwd = join(fixture.dir, "work\\tb");
   await mkdir(escapedCwd);
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", escapedCwd, "--timeout", "1"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", escapedCwd, "--timeout", "1"], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
     encoding: "utf8",
@@ -233,7 +232,7 @@ async function testReviewOrchestratorPreservesBackslashEscapesInStatusJson() {
 
 async function testReviewOrchestratorRetainedFindingsAndForwardedPaneFlags() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--keep-pane", "--auto-exit"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--keep-pane", "--auto-exit"], {
     cwd: root,
     env: {
       ...process.env,
