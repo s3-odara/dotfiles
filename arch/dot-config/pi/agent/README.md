@@ -1,10 +1,10 @@
 # Pi daily-driver agent
 
-This directory is stowed to `~/.config/pi/agent`. `PI_CODING_AGENT_DIR` must point there so Pi reads it. The agent directory is self-contained: extension code, skills, prompts, themes, settings, and validation scripts all live here in dotfiles. There is no external Pi package to install.
+This directory is stowed to `~/.config/pi/agent`. `PI_CODING_AGENT_DIR` must point there so Pi reads it. The agent directory is self-contained: extension code, skills, themes, settings, and validation scripts all live here in dotfiles. There is no external Pi package to install.
 
 ## Why these files live here
 
-Pi loads `settings.json`, prompts, skills, themes, and optional model overrides from its agent directory. The extension entry, bundled tmux skills, and validation scripts that previously lived in a separate standalone repository are integrated here because the kit is small and personal. JSON files have no comments, so this README records the non-obvious choices.
+Pi loads `settings.json`, skills, themes, and optional model overrides from its agent directory. The extension entry, bundled tmux skills, native prompt-style skills, and validation scripts that previously lived in a separate standalone repository are integrated here because the kit is small and personal. JSON files have no comments, so this README records the non-obvious choices.
 
 ## Installation
 
@@ -31,11 +31,12 @@ Missing optional LSP/MCP pieces should be treated as warnings. They should not b
 - `extension-src/osc99-notify/` — OSC99 notification formatting and event registration.
 - `extension-src/webfetch/` — URL fetch tool with protocol, timeout, byte, and redirect controls.
 - `extension-src/skill-tmux-runner.ts` — user-input hook that rewrites explicit bundled tmux-managed `/skill:name` requests.
-- `skills/` — bundled Pi skills plus the user-specific `web-search` methodology skill.
+- `skills/` — bundled Pi skills, native prompt-style skills, and the user-specific `web-search` methodology skill.
 - `skills/scripts/` — central tmux-managed skill launcher, wait helper, and common child runner.
 - `scripts/` — repository validation scripts.
 - `test/` — unit and contract tests run via `npm test`.
-- `prompts/`, `themes/`, `settings.json` — Pi agent configuration.
+- `AGENTS.md` — shared workspace and tmux child-runner conventions for Pi skills.
+- `themes/`, `settings.json` — Pi agent configuration.
 
 ## MCP
 
@@ -53,14 +54,18 @@ These dotfiles use Pi's built-in `opencode-go` and `openai-codex` providers inst
 
 Child skills use Pi's default model unless the central launcher is explicitly invoked with `--provider`, `--model`, or `--thinking`.
 
-## Prompt templates and skills
+## Skills
 
-Prompt templates in `prompts/` replace OpenCode agent role definitions for:
+Native prompt-style skills replace the previous `prompts/` templates for:
 
 - `operator`
 - `delegator`
 - `planner`
 - `specifier`
+
+They are intentionally not listed in `skill-tmux-runner.ts`, so explicit `/skill:operator`, `/skill:delegator`, `/skill:planner`, and `/skill:specifier` prompts fall through to Pi's native skill expansion instead of being launched in tmux.
+
+Tmux-managed skills keep their role text close to the corresponding OpenCode prompts. Shared `run-skill-background.sh` and finish-helper instructions live in `AGENTS.md` instead of being repeated in each skill.
 
 The eight tmux child roles live as bundled skills in this directory:
 
@@ -95,10 +100,10 @@ The test suite runs unit tests for OSC99 formatting, `webfetch`, skill tmux laun
 
 | Area | Expected result | Local check |
 | --- | --- | --- |
-| Prompt templates | No slash commands, subagent calls, or subagent-package assumptions | grep the Pi prompts |
+| Native prompt-style skills | No tmux child-runner finish-helper assumptions | inspect `skills/{operator,delegator,planner,specifier}/SKILL.md` |
 | Skills | Eight bundled tmux skills are referenced as Pi skills and write under `.agents/` | `npm test` |
 | MCP | Required candidate servers are present and secrets are env refs only | inspect `~/.config/mcp/mcp.json` / `arch/dot-config/mcp/mcp.json` |
 | LSP | `@spences10/pi-lsp` is user-installed; missing language servers are warnings | documented warning-only behavior |
 | Models | Built-in `opencode-go` and `openai-codex` providers are selected without custom `models.json` overrides | inspect `settings.json` |
-| Safety | Container isolation; no sandbox wrapper or permission popup requirement | inspect docs/prompts |
+| Safety | Container isolation; no sandbox wrapper or permission popup requirement | inspect docs/skills |
 | Webfetch/OSC99 | Policy and unit tests remain passing | `npm test` |

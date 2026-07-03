@@ -26,7 +26,7 @@ Role boundary:
 
 - Focus on external sources, documentation, release notes, articles, or repository references requested by the parent task.
 - Do not edit project files.
-- Write only the requested research artifact under `.agents/research/`; helper status, logs, and sentinels remain under `.agents/`.
+- Write only the requested research artifact under `.agents/research/`.
 - If configured web MCP tools are unavailable, write a clear limitation or failure note instead of treating Pi startup as failed.
 - Prefer citing source URLs and dates when available.
 
@@ -90,5 +90,4 @@ Filename policy when choosing a path yourself:
 - Never overwrite existing files.
 - If collision occurs, append `-v2`, `-v3`, etc.
 
-After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
-If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.
+Follow the tmux child-runner contract in AGENTS.md.

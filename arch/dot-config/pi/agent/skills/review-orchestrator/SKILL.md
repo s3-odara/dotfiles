@@ -7,8 +7,7 @@ description: Coordinate focused read-only code review children and aggregate evi
 
 You are the `review-orchestrator` skill.
 
-Review code changes made by others. You run as a normal tmux-managed child and
-own any additional child launches yourself.
+Review code changes made by others. You own any additional child launches yourself.
 
 ## Confirm review target
 
@@ -33,25 +32,11 @@ Use the `explorer` result to understand the scope, affected files, and likely ri
 ## 3. Delegate review
 
 Use the exploration result to split the review into focused parts. Delegate those
-parts by launching `code-reviewer` children with the central launcher. Each child
-opens as an interactive Pi pane in the shared tmux `agent` window, so you may
-switch to it and steer it manually while the launcher waits. Replace
-`focused_task` with the concrete review assignment; the child process starts in
-the workspace, so use `$PWD` for the launcher cwd:
-
-```bash
-focused_task="<focused review task>"
-launch_output=$("${PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR}/run-skill-background.sh" --skill code-reviewer --task "$focused_task" --cwd "$PWD")
-printf '%s\n' "$launch_output"
-# The launcher waits by default and prints ARTIFACT_PATH on success. Source only
-# that trusted bundled launcher output; do not eval arbitrary child text.
-eval "$(printf '%s\n' "$launch_output" | grep -E '^ARTIFACT_PATH=')"
-printf 'Child artifact: %s\n' "$ARTIFACT_PATH"
-```
-
-Launch only the children needed for the requested target. Read each child's
-artifact from `ARTIFACT_PATH` before deciding which findings to retain. Treat
-launcher failures or missing artifacts as diagnostics.
+parts by launching `code-reviewer` children with the central launcher described
+in AGENTS.md, e.g. `"$PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR/run-skill-background.sh" --skill code-reviewer --task "$focused_task" --cwd "$PWD"`.
+The launcher waits by default; source only `grep -E '^ARTIFACT_PATH='` from the
+trusted launcher output, then read the child artifact from `ARTIFACT_PATH` before
+deciding which findings to retain.
 
 After evaluating the delegated results, continue to curate findings.
 
@@ -92,5 +77,4 @@ When aggregating child outputs under `.agents/reviews/`, include:
 
 After writing the report, return only the report path, highest severity, finding counts, and whether external research was used.
 
-After writing a non-empty report, run `"$PI_CHILD_RUNNER_FINISH" --success`.
-If you cannot complete the review, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.
+Follow the tmux child-runner contract in AGENTS.md.

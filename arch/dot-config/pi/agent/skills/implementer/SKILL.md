@@ -1,11 +1,11 @@
 ---
 name: implementer
-description: Make focused code changes in a tmux child and write an implementation report under .agents/impl-reports.
+description: Make focused code changes and write an implementation report under .agents/impl-reports.
 ---
 
 # Implementer
 
-Use this skill for small, targeted implementation work. The launcher acquires a workspace-scoped `flock` derived from the canonical working directory before the child Pi process starts so only one implementer child edits a given working directory at a time.
+Use this skill for small, targeted implementation work. The implementer launcher acquires a workspace-scoped `flock`, so only one implementer edits a given working directory at a time.
 
 ## Boundaries
 
@@ -30,5 +30,4 @@ Include:
 - validation run and results
 - remaining issues or risks
 
-After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
-If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.
+Follow the tmux child-runner contract in AGENTS.md.

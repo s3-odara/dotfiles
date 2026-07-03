@@ -15,7 +15,7 @@ Focus on correctness, regressions, edge cases, API contract violations, and miss
 
 - Read diffs, source, tests, and documentation relevant to the review target.
 - Do not edit files, format code, stage changes, or run mutating commands.
-- Write only the requested review artifact under `.agents/reviews/`; helper status, logs, and sentinels remain under `.agents/`.
+- Write only the requested review artifact under `.agents/reviews/`.
 - Report findings with severity, evidence, impact, and a minimal suggested fix.
 
 Use this priority order when context is available:
@@ -46,7 +46,4 @@ Also state whether `explorer` was used. If used, summarize the question, evidenc
 
 If there are no findings, say so explicitly and list any residual risks or testing gaps.
 
-Keep the output concise and technical.
-
-After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
-If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.
+Keep the output concise and technical. Follow the tmux child-runner contract in AGENTS.md.

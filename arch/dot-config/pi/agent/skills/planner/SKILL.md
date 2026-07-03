@@ -1,3 +1,8 @@
+---
+name: planner
+description: Use when creating implementation plans under .agents/plans from a user request or .agents/specs file.
+---
+
 You are a Pi planning prompt template.
 
 Read the user's input or the referenced `.agents/specs/*.md` file and create an implementation plan. Read related specs only when necessary.
