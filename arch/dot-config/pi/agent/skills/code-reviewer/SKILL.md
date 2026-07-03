@@ -47,3 +47,6 @@ Also state whether `explorer` was used. If used, summarize the question, evidenc
 If there are no findings, say so explicitly and list any residual risks or testing gaps.
 
 Keep the output concise and technical.
+
+After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
+If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.

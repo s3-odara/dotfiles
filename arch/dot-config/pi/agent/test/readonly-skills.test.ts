@@ -26,20 +26,25 @@ async function makeFixture(): Promise<SkillFixture> {
   await writeFile(join(cwd, "source.txt"), "unchanged\n");
   await writeFile(join(bin, "tmux"), `#!/usr/bin/env bash
 set -euo pipefail
-if [[ "$1" != "new-session" || "$2" != "-d" || "$3" != "-s" ]]; then
-  printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2
-  exit 9
-fi
-session="$4"
-command="$5"
-printf '%s\\n' "$session" >>"${dir}/sessions.log"
-bash "$command" || true
+case "$1" in
+  display-message) printf 'parent\\n' ;;
+  list-windows) printf 'agent\\n' ;;
+  has-session|new-session|kill-pane) : ;;
+  split-window|new-window)
+    printf '%s\\n' "$1" >>"${dir}/panes.log"
+    command="${'${@: -1}'}"
+    TMUX_PANE='%8' bash "$command" || true
+    printf 'parent:1.2 %%8\\n'
+    ;;
+  *) printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2; exit 9 ;;
+esac
 `, { mode: 0o755 });
   await writeFile(join(bin, "pi"), `#!/usr/bin/env bash
 set -euo pipefail
 case "${'${PI_FAKE_MODE:-success}'}" in
   success)
     printf '# %s artifact\\n\\nTask file: %s\\n' "$PI_CHILD_RUNNER_SKILL" "$PI_CHILD_RUNNER_TASK_FILE" >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   mcp-unavailable)
     # This fixture models the internet-researcher prompt's required behavior
@@ -47,23 +52,31 @@ case "${'${PI_FAKE_MODE:-success}'}" in
     # the shared helper success path remains covered separately from the
     # generic missing-artifact failure path.
     printf '# MCP Web Tools Unavailable\\n\\nConfigured web MCP tools were not available; research is limited.\\n' >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   missing-artifact)
-    :
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
 esac
 `, { mode: 0o755 });
   return { dir, bin, cwd };
 }
 
-function statusPathFromStdout(stdout: string): string {
-  const statusPath = stdout.trim().split(/\n/).find((line) => line.endsWith(".json"));
-  assert(statusPath, "wrapper stdout should include a status JSON path");
-  return statusPath;
+function parseLaunch(stdout: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of stdout.trim().split(/\n/)) {
+    const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
+    if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
+  }
+  assert(values.ARTIFACT_PATH, "wrapper stdout should include ARTIFACT_PATH");
+  assert(values.SUCCESS_SENTINEL, "wrapper stdout should include SUCCESS_SENTINEL");
+  assert(values.FAILURE_SENTINEL, "wrapper stdout should include FAILURE_SENTINEL");
+  assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
+  return values;
 }
 
 function wrapperPath(skill: string) {
-  return join(root, "skills", "scripts", "spawn-skill-tmux-child.sh");
+  return join(root, "skills", "scripts", "run-skill-background.sh");
 }
 
 function slug(value: string) {
@@ -76,21 +89,19 @@ async function runWrapper(fixture: SkillFixture, skill: Skill, extraEnv: Record<
     "--task", `Check ${skill.name}`,
     "--cwd", fixture.cwd,
     "--timeout", "1",
+    "--no-wait",
   ], {
     cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, ...extraEnv },
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", ...extraEnv },
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.skill, skill.name);
-  assert.equal(status.status, "success");
-  assert.match(status.session_name, new RegExp(`^pi-${skill.name}-check-${slug(skill.name)}-\\d{14}-\\d+-[a-f0-9]+$`));
-  assert.match(status.artifact_path, new RegExp(`\\.agents/${skill.artifactDir}/pi-${skill.name}-check-${slug(skill.name)}-\\d{14}-\\d+-[a-f0-9]+\\.md$`));
-  await stat(status.success_sentinel_path);
-  assert.match(await readFile(status.artifact_path, "utf8"), new RegExp(`# ${skill.name} artifact`));
+  const launch = parseLaunch(result.stdout);
+  assert.match(launch.ARTIFACT_PATH, new RegExp(`\\.agents/${skill.artifactDir}/pi-${skill.name}-check-${slug(skill.name)}-\\d{14}-\\d+-[a-f0-9]+\\.md$`));
+  await stat(launch.SUCCESS_SENTINEL);
+  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), new RegExp(`# ${skill.name} artifact`));
   assert.equal(await readFile(join(fixture.cwd, "source.txt"), "utf8"), "unchanged\n");
-  return status;
+  return launch;
 }
 
 async function testSkillMetadataAndWrappers() {
@@ -109,8 +120,8 @@ async function testSkillMetadataAndWrappers() {
 async function testWrappersProduceCanonicalArtifacts() {
   const fixture = await makeFixture();
   for (const skill of skills) await runWrapper(fixture, skill);
-  const sessions = (await readFile(join(fixture.dir, "sessions.log"), "utf8")).trim().split(/\n/);
-  assert.equal(new Set(sessions).size, skills.length);
+  const panes = (await readFile(join(fixture.dir, "panes.log"), "utf8")).trim().split(/\n/);
+  assert.equal(panes.length, skills.length);
 }
 
 async function testConcurrentReadonlyWrappersDoNotCollide() {
@@ -122,7 +133,8 @@ async function testConcurrentReadonlyWrappersDoNotCollide() {
       "--task", "Concurrent read check",
       "--cwd", fixture.cwd,
       "--timeout", "1",
-    ], { env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` } });
+      "--no-wait",
+    ], { env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" } });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -140,16 +152,17 @@ async function testInternetResearcherUnavailableMcpWritesFailureArtifact() {
     "--task", "Research with unavailable MCP tools",
     "--cwd", fixture.cwd,
     "--timeout", "1",
+    "--no-wait",
   ], {
     cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, PI_FAKE_MODE: "missing-artifact" },
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_FAKE_MODE: "missing-artifact" },
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.status, "failure");
-  assert.equal(status.failure_reason, "missing-artifact");
-  assert.match(await readFile(status.artifact_path, "utf8"), /Child Run Failure/);
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.FAILURE_SENTINEL);
+  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "missing-artifact\n");
+  await assert.rejects(() => stat(launch.ARTIFACT_PATH));
 }
 
 async function testInternetResearcherUnavailableMcpWritesLimitationArtifact() {
@@ -159,16 +172,17 @@ async function testInternetResearcherUnavailableMcpWritesLimitationArtifact() {
     "--task", "Research with unavailable MCP tools",
     "--cwd", fixture.cwd,
     "--timeout", "1",
+    "--no-wait",
   ], {
     cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, PI_FAKE_MODE: "mcp-unavailable" },
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_FAKE_MODE: "mcp-unavailable" },
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.skill, "internet-researcher");
-  assert.equal(status.status, "success");
-  assert.match(await readFile(status.artifact_path, "utf8"), /MCP Web Tools Unavailable/);
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.SUCCESS_SENTINEL);
+  assert.match(launch.ARTIFACT_PATH, /\.agents\/research\/pi-internet-researcher-/);
+  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /MCP Web Tools Unavailable/);
 }
 
 await testSkillMetadataAndWrappers();

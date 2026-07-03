@@ -31,21 +31,25 @@ const result = await second.handlers.input(
 );
 
 assert.equal(result?.action, "transform");
-assert.match(result.text, /spawn-skill-tmux-child\.sh/);
+assert.match(result.text, /run-skill-background\.sh/);
 assert.match(result.text, /--skill 'code-reviewer'/);
 assert.match(result.text, /Review this diff\nwith details/);
-assert.match(result.text, /wait-for-children\.sh/);
+assert.doesNotMatch(result.text, /wait-for-children\.sh/);
+assert.match(result.text, /launcher waits for the child to finish/);
+assert.doesNotMatch(result.text, /ATTACH_TARGET/);
+assert.match(result.text, /tmux window `agent`/);
+assert.doesNotMatch(result.text, /node -e|JSON\.parse|status_json/);
 
-const coordinatorResult = await second.handlers.input(
+const orchestratorResult = await second.handlers.input(
   { source: "interactive", text: "/skill:review-orchestrator Review this branch" },
   { cwd: root, ui: { notify() {} } },
 );
-assert.equal(coordinatorResult?.action, "transform");
-assert.match(coordinatorResult.text, /spawn-skill-tmux-child\.sh/);
-assert.match(coordinatorResult.text, /--skill 'review-orchestrator'/);
-assert.match(coordinatorResult.text, /artifact_path=\$\(/);
-assert.doesNotMatch(coordinatorResult.text, /wait-for-children\.sh/);
-assert.doesNotMatch(coordinatorResult.text, /status_json=/);
+assert.equal(orchestratorResult?.action, "transform");
+assert.match(orchestratorResult.text, /run-skill-background\.sh/);
+assert.match(orchestratorResult.text, /--skill 'review-orchestrator'/);
+assert.match(orchestratorResult.text, /launch_output=/);
+assert.doesNotMatch(orchestratorResult.text, /wait-for-children\.sh/);
+assert.doesNotMatch(orchestratorResult.text, /artifact_path=\$\(/);
 
 const nativeSkillResult = await second.handlers.input(
   { source: "interactive", text: "/skill:web-search Find sources" },

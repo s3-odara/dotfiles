@@ -7,9 +7,8 @@ description: Coordinate focused read-only code review children and aggregate evi
 
 You are the `review-orchestrator` skill.
 
-Review code changes made by others.
-
-The central tmux launcher dispatches this skill to `skills/scripts/coordinators/review-orchestrator.sh`. That coordinator starts the bundled `code-reviewer` skill through the same central launcher, waits for it, and writes an aggregate review artifact.
+Review code changes made by others. You run as a normal tmux-managed child and
+own any additional child launches yourself.
 
 ## Confirm review target
 
@@ -33,7 +32,26 @@ Use the `explorer` result to understand the scope, affected files, and likely ri
 
 ## 3. Delegate review
 
-Use the exploration result to split the review into focused parts. Delegate those parts to `code-reviewer`. The coordinator script owns the shell-level child launch, completion polling, and status/artifact aggregation; keep those mechanics out of this prompt unless the coordinator itself is being changed.
+Use the exploration result to split the review into focused parts. Delegate those
+parts by launching `code-reviewer` children with the central launcher. Each child
+opens as an interactive Pi pane in the shared tmux `agent` window, so you may
+switch to it and steer it manually while the launcher waits. Replace
+`focused_task` with the concrete review assignment; the child process starts in
+the workspace, so use `$PWD` for the launcher cwd:
+
+```bash
+focused_task="<focused review task>"
+launch_output=$("${PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR}/run-skill-background.sh" --skill code-reviewer --task "$focused_task" --cwd "$PWD")
+printf '%s\n' "$launch_output"
+# The launcher waits by default and prints ARTIFACT_PATH on success. Source only
+# that trusted bundled launcher output; do not eval arbitrary child text.
+eval "$(printf '%s\n' "$launch_output" | grep -E '^ARTIFACT_PATH=')"
+printf 'Child artifact: %s\n' "$ARTIFACT_PATH"
+```
+
+Launch only the children needed for the requested target. Read each child's
+artifact from `ARTIFACT_PATH` before deciding which findings to retain. Treat
+launcher failures or missing artifacts as diagnostics.
 
 After evaluating the delegated results, continue to curate findings.
 
@@ -51,11 +69,11 @@ Judge the implementation against the spec first. Treat the plan as guidance. Tre
 - Do not edit project files.
 - Do not implement fixes. Do not mutate git state. Use only read-only inspection commands.
 - Treat missing artifacts, non-success statuses, timeouts, and child launch failures as diagnostics in the aggregate report.
-- Keep the coordinator shell small and role-specific; do not create a reusable scheduler or hidden runtime abstraction.
 
 ## Output
 
-Write the final artifact to the `Primary artifact path` from the task file when supplied; otherwise write a new report under:
+Write the final report to the `Primary artifact path` from the task file. If no
+Primary artifact path is supplied, write a new report under:
 
 `.agents/reports/YYYYMMDD-HHMM-<kebab-task-slug>.md`
 
@@ -73,3 +91,6 @@ When aggregating child outputs under `.agents/reviews/`, include:
 - diagnostics for missing/failed children
 
 After writing the report, return only the report path, highest severity, finding counts, and whether external research was used.
+
+After writing a non-empty report, run `"$PI_CHILD_RUNNER_FINISH" --success`.
+If you cannot complete the review, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.

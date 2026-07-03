@@ -24,3 +24,6 @@ Write the final artifact to the `Primary artifact path` from the task file. Incl
 - evidence and root-cause analysis
 - likely fix direction without applying it
 - unverified assumptions or next checks
+
+After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
+If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.

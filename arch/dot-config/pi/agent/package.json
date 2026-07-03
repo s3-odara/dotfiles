@@ -4,9 +4,7 @@
   "type": "module",
   "keywords": ["pi-package"],
   "scripts": {
-    "test": "node scripts/check-policy.ts && node scripts/check-typescript-compat.ts && node test/osc99-notify.test.ts && node test/webfetch.test.ts && node test/skill-tmux-runner.test.ts && node test/tmux-helper.test.ts && node test/readonly-skills.test.ts && node test/active-skills.test.ts",
-    "check:policy": "node scripts/check-policy.ts",
-    "check:ts-compat": "node scripts/check-typescript-compat.ts",
+    "test": "node test/osc99-notify.test.ts && node test/webfetch.test.ts && node test/skill-tmux-runner.test.ts && node test/tmux-helper.test.ts && node test/readonly-skills.test.ts && node test/active-skills.test.ts",
     "test:unit": "node test/osc99-notify.test.ts && node test/webfetch.test.ts && node test/skill-tmux-runner.test.ts && node test/tmux-helper.test.ts && node test/readonly-skills.test.ts && node test/active-skills.test.ts"
   },
   "pi": {

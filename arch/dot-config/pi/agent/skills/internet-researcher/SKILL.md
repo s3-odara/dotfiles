@@ -89,3 +89,6 @@ Filename policy when choosing a path yourself:
 - Do not create missing-slug names such as `YYYYMMDD-HHMM-.md`.
 - Never overwrite existing files.
 - If collision occurs, append `-v2`, `-v3`, etc.
+
+After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
+If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.

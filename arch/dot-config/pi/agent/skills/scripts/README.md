@@ -4,17 +4,15 @@ Shared tmux child-runner contract used by tmux-managed bundled skills.
 
 ## Files
 
-- `spawn-tmux-child-common.sh` — validates inputs, creates `.agents/` output directories, starts a detached tmux session, and records status, logs, and sentinels for one child Pi run.
-- `tmux-managed-skills.tsv` — central manifest of skills that should be intercepted for tmux execution. Native Pi skills such as `web-search` are intentionally absent so Pi can expand them normally.
-- `spawn-skill-tmux-child.sh` — central launcher. It reads the manifest, dispatches normal skills to the common helper, and dispatches coordinator skills to `coordinators/<skill>.sh`.
-- `coordinators/review-orchestrator.sh` — coordinator implementation that launches `code-reviewer` through the same central launcher and aggregates the resulting artifact.
-- `wait-for-children.sh` — blocks until one or more tmux children finish, then prints a JSON summary. Accepts multiple `--run-id` arguments plus `--timeout` / `--poll`. Exits 0 when all children succeeded, non-zero otherwise.
+- `start-bg-pane.sh` — validates inputs, creates `.agents/` output directories, starts an interactive pane in the shared tmux `agent` window, and records logs and sentinels for one child Pi run.
+- `run-skill-background.sh` — central launcher for bundled tmux-managed skills. Native Pi skills such as `web-search` are intentionally not routed here so Pi can expand them normally.
+- `wait-for-children.sh` — blocks until one or more tmux children finish, then prints a key=value summary. Accepts repeated `--success PATH --failure PATH` sentinel pairs plus `--timeout` and `--poll`. Exits 0 when all children succeeded, non-zero otherwise.
 
 ## Contract
 
-Call `spawn-skill-tmux-child.sh --skill NAME --task TEXT --cwd DIR`. The launcher accepts optional Pi routing hints: `--provider`, `--model`, and `--thinking`, plus `--timeout`, `--pi-bin`, `--keep-pane`, and `--auto-exit`. The internal common helper still owns prompt-template, artifact-dir, and lock arguments; keeping those internal prevents call sites from bypassing the manifest policy.
+Call `run-skill-background.sh --skill NAME --task TEXT --cwd DIR`. The launcher accepts optional Pi routing hints: `--provider`, `--model`, and `--thinking`, plus `--timeout`, `--pi-bin`, and `--no-wait`. The internal pane starter still owns prompt-template and artifact-dir arguments; keeping those internal prevents call sites from bypassing launcher policy.
 
-Manifest `normal` skills print a status JSON path on stdout. Callers can derive the run-id from that path and use `wait-for-children.sh` to wait for sentinels. Manifest `coordinator` skills own their child polling internally and print the final aggregate artifact path instead.
+By default the launcher waits for completion and prints only `ARTIFACT_PATH='quoted value'` on success. On failure or timeout it exits non-zero and writes diagnostics to stderr. With `--no-wait`, it starts the pane and returns immediately with `ARTIFACT_PATH`, `SUCCESS_SENTINEL`, and `FAILURE_SENTINEL` for future watcher/extension use.
 
 Runs use detached tmux sessions named:
 
@@ -26,16 +24,14 @@ All generated files stay under the target workspace `.agents/` tree. The helper 
 
 Each run writes:
 
-- status JSON: `.agents/status/<run-id>.json`
-- stdout log: `.agents/logs/<run-id>.stdout.log`
-- stderr log: `.agents/logs/<run-id>.stderr.log`
 - runner log: `.agents/logs/<run-id>.runner.log`
 - success sentinel: `.agents/status/<run-id>.success`
 - failure sentinel: `.agents/status/<run-id>.failure`
+- failure reason: `.agents/status/<run-id>.failure.reason`
 - primary artifact: supplied with `--artifact`, or generated under `.agents/<artifact-dir>/`
 
-The helper treats timeout, non-zero child exit, and missing/empty primary artifact as failures. Success exits the tmux session by default; failures keep the pane for diagnostics unless the caller explicitly changes the flags in a later wrapper.
+The helper treats non-zero child exit and missing/empty primary artifact as failures. Success closes the pane by default; failures keep the pane for diagnostics.
 
 ## Locks
 
-Write-capable skills use manifest-declared `--lock-key workspace` to acquire a `flock` file before the child Pi process starts. The helper derives a lock filename from the canonical working directory and stores it under `.agents/locks/`. If the lock cannot be acquired within `--lock-timeout`, the run writes a failure artifact, status JSON, and failure sentinel without starting the child process.
+`implementer` panes acquire a non-blocking `flock` derived only from the canonical working directory before the child Pi process starts. If another implementer is already active for the same workspace, the run writes a `workspace-lock-held` failure artifact, failure sentinel, and failure reason without starting the child process.

@@ -22,3 +22,6 @@ Write the final artifact to the `Primary artifact path` from the task file. Incl
 - pass/fail status
 - failure excerpts and likely owner when known
 - unrun checks and why they were skipped
+
+After writing a non-empty artifact, run `"$PI_CHILD_RUNNER_FINISH" --success`.
+If you cannot complete the task, run `"$PI_CHILD_RUNNER_FINISH" --failure "reason"` and leave the pane for inspection.

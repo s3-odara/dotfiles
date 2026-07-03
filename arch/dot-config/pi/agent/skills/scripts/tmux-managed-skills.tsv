@@ -1,9 +1,0 @@
-# skill	artifact_dir	mode	lock_key	lock_timeout_env	lock_timeout_default
-explorer	research	normal			
-internet-researcher	research	normal			
-code-reviewer	reviews	normal			
-debugger	reviews	normal			
-tester	reviews	normal			
-plan-reviewer	reviews	normal			
-implementer	impl-reports	normal	workspace	PI_IMPLEMENTER_LOCK_TIMEOUT	60
-review-orchestrator	reviews	coordinator			

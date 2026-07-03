@@ -30,9 +30,9 @@ Missing optional LSP/MCP pieces should be treated as warnings. They should not b
 - `extension-src/` — internal extension implementation modules, kept outside Pi auto-discovery.
 - `extension-src/osc99-notify/` — OSC99 notification formatting and event registration.
 - `extension-src/webfetch/` — URL fetch tool with protocol, timeout, byte, and redirect controls.
-- `extension-src/skill-tmux-runner.ts` — user-input hook that rewrites explicit `/skill:name` requests only when the skill is listed in the tmux-managed manifest.
+- `extension-src/skill-tmux-runner.ts` — user-input hook that rewrites explicit bundled tmux-managed `/skill:name` requests.
 - `skills/` — bundled Pi skills plus the user-specific `web-search` methodology skill.
-- `skills/scripts/` — central tmux-managed skill manifest, launcher, coordinators, wait helper, and common child runner.
+- `skills/scripts/` — central tmux-managed skill launcher, wait helper, and common child runner.
 - `scripts/` — repository validation scripts.
 - `test/` — unit and contract tests run via `npm test`.
 - `prompts/`, `themes/`, `settings.json` — Pi agent configuration.
@@ -73,7 +73,7 @@ The eight tmux child roles live as bundled skills in this directory:
 - `code-reviewer`
 - `plan-reviewer`
 
-`web-search` is retained here as a user-specific methodology skill. It is not listed in `skills/scripts/tmux-managed-skills.tsv`, so explicit `/skill:web-search` prompts fall through to Pi's native skill expansion instead of being launched in tmux. The Pi copy in this directory is the canonical location; the legacy OpenCode copy that previously lived under `arch/dot-agents/skills/web-search/` was removed to avoid a duplicate-skill collision with this one.
+`web-search` is retained here as a user-specific methodology skill. It is intentionally not handled by `skill-tmux-runner.ts`, so explicit `/skill:web-search` prompts fall through to Pi's native skill expansion instead of being launched in tmux. The Pi copy in this directory is the canonical location; the legacy OpenCode copy that previously lived under `arch/dot-agents/skills/web-search/` was removed to avoid a duplicate-skill collision with this one.
 
 ## OSC99 notifications
 
@@ -89,7 +89,7 @@ The extension emits OSC99 sequences to stdout for Pi events that are observable 
 npm test
 ```
 
-The validation script blocks obvious forbidden runtime dependencies and references, publish automation, sensitive local files, JavaScript implementation files, malformed TypeScript source edits, and runs unit tests for OSC99 formatting and `webfetch` protocol/timeout/byte/redirect behavior. Set `PI_CODING_KIT_TEST_NETWORK=1` to include an optional public `https://example.com/` fetch smoke test. Validation also covers the tmux helper contract with local fake `tmux` and `pi` executables, covering input validation, naming uniqueness, status/sentinel/log paths, timeout, locking, aggregation, and missing-artifact handling without network access.
+The test suite runs unit tests for OSC99 formatting, `webfetch`, skill tmux launching, sentinel waiting, and bundled skill contracts. Set `PI_CODING_KIT_TEST_NETWORK=1` to include an optional public `https://example.com/` fetch smoke test.
 
 ## Acceptance / QA matrix
 

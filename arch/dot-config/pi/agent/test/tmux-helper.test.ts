@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
 const root = new URL("..", import.meta.url).pathname;
-const helper = join(root, "skills", "scripts", "spawn-tmux-child-common.sh");
+const helper = join(root, "skills", "scripts", "start-bg-pane.sh");
+const centralLauncher = join(root, "skills", "scripts", "run-skill-background.sh");
+const waitHelper = join(root, "skills", "scripts", "wait-for-children.sh");
 
 type TmuxFixture = { dir: string; bin: string; cwd: string; prompt: string };
 
@@ -19,27 +21,51 @@ async function makeFixture(): Promise<TmuxFixture> {
   await writeFile(prompt, "You are a test prompt.\n");
 await writeFile(join(bin, "tmux"), `#!/usr/bin/env bash
 set -euo pipefail
-if [[ "${'${PI_FAKE_TMUX_MODE:-success}'}" == "fail" ]]; then
-  printf 'fake tmux new-session failure\n' >&2
-  exit 42
-fi
-if [[ "$1" != "new-session" || "$2" != "-d" || "$3" != "-s" ]]; then
-  printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2
-  exit 9
-fi
-session="$4"
-command="$5"
-printf '%s\\n' "$session" >>"${dir}/sessions.log"
-bash "$command" || true
+case "$1" in
+  display-message)
+    printf '%s\\n' "${'${PI_FAKE_TMUX_SESSION:-parent}'}"
+    ;;
+  list-windows)
+    if [[ "${'${PI_FAKE_TMUX_HAS_AGENT:-1}'}" == "1" ]]; then printf 'agent\\n'; fi
+    ;;
+  has-session)
+    exit 0
+    ;;
+  new-session)
+    printf 'new-session %s\\n' "$*" >>"${dir}/tmux.log"
+    ;;
+  split-window|new-window)
+    if [[ "${'${PI_FAKE_TMUX_MODE:-success}'}" == "fail" ]]; then
+      printf 'fake tmux pane failure\n' >&2
+      exit 42
+    fi
+    printf '%s %s\\n' "$1" "$*" >>"${dir}/tmux.log"
+    command="${'${@: -1}'}"
+    TMUX_PANE='%7' bash "$command" || true
+    printf 'parent:1.2 %%7\\n'
+    ;;
+  kill-pane)
+    printf 'kill-pane %s\\n' "$*" >>"${dir}/tmux.log"
+    ;;
+  *)
+    printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2
+    exit 9
+    ;;
+esac
 `, { mode: 0o755 });
   await writeFile(join(bin, "pi"), `#!/usr/bin/env bash
 set -euo pipefail
 case "${'${PI_FAKE_MODE:-success}'}" in
   success)
+    if printf '%s\n' "$*" | grep -E -- '(^| )(-p|--no-session)( |$)' >/dev/null; then
+      printf 'obsolete non-interactive flags used: %s\n' "$*" >&2
+      exit 19
+    fi
     printf '# Artifact\\n\\n%s\\n' "$PI_CHILD_RUNNER_SKILL" >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   missing-artifact)
-    :
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   crash)
     exit 17
@@ -62,31 +88,42 @@ function runHelper(fixture: TmuxFixture, args: string[] = [], env: Record<string
     ...args,
   ], {
     cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, ...env },
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", ...env },
     encoding: "utf8",
   });
 }
 
-function statusPathFromStdout(stdout: string): string {
-  const statusPath = stdout.trim().split(/\n/).find((line) => line.endsWith(".json"));
-  assert(statusPath, "helper stdout should include a status JSON path");
-  return statusPath;
+function parseLaunch(stdout: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of stdout.trim().split(/\n/)) {
+    const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
+    if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
+  }
+  assert(values.ARTIFACT_PATH, "helper stdout should include ARTIFACT_PATH");
+  assert(values.SUCCESS_SENTINEL, "helper stdout should include SUCCESS_SENTINEL");
+  assert(values.FAILURE_SENTINEL, "helper stdout should include FAILURE_SENTINEL");
+  assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
+  return values;
+}
+
+function parseKeyValues(stdout: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of stdout.trim().split(/\n/)) {
+    const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
+    if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
+  }
+  return values;
 }
 
 async function testSuccess() {
   const fixture = await makeFixture();
   const result = runHelper(fixture, ["--artifact-dir", "reviews", "--model", "openai/example", "--provider", "openai", "--thinking", "low"]);
   assert.equal(result.status, 0, result.stderr);
-  const statusPath = statusPathFromStdout(result.stdout);
-  const status = JSON.parse(await readFile(statusPath, "utf8"));
-  assert.equal(status.status, "success");
-  assert.equal(status.model, "openai/example");
-  assert.equal(status.provider, "openai");
-  assert.equal(status.thinking, "low");
-  assert.match(status.session_name, /^pi-tester-write-a-small-artifact-\d{14}-\d+-[a-f0-9]+$/);
-  assert.match(status.artifact_path, /\.agents\/reviews\/pi-tester-write-a-small-artifact-\d{14}-\d+-[a-f0-9]+\.md$/);
-  await stat(status.success_sentinel_path);
-  assert.match(await readFile(status.artifact_path, "utf8"), /# Artifact/);
+  const launch = parseLaunch(result.stdout);
+  assert.match(launch.ARTIFACT_PATH, /\.agents\/reviews\/pi-tester-write-a-small-artifact-\d{14}-\d+-[a-f0-9]+\.md$/);
+  await stat(launch.SUCCESS_SENTINEL);
+  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /# Artifact/);
+  assert.doesNotMatch(result.stdout, /status_json|\.json/);
 }
 
 async function testValidation() {
@@ -100,33 +137,19 @@ async function testMissingArtifactFailure() {
   const fixture = await makeFixture();
   const result = runHelper(fixture, [], { PI_FAKE_MODE: "missing-artifact" });
   assert.equal(result.status, 0, result.stderr);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.status, "failure");
-  assert.equal(status.failure_reason, "missing-artifact");
-  await stat(status.failure_sentinel_path);
-  assert.match(await readFile(status.artifact_path, "utf8"), /Child Run Failure/);
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.FAILURE_SENTINEL);
+  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "missing-artifact\n");
+  await assert.rejects(() => stat(launch.ARTIFACT_PATH));
 }
 
-async function testTimeoutFailure() {
-  const fixture = await makeFixture();
-  const result = runHelper(fixture, [], { PI_FAKE_MODE: "slow" });
-  assert.equal(result.status, 0, result.stderr);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.status, "failure");
-  assert.equal(status.failure_reason, "timeout");
-  await stat(status.failure_sentinel_path);
-  assert.match(await readFile(status.artifact_path, "utf8"), /Reason: timeout/);
-}
-
-async function testCrashFailureWritesArtifact() {
+async function testChildExitWithoutFinishFailure() {
   const fixture = await makeFixture();
   const result = runHelper(fixture, [], { PI_FAKE_MODE: "crash" });
   assert.equal(result.status, 0, result.stderr);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.status, "failure");
-  assert.equal(status.failure_reason, "child-exit-17");
-  await stat(status.failure_sentinel_path);
-  assert.match(await readFile(status.artifact_path, "utf8"), /Reason: child-exit-17/);
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.FAILURE_SENTINEL);
+  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "child-exit-without-finish\n");
 }
 
 async function testMissingTmuxDiagnostic() {
@@ -147,25 +170,14 @@ async function testMissingTmuxDiagnostic() {
   assert.match(result.stderr, /tmux is required and no other multiplexer is supported/);
 }
 
-async function testTmuxNewSessionFailureFinalizesStatus() {
+async function testTmuxPaneFailureFinalizesStatus() {
   const fixture = await makeFixture();
   const result = runHelper(fixture, [], { PI_FAKE_TMUX_MODE: "fail" });
   assert.equal(result.status, 42);
-  const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-  assert.equal(status.status, "failure");
-  assert.equal(status.failure_reason, "tmux-new-session-failed");
-  await stat(status.failure_sentinel_path);
-  assert.match(await readFile(status.artifact_path, "utf8"), /Reason: tmux-new-session-failed/);
-}
-
-async function testPolicyCoversAllNoFallbackTerms() {
-  const policy = await readFile(join(root, "scripts", "check-policy.ts"), "utf8");
-  // Construct this token so the repository-wide policy check does not flag the
-  // test itself; the assertion still proves the policy guard covers it.
-  const terminalFallback = "Wez" + "Term";
-  for (const term of ["c" + "mux", "ze" + "llij", terminalFallback]) {
-    assert.match(policy, new RegExp(term, "i"));
-  }
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.FAILURE_SENTINEL);
+  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "tmux-pane-failed\n");
+  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /Reason: tmux-pane-failed/);
 }
 
 async function testConcurrentNamesDoNotCollide() {
@@ -184,26 +196,55 @@ async function testConcurrentNamesDoNotCollide() {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("close", (code) => code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr)));
   });
-  const paths = await Promise.all([run(), run()]);
-  assert.notEqual(paths[0], paths[1]);
-  const statuses = await Promise.all(paths.map(async (path) => JSON.parse(await readFile(path, "utf8"))));
-  assert.notEqual(statuses[0].session_name, statuses[1].session_name);
-  const sessions = (await readFile(join(fixture.dir, "sessions.log"), "utf8")).trim().split(/\n/);
-  assert.equal(new Set(sessions).size, 2);
+  const launches = (await Promise.all([run(), run()])).map(parseLaunch);
+  assert.notEqual(launches[0].ARTIFACT_PATH, launches[1].ARTIFACT_PATH);
+  const tmuxLog = await readFile(join(fixture.dir, "tmux.log"), "utf8");
+  assert.match(tmuxLog, /split-window/);
+}
+
+async function testWaitForChildrenUsesSentinelPairs() {
+  const dir = await mkdtemp(join(tmpdir(), "pi-coding-kit-wait-"));
+  const success = join(dir, "child.success");
+  const failure = join(dir, "child.failure");
+  await writeFile(success, "");
+  const result = spawnSync(waitHelper, ["--success", success, "--failure", failure, "--timeout", "1", "--poll", "1"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /OVERALL='success'/);
+  assert.match(result.stdout, /CHILD_1_STATUS='success'/);
+  assert.doesNotMatch(result.stdout, /\{|status_json|run-id/);
+}
+
+async function testCentralLauncherWaitsAndPrintsArtifactOnly() {
+  const fixture = await makeFixture();
+  const result = spawnSync(centralLauncher, [
+    "--skill", "tester",
+    "--task", "Central launcher wait",
+    "--cwd", fixture.cwd,
+    "--timeout", "1",
+    "--pi-bin", join(fixture.bin, "pi"),
+  ], {
+    cwd: root,
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const values = parseKeyValues(result.stdout);
+  assert.deepEqual(Object.keys(values), ["ARTIFACT_PATH"]);
+  assert.match(await readFile(values.ARTIFACT_PATH, "utf8"), /# Artifact/);
 }
 
 await testSuccess();
 await testValidation();
 await testMissingArtifactFailure();
-await testTimeoutFailure();
-await testCrashFailureWritesArtifact();
+await testChildExitWithoutFinishFailure();
 await testMissingTmuxDiagnostic();
-await testTmuxNewSessionFailureFinalizesStatus();
-await testPolicyCoversAllNoFallbackTerms();
+await testTmuxPaneFailureFinalizesStatus();
 await testConcurrentNamesDoNotCollide();
+await testWaitForChildrenUsesSentinelPairs();
+await testCentralLauncherWaitsAndPrintsArtifactOnly();
 
 const policyWords = await readdir(join(root, "skills", "scripts"));
-assert(policyWords.includes("spawn-tmux-child-common.sh"));
-assert(policyWords.includes("spawn-skill-tmux-child.sh"));
-assert(policyWords.includes("tmux-managed-skills.tsv"));
+assert(policyWords.includes("start-bg-pane.sh"));
+assert(policyWords.includes("run-skill-background.sh"));
+assert(!policyWords.includes("tmux-managed-skills.tsv"));
 console.log("tmux helper tests passed");

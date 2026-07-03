@@ -1,5 +1,16 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+const TMUX_MANAGED_SKILLS = [
+  "explorer",
+  "internet-researcher",
+  "code-reviewer",
+  "debugger",
+  "tester",
+  "plan-reviewer",
+  "implementer",
+  "review-orchestrator",
+];
 
 export default function (pi: any) {
   const skills = findSkills();
@@ -31,36 +42,18 @@ export default function (pi: any) {
 
 interface Skill {
   name: string;
-  mode: string;
   launcherPath: string;
 }
 
 function buildSpawnInstruction(skill: Skill, task: string, cwd: string): string {
-  if (skill.mode === "coordinator") return buildCoordinatorInstruction(skill, task, cwd);
-
-  const waitScript = join(dirname(skill.launcherPath), "wait-for-children.sh");
   return [
-    "Run this explicit skill request in a tmux child. Use bash to execute the command block exactly, wait for completion, then read and summarize the artifact path printed at the end.",
+    "Run this explicit skill request by starting an interactive Pi pane in the shared tmux `agent` window. Use bash to execute the command block exactly. The launcher waits for the child to finish; while it is waiting, the child can be viewed or steered in the `agent` tmux window. When it completes, print the artifact path returned by the launcher.",
     "",
     "```bash",
     "set -euo pipefail",
-    `status_json=$(${shellQuote(skill.launcherPath)} --skill ${shellQuote(skill.name)} --task ${shellQuote(task)} --cwd ${shellQuote(cwd)})`,
-    "run_id=${status_json##*/}",
-    "run_id=${run_id%.json}",
-    `${shellQuote(waitScript)} --agents-dir ${shellQuote(join(cwd, ".agents"))} --run-id "$run_id" --timeout 600 --poll 1`,
-    "node -e 'const fs=require(\"fs\"); const s=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); console.log(s.artifact_path);' \"$status_json\"",
-    "```",
-  ].join("\n");
-}
-
-function buildCoordinatorInstruction(skill: Skill, task: string, cwd: string): string {
-  return [
-    "Run this explicit coordinator skill request. Use bash to execute the command block exactly, then read and summarize the artifact path printed at the end.",
-    "",
-    "```bash",
-    "set -euo pipefail",
-    `artifact_path=$(${shellQuote(skill.launcherPath)} --skill ${shellQuote(skill.name)} --task ${shellQuote(task)} --cwd ${shellQuote(cwd)})`,
-    "printf '%s\n' \"$artifact_path\"",
+    `launch_output=$(${shellQuote(skill.launcherPath)} --skill ${shellQuote(skill.name)} --task ${shellQuote(task)} --cwd ${shellQuote(cwd)})`,
+    "printf '%s\\n' \"$launch_output\"",
+    "printf '\\nChild ran interactively in tmux window `agent` and finished.\\n'",
     "```",
   ].join("\n");
 }
@@ -75,16 +68,10 @@ function findSkills(): Skill[] {
     join(process.env.HOME ?? "/home/user", ".config", "pi", "agent"),
     "skills",
   );
-  const launcherPath = join(base, "scripts", "spawn-skill-tmux-child.sh");
-  const manifestPath = join(base, "scripts", "tmux-managed-skills.tsv");
-  if (!existsSync(launcherPath) || !existsSync(manifestPath)) return [];
+  const launcherPath = join(base, "scripts", "run-skill-background.sh");
+  if (!existsSync(launcherPath)) return [];
 
-  const result: Skill[] = [];
-  for (const line of readFileSync(manifestPath, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const [name, , mode] = line.split("\t");
-    if (name && mode && existsSync(join(base, name, "SKILL.md"))) result.push({ name, mode, launcherPath });
-  }
-  return result;
+  return TMUX_MANAGED_SKILLS
+    .filter((name) => existsSync(join(base, name, "SKILL.md")))
+    .map((name) => ({ name, launcherPath }));
 }

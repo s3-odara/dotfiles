@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -23,17 +23,19 @@ async function makeFixture(): Promise<SkillFixture> {
   await writeFile(join(cwd, "source.txt"), "unchanged\n");
   await writeFile(join(bin, "tmux"), `#!/usr/bin/env bash
 set -euo pipefail
-if [[ "$1" != "new-session" || "$2" != "-d" || "$3" != "-s" ]]; then
-  printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2
-  exit 9
-fi
-session="$4"
-command="$5"
-printf '%s\\n' "$session" >>"${dir}/sessions.log"
-if [[ "${'${FAKE_TMUX_PRESERVE_STARTED:-}'}" == "1" ]]; then
-  exit 0
-fi
-bash "$command" || true
+case "$1" in
+  display-message) printf 'parent\\n' ;;
+  list-windows) printf 'agent\\n' ;;
+  has-session|new-session|kill-pane) : ;;
+  split-window|new-window)
+    printf '%s\\n' "$1" >>"${dir}/panes.log"
+    if [[ "${'${FAKE_TMUX_PRESERVE_STARTED:-}'}" == "1" ]]; then printf 'parent:1.2 %%9\\n'; exit 0; fi
+    command="${'${@: -1}'}"
+    TMUX_PANE='%9' bash "$command" || true
+    printf 'parent:1.2 %%9\\n'
+    ;;
+  *) printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2; exit 9 ;;
+esac
 `, { mode: 0o755 });
   await writeFile(join(bin, "pi"), `#!/usr/bin/env bash
 set -euo pipefail
@@ -44,19 +46,22 @@ case "${'${PI_FAKE_MODE:-success}'}" in
     else
       printf '# %s artifact\\n' "$PI_CHILD_RUNNER_SKILL" >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
     fi
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   mixed)
     printf '# %s artifact\\n\\nRetained finding from %s.\\n' "$PI_CHILD_RUNNER_SKILL" "$PI_CHILD_RUNNER_SKILL" >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   slow)
     sleep 2
     printf '# Implementation Report:\\n\\nSlow fixture.\\n' >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
   crash)
     exit 17
     ;;
   missing-artifact)
-    :
+    "$PI_CHILD_RUNNER_FINISH" --success
     ;;
 esac
 `, { mode: 0o755 });
@@ -64,13 +69,20 @@ esac
 }
 
 function wrapperPath(skill: string) {
-  return join(root, "skills", "scripts", "spawn-skill-tmux-child.sh");
+  return join(root, "skills", "scripts", "run-skill-background.sh");
 }
 
-function statusPathFromStdout(stdout: string): string {
-  const statusPath = stdout.trim().split(/\n/).find((line) => line.endsWith(".json"));
-  assert(statusPath, "wrapper stdout should include a status JSON path");
-  return statusPath;
+function parseLaunch(stdout: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of stdout.trim().split(/\n/)) {
+    const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
+    if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
+  }
+  assert(values.ARTIFACT_PATH, "wrapper stdout should include ARTIFACT_PATH");
+  assert(values.SUCCESS_SENTINEL, "wrapper stdout should include SUCCESS_SENTINEL");
+  assert(values.FAILURE_SENTINEL, "wrapper stdout should include FAILURE_SENTINEL");
+  assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
+  return values;
 }
 
 async function testSkillMetadataAndWrappers() {
@@ -82,36 +94,41 @@ async function testSkillMetadataAndWrappers() {
     assert.match(frontmatter, /^description:\s*\S.+$/m);
     assert.match(markdown, /\.agents\//);
     if (skill.readonly) assert.match(markdown, /Do not edit|should not fix code/);
+    if (skill.name === "review-orchestrator") {
+      assert.match(markdown, /run-skill-background\.sh" --skill code-reviewer/);
+      assert.match(markdown, /--cwd "\$PWD"/);
+      assert.match(markdown, /launcher waits by default/);
+      assert.match(markdown, /grep -E '\^ARTIFACT_PATH='/);
+      assert.match(markdown, /artifact from `ARTIFACT_PATH`/);
+      assert.match(markdown, /Primary artifact path/);
+      assert.match(markdown, /missing artifacts, non-success statuses, timeouts, and child launch failures/);
+    }
   }
 }
 
 async function testImplementerAndDebuggerArtifacts() {
   const fixture = await makeFixture();
   for (const skill of skills.slice(0, 2)) {
-    const result = spawnSync(wrapperPath(skill.name), ["--skill", skill.name, "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1"], {
+    const result = spawnSync(wrapperPath(skill.name), ["--skill", skill.name, "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1", "--no-wait"], {
       cwd: root,
-      env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
+      env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
       encoding: "utf8",
     });
     assert.equal(result.status, 0, result.stderr);
-    const status = JSON.parse(await readFile(statusPathFromStdout(result.stdout), "utf8"));
-    assert.equal(status.skill, skill.name);
-    assert.equal(status.status, "success");
-    assert.match(status.artifact_path, new RegExp(`\\.agents/${skill.artifactDir}/`));
+    const launch = parseLaunch(result.stdout);
+    await stat(launch.SUCCESS_SENTINEL);
+    assert.match(launch.ARTIFACT_PATH, new RegExp(`\\.agents/${skill.artifactDir}/`));
     if (skill.name === "implementer") {
-      assert.equal(status.lock_enabled, true);
-      assert.match(status.lock_key, /^workspace-/);
-      assert.match(status.lock_file, /\.agents\/locks\/workspace-.*\.lock$/);
-      assert.match(await readFile(status.artifact_path, "utf8"), /^# Implementation Report:/);
+      assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /^# Implementation Report:/);
     }
   }
 }
 
-async function testImplementerLockTimeout() {
+async function testImplementerWorkspaceLock() {
   const fixture = await makeFixture();
-  const run = (timeout: string) => new Promise<string>((resolve, reject) => {
-    const child = spawn(wrapperPath("implementer"), ["--skill", "implementer", "--task", "Same workspace", "--cwd", fixture.cwd, "--timeout", "3"], {
-      env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, PI_FAKE_MODE: "slow", PI_IMPLEMENTER_LOCK_TIMEOUT: timeout },
+  const run = () => new Promise<string>((resolve, reject) => {
+    const child = spawn(wrapperPath("implementer"), ["--skill", "implementer", "--task", "Same workspace", "--cwd", fixture.cwd, "--timeout", "3", "--no-wait"], {
+      env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_FAKE_MODE: "slow" },
     });
     let stdout = "";
     let stderr = "";
@@ -119,152 +136,40 @@ async function testImplementerLockTimeout() {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("close", (code) => code === 0 ? resolve(stdout) : reject(new Error(stderr)));
   });
-  const firstPromise = run("2");
+  const firstPromise = run();
   // Give the first fake child a moment to enter the runner and acquire the
   // workspace lock; the test is about lock behavior, not process scheduling.
   await new Promise((resolve) => setTimeout(resolve, 250));
-  const [first, second] = await Promise.all([firstPromise, run("0")]);
-  const statuses = await Promise.all([first, second].map(async (stdout) => JSON.parse(await readFile(statusPathFromStdout(stdout), "utf8"))));
-  assert(statuses.some((status) => status.status === "success"));
-  const locked = statuses.find((status) => status.failure_reason === "lock-timeout");
+  const [first, second] = await Promise.all([firstPromise, run()]);
+  const launches = [first, second].map(parseLaunch);
+  assert(launches.some((launch) => launch.SUCCESS_SENTINEL));
+  let locked: Record<string, string> | undefined;
+  for (const launch of launches) {
+    try {
+      if (await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8") === "workspace-lock-held\n") locked = launch;
+    } catch {}
+  }
   assert(locked, "one concurrent implementer should fail clearly on the workspace lock");
-  assert.match(await readFile(locked.artifact_path, "utf8"), /Reason: lock-timeout/);
+  assert.match(await readFile(locked.ARTIFACT_PATH, "utf8"), /Reason: workspace-lock-held/);
 }
 
-async function testReviewOrchestratorAggregatesChildDiagnostics() {
+async function testReviewOrchestratorRunsAsNormalSkill() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
+  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--no-wait"], {
     cwd: root,
-    env: {
-      ...process.env,
-      PATH: `${fixture.bin}:${process.env.PATH}`,
-      PI_FAKE_MODE: "missing-artifact",
-    },
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr);
-  const artifact = result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md"));
-  await stat(artifact);
-  const report = await readFile(artifact, "utf8");
-  assert.match(report, /^# Review Orchestrator Report/);
-  assert.match(report, /code-reviewer: failure \(missing-artifact\)/);
-  assert.match(report, /No retained findings: no successful child review artifact was available\./);
-}
-
-async function testReviewOrchestratorSuccessRetainsFindingsAndUniquePaths() {
-  const fixture = await makeFixture();
-  const run = () => spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
-    cwd: root,
-    env: {
-      ...process.env,
-      PATH: `${fixture.bin}:${process.env.PATH}`,
-    },
-    encoding: "utf8",
-  });
-  const first = run();
-  const second = run();
-  assert.equal(first.status, 0, first.stderr);
-  assert.equal(second.status, 0, second.stderr);
-  const artifacts = [first, second].map((result) => result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md")));
-  assert.notEqual(artifacts[0], artifacts[1], "same-second orchestrator runs should not collide");
-  const report = await readFile(artifacts[0], "utf8");
-  assert.match(report, /## Retained Findings/);
-  assert.match(report, /### code-reviewer/);
-}
-
-async function testReviewOrchestratorLaunchFailure() {
-  const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--pi-bin", "missing-pi"], {
-    cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  const artifact = result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md"));
-  const report = await readFile(artifact, "utf8");
-  assert.match(report, /code-reviewer: launch-failed/);
-  assert.match(report, /code-reviewer: missing status JSON/);
-}
-
-async function testReviewOrchestratorTimeout() {
-  const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
-    cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, PI_FAKE_MODE: "slow" },
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  const artifact = result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md"));
-  const report = await readFile(artifact, "utf8");
-  assert.match(report, /code-reviewer: failure \(timeout\)/);
-}
-
-async function testReviewOrchestratorReportsPollingTimeoutWhileStarted() {
-  const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
-    cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, FAKE_TMUX_PRESERVE_STARTED: "1" },
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  const artifact = result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md"));
-  const report = await readFile(artifact, "utf8");
-  assert.match(report, /code-reviewer: failure \(timeout\)/);
-  assert.doesNotMatch(report, /code-reviewer: started/, "nonterminal child status should be reported as a timeout diagnostic");
-  assert.match(report, /No retained findings: no successful child review artifact was available\./);
-}
-
-async function testReviewOrchestratorPreservesBackslashEscapesInStatusJson() {
-  const fixture = await makeFixture();
-  const escapedCwd = join(fixture.dir, "work\\tb");
-  await mkdir(escapedCwd);
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", escapedCwd, "--timeout", "1"], {
-    cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  const artifact = result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md"));
-  const report = await readFile(artifact, "utf8");
-  assert.match(report, /work\\tb/, "literal backslash-t in status JSON paths must not decode as a tab");
-  assert.doesNotMatch(report, /work\tb/);
-}
-
-async function testReviewOrchestratorRetainedFindingsAndForwardedPaneFlags() {
-  const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--keep-pane", "--auto-exit"], {
-    cwd: root,
-    env: {
-      ...process.env,
-      PATH: `${fixture.bin}:${process.env.PATH}`,
-      PI_FAKE_MODE: "mixed",
-    },
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  const artifact = result.stdout.trim().split(/\n/).find((line) => line.endsWith(".md"));
-  const report = await readFile(artifact, "utf8");
-  assert.match(report, /code-reviewer: success/);
-  assert.match(report, /Retained finding from code-reviewer/);
-
-  const statusDir = join(fixture.cwd, ".agents", "status");
-  const statusFiles = (await readdir(statusDir)).filter((name) => name.endsWith(".json"));
-  const statuses = await Promise.all(statusFiles.map(async (name) => JSON.parse(await readFile(join(statusDir, name), "utf8"))));
-  const reviewerStatus = statuses.find((status) => status.skill === "code-reviewer");
-  assert(reviewerStatus, "code-reviewer status should be present");
-  assert.equal(reviewerStatus.keep_pane, true);
-  assert.equal(reviewerStatus.auto_exit, true);
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.SUCCESS_SENTINEL);
+  assert.match(launch.ARTIFACT_PATH, /\.agents\/reviews\//);
+  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /^# review-orchestrator artifact/);
 }
 
 await testSkillMetadataAndWrappers();
 await testImplementerAndDebuggerArtifacts();
-await testImplementerLockTimeout();
-await testReviewOrchestratorAggregatesChildDiagnostics();
-await testReviewOrchestratorSuccessRetainsFindingsAndUniquePaths();
-await testReviewOrchestratorLaunchFailure();
-await testReviewOrchestratorTimeout();
-await testReviewOrchestratorReportsPollingTimeoutWhileStarted();
-await testReviewOrchestratorPreservesBackslashEscapesInStatusJson();
-await testReviewOrchestratorRetainedFindingsAndForwardedPaneFlags();
+await testImplementerWorkspaceLock();
+await testReviewOrchestratorRunsAsNormalSkill();
 
 console.log("active skill tests passed");
