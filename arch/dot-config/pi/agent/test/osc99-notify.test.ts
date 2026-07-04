@@ -23,8 +23,8 @@ assert.equal(tmuxWrapLayers({ TMUX: "/tmp/tmux" }), 2);
 assert.equal(tmuxWrapLayers({ TMUX: "/tmp/tmux", PI_CODING_KIT_OSC99_TMUX_LAYERS: "1" }), 1);
 
 assert.equal(
-  formatNotificationBody({ eventType: "assistant-complete", message: "done", project: "/work/project" }),
-  "assistant-complete: done (project)",
+  formatNotificationBody({ eventType: "session-idle", message: "done", project: "/work/project" }),
+  "session-idle: done (project)",
 );
 
 const notification = createOsc99Notification({ title: "pi: test", body: "body", layers: 0, idPrefix: "test" });

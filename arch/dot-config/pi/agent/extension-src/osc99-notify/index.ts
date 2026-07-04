@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "../types.ts";
 
-type EventType = "assistant-complete" | "session-idle" | "session-error";
+type EventType = "session-idle" | "session-error";
 
 interface NotificationBodyInput {
   eventType: EventType | string;
@@ -18,7 +18,6 @@ interface Osc99NotificationInput {
 type NotificationContext = { cwd?: string } | undefined;
 
 const EVENT_MESSAGES: Record<EventType, string> = {
-  "assistant-complete": "assistant response complete",
   "session-idle": "session idle",
   "session-error": "session error",
 };
@@ -79,10 +78,6 @@ export function registerOsc99Notify(pi: ExtensionAPI): void {
     console.warn("pi-coding-kit: OSC99 notifications disabled because pi.on is unavailable");
     return;
   }
-
-  pi.on("message_end", (event: any, ctx: NotificationContext) => {
-    if (event?.message?.role === "assistant") notify("assistant-complete", EVENT_MESSAGES["assistant-complete"], ctx);
-  });
 
   pi.on("agent_end", (_event: unknown, ctx: NotificationContext) => {
     notify("session-idle", EVENT_MESSAGES["session-idle"], ctx);
