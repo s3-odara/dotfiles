@@ -39,8 +39,8 @@ fi
 
 # LS_COLOR
 
-test -r ~/.config/dircolors/habamax &&
-  eval "$(dircolors -b ~/.config/dircolors/habamax)"
+test -r ~/.config/dircolors/iceberg &&
+  eval "$(dircolors -b ~/.config/dircolors/iceberg)"
 
 # riverの自動起動(tty1, wayland sessionとssh以外でriverがないとき)
 local_tty="${TTY:-$(tty)}"
