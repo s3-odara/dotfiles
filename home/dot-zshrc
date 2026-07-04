@@ -149,8 +149,25 @@ if (( $+commands[fzf-tmux] )); then
     zle reset-prompt
   }
 
+  fzf-file-insert() {
+    local selected query quoted
+
+    query="${LBUFFER##*[[:space:]]}"
+    if [[ -n "$TMUX" ]]; then
+      selected=$(fzf-tmux -p --query "$query" < /dev/tty) || return
+    else
+      selected=$(fzf --query "$query" < /dev/tty) || return
+    fi
+
+    quoted=${(q)selected}
+    LBUFFER="${LBUFFER%$query}$quoted"
+    zle reset-prompt
+  }
+
   zle -N fzf-history-insert
+  zle -N fzf-file-insert
   bindkey '^H' fzf-history-insert
+  bindkey '^F' fzf-file-insert
 fi
 
 # Alias
