@@ -95,11 +95,9 @@ async function testSkillMetadataAndWrappers() {
     assert.match(markdown, /\.agents\//);
     if (skill.readonly) assert.match(markdown, /Do not edit|should not fix code/);
     if (skill.name === "review-orchestrator") {
-      assert.match(markdown, /\$PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR\/run-skill-background\.sh" --skill code-reviewer/);
-      assert.match(markdown, /--cwd "\$PWD"/);
-      assert.match(markdown, /launcher waits by default/);
-      assert.match(markdown, /grep -E '\^ARTIFACT_PATH='/);
-      assert.match(markdown, /artifact from `ARTIFACT_PATH`/);
+      assert.match(markdown, /Use the `explorer` result/);
+      assert.match(markdown, /Delegate multiple tasks to `code-reviewer`/);
+      assert.match(markdown, /Wait for the delegated reviews to finish/);
       assert.match(markdown, /Primary artifact path/);
       assert.match(markdown, /missing artifacts, non-success statuses, timeouts, and child launch failures/);
     }

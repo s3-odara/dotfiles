@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { modelArgsForSkill } from "./model-config.ts";
 import { findSkills, normalizePath, parseLauncherOutput, snippet, type Skill } from "./skills.ts";
 
 interface ToolResultDetails {
@@ -98,7 +99,7 @@ async function runSkillTool(pi: any, skillByName: Map<string, Skill>, params: an
     return failedToolResult(details);
   }
 
-  const args = ["--skill", skill.name, "--task", task, "--cwd", cwd];
+  const args = ["--skill", skill.name, "--task", task, "--cwd", cwd, ...modelArgsForSkill(skill.name)];
   if (noWait) args.push("--no-wait");
 
   try {

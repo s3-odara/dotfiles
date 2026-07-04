@@ -1,3 +1,4 @@
+import { modelArgsForSkill } from "./model-config.ts";
 import { findSkills, type Skill } from "./skills.ts";
 
 export default function registerSkillTmuxManualRunner(pi: any) {
@@ -34,11 +35,15 @@ function buildSpawnInstruction(skill: Skill, task: string, cwd: string): string 
     "",
     "```bash",
     "set -euo pipefail",
-    `launch_output=$(${shellQuote(skill.launcherPath)} --skill ${shellQuote(skill.name)} --task ${shellQuote(task)} --cwd ${shellQuote(cwd)})`,
+    `launch_output=$(${shellQuote(skill.launcherPath)} ${shellArgs(["--skill", skill.name, "--task", task, "--cwd", cwd, ...modelArgsForSkill(skill.name)])})`,
     "printf '%s\\n' \"$launch_output\"",
     "printf '\\nChild ran interactively in tmux window `agent` and finished.\\n'",
     "```",
   ].join("\n");
+}
+
+function shellArgs(values: string[]): string {
+  return values.map(shellQuote).join(" ");
 }
 
 function shellQuote(value: string): string {

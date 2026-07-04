@@ -55,7 +55,10 @@ const result = await second.handlers.input(
 
 assert.equal(result?.action, "transform");
 assert.match(result.text, /run-skill-background\.sh/);
-assert.match(result.text, /--skill 'code-reviewer'/);
+assert.match(result.text, /'--skill' 'code-reviewer'/);
+assert.match(result.text, /'--provider' 'openai-codex'/);
+assert.match(result.text, /'--model' 'gpt-5\.4-mini'/);
+assert.match(result.text, /'--thinking' 'medium'/);
 assert.match(result.text, /Review this diff\nwith details/);
 assert.doesNotMatch(result.text, /wait-for-children\.sh/);
 assert.match(result.text, /launcher waits for the child to finish/);
@@ -69,7 +72,10 @@ const orchestratorResult = await second.handlers.input(
 );
 assert.equal(orchestratorResult?.action, "transform");
 assert.match(orchestratorResult.text, /run-skill-background\.sh/);
-assert.match(orchestratorResult.text, /--skill 'review-orchestrator'/);
+assert.match(orchestratorResult.text, /'--skill' 'review-orchestrator'/);
+assert.match(orchestratorResult.text, /'--provider' 'openai-codex'/);
+assert.match(orchestratorResult.text, /'--model' 'gpt-5\.5'/);
+assert.match(orchestratorResult.text, /'--thinking' 'high'/);
 assert.match(orchestratorResult.text, /launch_output=/);
 assert.doesNotMatch(orchestratorResult.text, /wait-for-children\.sh/);
 assert.doesNotMatch(orchestratorResult.text, /artifact_path=\$\(/);
@@ -141,7 +147,14 @@ const successToolResult = await second.tools[0].execute(
 );
 assert.equal(execCalls.length, 1);
 assert.match(execCalls[0].command, /run-skill-background\.sh$/);
-assert.deepEqual(execCalls[0].args, ["--skill", "code-reviewer", "--task", "Review this diff", "--cwd", root]);
+assert.deepEqual(execCalls[0].args, [
+  "--skill", "code-reviewer",
+  "--task", "Review this diff",
+  "--cwd", root,
+  "--provider", "openai-codex",
+  "--model", "gpt-5.4-mini",
+  "--thinking", "medium",
+]);
 assert.equal(execCalls[0].args.includes("--no-wait"), false);
 assert.equal(execCalls[0].options.signal, signal);
 assert.equal(successToolResult.details.status, "success");
