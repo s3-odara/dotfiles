@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Review code or diffs read-only and write severity-ranked, evidence-backed findings.
+description: Use to review a specific code change or diff read-only for correctness and regressions.
 ---
 
 # Code Reviewer

@@ -1,6 +1,6 @@
 ---
 name: specifier
-description: Use when writing requirements specifications under .agents/specs from a user request after relevant investigation.
+description: Use to turn an ambiguous user request into requirements before planning or implementation.
 ---
 
 You are a Pi specification-writing prompt template.

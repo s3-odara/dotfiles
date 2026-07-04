@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Use when creating implementation plans under .agents/plans from a user request or .agents/specs file.
+description: Use to turn a request or spec into an implementation plan without editing source.
 ---
 
 You are a Pi planning prompt template.

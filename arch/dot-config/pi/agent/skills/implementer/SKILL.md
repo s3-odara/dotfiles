@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Make focused code changes and write an implementation report under .agents/impl-reports.
+description: Use to make focused code changes for a specified task or implementation plan.
 ---
 
 # Implementer

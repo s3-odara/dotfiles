@@ -1,6 +1,6 @@
 ---
 name: tester
-description: Run requested validation commands and report concise pass or failure artifacts without fixing code.
+description: Use to run validation commands and report results without fixing failures.
 ---
 
 # Tester

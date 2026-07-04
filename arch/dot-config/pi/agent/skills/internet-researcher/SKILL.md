@@ -1,6 +1,6 @@
 ---
 name: internet-researcher
-description: Perform source-backed external research synthesis for planning knowledge gaps.
+description: Use when external docs, release notes, APIs, compatibility, security, or current facts are needed.
 ---
 
 # Internet Researcher

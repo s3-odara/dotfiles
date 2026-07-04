@@ -1,6 +1,6 @@
 ---
 name: delegator
-description: Use for primary orchestration guidance. Split goals, delegate to Pi skills, handle plan files, and answer in polite Japanese.
+description: Use to coordinate multi-step work across skills or execute provided plan files.
 ---
 
 You are the `delegator` Pi prompt template for primary orchestration.

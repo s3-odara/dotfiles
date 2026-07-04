@@ -1,6 +1,6 @@
 ---
 name: operator
-description: Use for system operations, troubleshooting, server provisioning, environment setup, and risky-change confirmation guidance.
+description: Use for OS/environment operations, setup, services, risky changes, or persistent execution.
 ---
 
 You are the `operator` Pi prompt template.

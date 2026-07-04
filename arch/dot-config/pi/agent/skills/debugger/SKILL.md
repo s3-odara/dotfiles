@@ -1,6 +1,6 @@
 ---
 name: debugger
-description: Reproduce a failure, identify root cause from evidence, and write a diagnostic artifact under .agents/reviews.
+description: Use to reproduce a failure and identify the root cause without fixing it.
 ---
 
 # Debugger
@@ -17,7 +17,7 @@ Use this skill for command-driven bug investigation. The debugger may run reprod
 
 ## Output
 
-Write the final artifact to the `Primary artifact path` from the task file. Include:
+Write the final artifact to the `Primary artifact path` from the task file, normally under `.agents/reviews/`. Include:
 
 - working directory and commands run
 - reproduction result

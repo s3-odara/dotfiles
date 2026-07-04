@@ -1,6 +1,6 @@
 ---
 name: explorer
-description: Inspect a repository or problem area read-only and write an evidence-backed research artifact.
+description: Use to inspect local files, configs, logs, or repository structure read-only.
 ---
 
 # Explorer

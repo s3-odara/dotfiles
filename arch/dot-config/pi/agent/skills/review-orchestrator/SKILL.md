@@ -1,6 +1,6 @@
 ---
 name: review-orchestrator
-description: Coordinate focused read-only code review children and aggregate evidence-based findings.
+description: Use after implementation to coordinate code review and aggregate findings.
 ---
 
 # Review Orchestrator
@@ -25,20 +25,17 @@ Read only specs, plans, and impl-reports yourself, then proceed to step 2.
 
 ## 2. Inspect repository
 
-Then use `explorer` by default to inspect the repository and target, unless the review is trivial, already answerable from inspected context, unsuitable for that skill, or blocked. State the skip reason if you skip it.
+Then use `explorer` by default to inspect the repository and target, unless the review is trivial, already answerable from inspected context, unsuitable for that skill, or blocked.
 
 Use the `explorer` result to understand the scope, affected files, and likely risk areas.
 
 ## 3. Delegate review
 
-Use the exploration result to split the review into focused parts. Delegate those
-parts by launching `code-reviewer` children with the central launcher described
-in AGENTS.md, e.g. `"$PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR/run-skill-background.sh" --skill code-reviewer --task "$focused_task" --cwd "$PWD"`.
-The launcher waits by default; source only `grep -E '^ARTIFACT_PATH='` from the
-trusted launcher output, then read the child artifact from `ARTIFACT_PATH` before
-deciding which findings to retain.
+Use the exploration result to split the review into focused parts. Delegate multiple tasks to `code-reviewer`, one per independent target.
 
-After evaluating the delegated results, continue to curate findings.
+Give each delegated task a concrete target, relevant spec/plan/report paths, files or diffs to inspect, and risk areas to focus on.
+
+Wait for the delegated reviews to finish before curating findings.
 
 ## 4. Curate findings
 

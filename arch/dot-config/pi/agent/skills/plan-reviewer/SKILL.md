@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Review plans and specs read-only for ambiguity, sequencing, scope, and validation gaps.
+description: Use to review a spec or implementation plan for ambiguity, scope, sequencing, and test gaps.
 ---
 
 # Plan Reviewer

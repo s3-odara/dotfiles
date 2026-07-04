@@ -42,7 +42,7 @@ export default function registerSkillTmuxAutoRunner(pi: any) {
       content: [
         {
           type: "text",
-          text: `${skill.name} is tmux-managed. Do not execute this SKILL.md inline. Call the run_skill tool with skill: "${skill.name}", a concrete task, and the current cwd; then use the returned artifact/status.`,
+          text: `${skill.name} is tmux-managed. Do not execute this SKILL.md inline. Call the run_skill tool with skill: "${skill.name}", a concrete task, and the current cwd; then use the returned artifact/status. If the immediate next step does not need the child artifact, set noWait=true so the child can run asynchronously; otherwise omit noWait and wait for completion.`,
         },
       ],
       details: { status: "redirected", skill: skill.name, promptPath: skill.promptPath },
