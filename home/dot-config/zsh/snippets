@@ -48,3 +48,7 @@ curl --proto '=https' --tlsv1.3 -sSf -L https://artifacts.nixos.org/nix-installe
   | doas sh -s -- install linux \
   --enable-flakes \
   --extra-conf "sandbox = false"
+
+pi install npm:pi-mcp-adapter
+
+pi install npm:@spences10/pi-lsp
