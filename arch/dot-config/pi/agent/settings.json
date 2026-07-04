@@ -1,8 +1,11 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4-mini",
-  "defaultThinkingLevel": "high",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "medium",
   "theme": "system",
+  "externalEditor": "vim",
+  "enableAnalytics": false,
+  "enableInstallTelemetry": false,
   "enabledModels": [
     "openai-codex/*",
     "opencode-go/*"
@@ -16,14 +19,22 @@
     "enabled": true,
     "maxRetries": 3
   },
+  "steeringMode": "all",
   "warnings": {
     "missingMcpServers": true,
     "missingLanguageServers": true,
     "unsupportedThinking": true
   },
+  "terminal": {
+    "showImages": true
+  },
+  "images": {
+    "autoResize": true
+  },
   "lastChangelogVersion": "0.80.3",
   "packages": [
     "npm:pi-mcp-adapter",
     "npm:@spences10/pi-lsp"
-  ]
+  ],
+  "showHardwareCursor": false
 }

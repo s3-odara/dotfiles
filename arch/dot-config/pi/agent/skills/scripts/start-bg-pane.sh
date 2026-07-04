@@ -93,6 +93,7 @@ cwd=$(cd "$cwd" && pwd -P)
 prompt_template=$(cd "$(dirname "$prompt_template")" && pwd -P)/$(basename "$prompt_template")
 agents_dir="$cwd/.agents"
 for dir in research plans specs reviews impl-reports logs status locks; do mkdir -p "$agents_dir/$dir"; done
+agents_dir=$(cd "$agents_dir" && pwd -P)
 
 task_slug=$(slugify "$task")
 timestamp=$(date -u +%Y%m%d%H%M%S)
