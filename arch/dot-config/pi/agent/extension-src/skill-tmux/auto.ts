@@ -43,7 +43,7 @@ export default function registerSkillTmuxAutoRunner(pi: any) {
       content: [
         {
           type: "text",
-          text: `${skill.name} is tmux-managed. Do not execute this SKILL.md inline. Call the run_skill tool with skill: "${skill.name}", a concrete task, and the current cwd; then use the returned artifact/status. If the immediate next step does not need the child artifact, set noWait=true so the child can run asynchronously; otherwise omit noWait and wait for completion.`,
+          text: `${skill.name} is tmux-managed. Do not execute this SKILL.md inline. Use the run_skill tool instead.`,
         },
       ],
       details: { status: "redirected", skill: skill.name, promptPath: skill.promptPath },
@@ -58,9 +58,10 @@ export default function registerSkillTmuxAutoRunner(pi: any) {
       description: "Run a tmux-managed bundled Pi skill through the central tmux launcher and return its artifact path.",
       promptSnippet: "Use run_skill for tmux-managed bundled skills instead of reading their SKILL.md prompts inline.",
       promptGuidelines: [
-        "Use only for discovered tmux-managed skills.",
-        "Provide a concrete task and then read/use the returned artifact path.",
-        "Set noWait=true when you want to start the tmux child and continue; this requires follow-up message support and Pi will notify you when it finishes.",
+        "The run_skill child session has no prior conversation or tool context; the task must be self-contained.",
+        "Include all necessary context in run_skill task: objective, constraints, cwd, relevant files, prior findings, commands/output, errors, expected result, and what not to change.",
+        "Provide a concrete run_skill task and then read/use the returned artifact path.",
+        "Set run_skill noWait=true to continue without immediately needing the child artifact; Pi will follow up when it finishes. Otherwise omit noWait and wait.",
       ],
       parameters: {
         type: "object",
