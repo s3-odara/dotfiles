@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
+import { join } from "node:path";
 import type { IncomingMessage } from "node:http";
 import type { ExtensionAPI } from "../types.ts";
 
@@ -10,9 +13,7 @@ interface FetchOptions {
 }
 
 interface FetchResult {
-  text: string;
-  status: number;
-  url: string;
+  path: string;
   bytes: number;
 }
 
@@ -60,7 +61,7 @@ function clampedNumber(value: number | undefined, fallback: number, minimum: num
   return Math.min(Math.max(Number(value ?? fallback), minimum), maximum);
 }
 
-async function requestUrl(url: URL, timeoutMs: number, maxBytes: number, signal?: AbortSignal): Promise<{ text: string; status: number; location?: string; bytes: number }> {
+async function requestUrl(url: URL, timeoutMs: number, maxBytes: number, signal?: AbortSignal): Promise<{ body: Buffer; status: number; location?: string; bytes: number }> {
   const client = url.protocol === "https:" ? https : http;
 
   return await new Promise((resolve, reject) => {
@@ -109,16 +110,16 @@ async function requestUrl(url: URL, timeoutMs: number, maxBytes: number, signal?
         settled = true;
         cleanup();
         resolve({
-          text: Buffer.concat(chunks).toString("utf8"),
+          body: Buffer.concat(chunks),
           status: response.statusCode ?? 0,
           location: response.headers.location,
           bytes: total,
         });
       });
-      response.on("error", (error) => fail(error instanceof Error ? error : new Error(String(error))));
+      response.on("error", (error: unknown) => fail(error instanceof Error ? error : new Error(String(error))));
     });
 
-    request.on("error", (error) => {
+    request.on("error", (error: unknown) => {
       if (timedOut) fail(new Error("timeout exceeded"));
       else if (byteLimitExceeded) fail(new Error("byte limit exceeded"));
       else fail(error instanceof Error ? error : new Error(String(error)));
@@ -130,7 +131,7 @@ async function requestUrl(url: URL, timeoutMs: number, maxBytes: number, signal?
   });
 }
 
-export async function fetchUrl(rawUrl: string, options: FetchOptions = {}, signal?: AbortSignal): Promise<FetchResult> {
+export async function fetchUrl(rawUrl: string, options: FetchOptions = {}, signal?: AbortSignal, cwd = process.cwd()): Promise<FetchResult> {
   const timeoutMs = clampedNumber(options.timeoutMs, DEFAULT_TIMEOUT_MS, 1000, 120_000);
   const maxBytes = clampedNumber(options.maxBytes, DEFAULT_MAX_BYTES, 1, 5_000_000);
   const redirectLimit = clampedNumber(options.redirectLimit, DEFAULT_REDIRECT_LIMIT, 0, 10);
@@ -145,8 +146,14 @@ export async function fetchUrl(rawUrl: string, options: FetchOptions = {}, signa
       url = validateHttpUrl(new URL(result.location, url).toString());
       continue;
     }
-    return { text: result.text, status: result.status, url: url.toString(), bytes: result.bytes };
+
+    const relativePath = join(".agents", "downloads", `${Date.now()}-${randomUUID()}`);
+    const absolutePath = join(cwd, relativePath);
+    await mkdir(join(cwd, ".agents", "downloads"), { recursive: true });
+    await writeFile(absolutePath, result.body);
+    return { path: relativePath, bytes: result.bytes };
   }
+  throw new Error("unreachable redirect handling state");
 }
 
 export function registerWebfetchTool(pi: ExtensionAPI): void {
@@ -157,13 +164,13 @@ export function registerWebfetchTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "webfetch",
     label: "Web Fetch",
-    description: "Fetch a specific HTTP/HTTPS URL as text with timeout, byte, and redirect protections.",
-    promptSnippet: "Fetch a specific URL as text; this is not a web search tool.",
+    description: "Fetch a specific HTTP/HTTPS URL to a file under .agents/downloads/ with timeout, byte, and redirect protections.",
+    promptSnippet: "Fetch a specific URL to .agents/downloads/ and return the saved path; this is not a web search tool.",
     promptGuidelines: ["Use webfetch only when the user provides a specific URL or asks to fetch a known page; do not use it for web search."],
     parameters: webfetchParameters,
-    async execute(_toolCallId: string, params: WebfetchParams, signal?: AbortSignal) {
-      const result = await fetchUrl(params.url, params, signal);
-      return { content: [{ type: "text", text: result.text }], details: result };
+    async execute(_toolCallId: string, params: WebfetchParams, signal?: AbortSignal, _onUpdate?: unknown, ctx?: { cwd?: string }) {
+      const result = await fetchUrl(params.url, params, signal, ctx?.cwd);
+      return { content: [{ type: "text", text: `${result.path}\n${result.bytes} bytes` }], details: result };
     },
   });
 }
