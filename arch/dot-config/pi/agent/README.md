@@ -19,8 +19,9 @@ Pi loads `settings.json`, skills, themes, and optional model overrides from its 
 3. Optional integrations are expected to be installed by the user environment, not by these dotfiles:
 
    - `@spences10/pi-lsp` for LSP
-   - `pi-mcp-adapter` for MCP bridge support
    - language servers for the languages you use
+
+   MCP support is provided by the `pi-mcp-adapter` Pi package installed with `pi install npm:pi-mcp-adapter`.
 
 Missing optional LSP/MCP pieces should be treated as warnings. They should not be turned into startup blockers because daily-driver use must still work for local tasks.
 
@@ -30,7 +31,7 @@ Missing optional LSP/MCP pieces should be treated as warnings. They should not b
 - `extension-src/` — internal extension implementation modules, kept outside Pi auto-discovery.
 - `extension-src/osc99-notify/` — OSC99 notification formatting and event registration.
 - `extension-src/webfetch/` — URL fetch tool with protocol, timeout, byte, and redirect controls.
-- `extension-src/skill-tmux-runner.ts` — user-input hook that rewrites explicit bundled tmux-managed `/skill:name` requests.
+- `extension-src/skill-tmux/` — manual `/skill:name` tmux rewriting, automatic `run_skill`, and shared tmux-skill discovery helpers.
 - `skills/` — bundled Pi skills, native prompt-style skills, and the user-specific `web-search` methodology skill.
 - `skills/scripts/` — central tmux-managed skill launcher, wait helper, and common child runner.
 - `scripts/` — repository validation scripts.
@@ -40,9 +41,15 @@ Missing optional LSP/MCP pieces should be treated as warnings. They should not b
 
 ## MCP
 
-`arch/dot-config/mcp/mcp.json` stows to `~/.config/mcp/mcp.json` and lists the required candidate servers: `context7`, `deepwiki`, `exa`, and `parallel-search`. It uses environment-variable references only and stores no secrets.
+`arch/dot-config/mcp/mcp.json` stows to `~/.config/mcp/mcp.json` and lists the required candidate servers: `context7`, `deepwiki`, `exa`, and `parallel-search`. It uses remote `url` entries plus environment-variable references for headers, and stores no secrets.
 
-The file uses a preinstalled `pi-mcp-adapter` command rather than `npx` so starting Pi does not perform network installs.
+Pi itself does not launch MCP servers directly. The `pi-mcp-adapter` package reads this shared MCP config and connects to the remote HTTP endpoints. Install the adapter package with:
+
+```sh
+pi install npm:pi-mcp-adapter
+```
+
+The config intentionally does not use `command: "pi-mcp-adapter"`; the adapter binary is only a helper, while the installed Pi package owns MCP discovery and connection handling.
 
 ## LSP
 

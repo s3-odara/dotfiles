@@ -1,28 +1,25 @@
 {
   "mcpServers": {
     "context7": {
-      "command": "pi-mcp-adapter",
-      "args": ["--url", "https://mcp.context7.com/mcp"],
-      "env": {
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
         "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
       }
     },
     "deepwiki": {
-      "command": "pi-mcp-adapter",
-      "args": ["--url", "https://mcp.deepwiki.com/mcp"]
+      "url": "https://mcp.deepwiki.com/mcp",
+      "auth": false
     },
     "exa": {
-      "command": "pi-mcp-adapter",
-      "args": ["--url", "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa"],
-      "env": {
-        "EXAAI_API_KEY": "${EXAAI_API_KEY}"
+      "url": "https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa",
+      "headers": {
+        "x-api-key": "${EXAAI_API_KEY}"
       }
     },
     "parallel-search": {
-      "command": "pi-mcp-adapter",
-      "args": ["--url", "https://search.parallel.ai/mcp"],
-      "env": {
-        "PARALLELAI_API_KEY": "${PARALLELAI_API_KEY}"
+      "url": "https://search.parallel.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer ${PARALLELAI_API_KEY}"
       }
     }
   }
