@@ -38,8 +38,9 @@ fi
 
 # update-activation-envは既存のportalの状態を変えられない
 # 毎回殺して新しい環境変数でD-Bus Activateさせる
-pkill -TERM -x xdg-desktop-portal 2>/dev/null || true
-pkill -TERM -x xdg-desktop-portal-wlr 2>/dev/null || true
+# 15文字以上ではpkill -xで殺せない
+pkill -TERM -f '(^|/)xdg-desktop-portal-wlr([[:space:]]|$)' 2>/dev/null || true
+pkill -TERM -f '(^|/)xdg-desktop-portal([[:space:]]|$)' 2>/dev/null || true
 
 spawn_tracked "$HOME/.local/bin/wob-run"
 spawn_tracked waybar

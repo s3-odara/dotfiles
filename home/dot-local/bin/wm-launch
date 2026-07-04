@@ -49,8 +49,9 @@ while :; do
         if [ -n "$new_wd" ]; then
             export WAYLAND_DISPLAY="${new_wd##*/}"
             dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null || true
-            pkill -TERM -x xdg-desktop-portal 2>/dev/null || true
-            pkill -TERM -x xdg-desktop-portal-wlr 2>/dev/null || true
+            # 15文字以上だとpkill -xで殺せない
+            pkill -TERM -f '(^|/)xdg-desktop-portal-wlr([[:space:]]|$)' 2>/dev/null || true
+            pkill -TERM -f '(^|/)xdg-desktop-portal([[:space:]]|$)' 2>/dev/null || true
         fi
     fi
     first_run=0
