@@ -14,7 +14,7 @@ enddef
 
 def AutoPairSegmentAllowed(text: string): bool
   for ch in split(text, '\zs')
-    if index([')', ']', '}', "'", '"'], ch) < 0
+    if index([')', ']', '}', '"'], ch) < 0
       return v:false
     endif
   endfor
@@ -40,7 +40,6 @@ enddef
 inoremap <expr> ( g:AutoPairOpen('(', ')')
 inoremap <expr> [ g:AutoPairOpen('[', ']')
 inoremap <expr> { g:AutoPairOpen('{', '}')
-inoremap <expr> ' g:AutoPairSymmetric("'")
 inoremap <expr> " g:AutoPairSymmetric('"')
 inoremap <expr> ) g:AutoPairClose(')')
 inoremap <expr> ] g:AutoPairClose(']')
