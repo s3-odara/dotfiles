@@ -25,10 +25,6 @@ const SIGN_ADD = 'GitSignAdd'
 const SIGN_CHANGE = 'GitSignChange'
 const SIGN_DELETE = 'GitSignDelete'
 const SIGN_DELETE_FIRST = 'GitSignDeleteFirstLine'
-const MODE_SAVED = 'saved'
-const MODE_MODIFIED = 'modified'
-const MODE_HEAD = 'head'
-const MODE_SHOW = 'show'
 
 highlight default link GitSignAddHL DiffAdd
 highlight default link GitSignChangeHL DiffChange
@@ -54,7 +50,6 @@ def EnsureState(buf: number): dict<any>
       pending_generation: -1,
       job: v:none,
       job_seq: 0,
-      job_mode: '',
       file: '',
       repo_root: '',
       relpath: '',
@@ -95,6 +90,18 @@ def DeletePaths(paths: list<string>)
   endfor
 enddef
 
+def DeleteTrackedTempfile(buf: number, path: string)
+  DeleteFileIfExists(path)
+  var state = BufState(buf)
+  if empty(state)
+    return
+  endif
+  var idx = index(state.tempfiles, path)
+  if idx >= 0
+    remove(state.tempfiles, idx)
+  endif
+enddef
+
 def CleanupTrackedTempfiles(buf: number)
   var state = BufState(buf)
   if empty(state)
@@ -125,7 +132,6 @@ def StopJob(buf: number)
     job_stop(state.job)
   endif
   state.job = v:none
-  state.job_mode = ''
 enddef
 
 def ClearSigns(buf: number)
@@ -155,34 +161,72 @@ def ParseHunk(line: string): list<number>
   ]
 enddef
 
+def AddDiffBlockSigns(signs: list<dict<any>>, deleted_count: number, added_lnums: list<number>, anchor_lnum: number)
+  if deleted_count == 0 && empty(added_lnums)
+    return
+  endif
+
+  var changed_count = min([deleted_count, len(added_lnums)])
+  for idx in range(changed_count)
+    add(signs, {lnum: added_lnums[idx], name: SIGN_CHANGE})
+  endfor
+
+  if len(added_lnums) > changed_count
+    for idx in range(changed_count, len(added_lnums) - 1)
+      add(signs, {lnum: added_lnums[idx], name: SIGN_ADD})
+    endfor
+  endif
+
+  if deleted_count > len(added_lnums)
+    var lnum = empty(added_lnums) ? anchor_lnum : added_lnums[-1]
+    add(signs, {lnum: lnum == 0 ? 1 : lnum, name: lnum == 0 ? SIGN_DELETE_FIRST : SIGN_DELETE})
+  endif
+enddef
+
 def ParseDiff(diff: list<string>): list<dict<any>>
   var signs: list<dict<any>> = []
-  for header in diff
-    if header !~# '^@@ '
-      continue
-    endif
+  var idx = 0
 
-    var h = ParseHunk(header)
+  while idx < len(diff)
+    var h = ParseHunk(diff[idx])
     if empty(h)
+      idx += 1
       continue
     endif
 
-    var old_count = h[1]
     var new_line = h[2]
-    var new_count = h[3]
+    var deleted_count = 0
+    var added_lnums: list<number> = []
+    var block_anchor = new_line
+    idx += 1
 
-    if old_count == 0 && new_count > 0
-      for offset in range(new_count)
-        add(signs, {lnum: new_line + offset, name: SIGN_ADD})
-      endfor
-    elseif old_count > 0 && new_count == 0
-      add(signs, {lnum: new_line == 0 ? 1 : new_line, name: new_line == 0 ? SIGN_DELETE_FIRST : SIGN_DELETE})
-    else
-      for offset in range(new_count)
-        add(signs, {lnum: new_line + offset, name: SIGN_CHANGE})
-      endfor
-    endif
-  endfor
+    while idx < len(diff) && diff[idx] !~# '^@@ '
+      var line = diff[idx]
+      if line =~# '^-' && line !~# '^--- '
+        if deleted_count == 0 && empty(added_lnums)
+          block_anchor = new_line
+        endif
+        deleted_count += 1
+      elseif line =~# '^+' && line !~# '^+++ '
+        if deleted_count == 0 && empty(added_lnums)
+          block_anchor = new_line
+        endif
+        add(added_lnums, new_line)
+        new_line += 1
+      else
+        AddDiffBlockSigns(signs, deleted_count, added_lnums, block_anchor)
+        deleted_count = 0
+        added_lnums = []
+        if line =~# '^ '
+          new_line += 1
+        endif
+      endif
+      idx += 1
+    endwhile
+
+    AddDiffBlockSigns(signs, deleted_count, added_lnums, block_anchor)
+  endwhile
+
   return signs
 enddef
 
@@ -275,11 +319,26 @@ def BufferFile(buf: number): string
   return fnamemodify(file, ':p')
 enddef
 
-def GitFile(file: string): string
-  if empty(file)
-    return ''
+def GitPathInfo(file: string): dict<string>
+  var candidates = [file]
+  var resolved = resolve(file)
+  if !empty(resolved) && resolved !=# file
+    add(candidates, resolved)
   endif
-  return resolve(file)
+
+  for candidate in candidates
+    if empty(candidate) || !filereadable(candidate)
+      continue
+    endif
+
+    var root = FindGitRoot(fnamemodify(candidate, ':h'))
+    var relpath = RelativePath(root, candidate)
+    if !empty(root) && !empty(relpath)
+      return {root: root, relpath: relpath}
+    endif
+  endfor
+
+  return {root: '', relpath: ''}
 enddef
 
 def BufferBytes(buf: number, file: string): number
@@ -300,19 +359,19 @@ def BufferBytes(buf: number, file: string): number
 enddef
 
 def BufferTooLarge(buf: number, file: string): bool
-  var max_bytes = g:gitsign_max_file_bytes
-  if max_bytes > 0
-    var size = BufferBytes(buf, file)
-    if size > max_bytes
-      return true
-    endif
-  endif
-
   var max_lines = g:gitsign_max_file_lines
   var info = getbufinfo(buf)
   if max_lines > 0 && !empty(info)
     var line_count = info[0].linecount
     if line_count > max_lines
+      return true
+    endif
+  endif
+
+  var max_bytes = g:gitsign_max_file_bytes
+  if max_bytes > 0
+    var size = BufferBytes(buf, file)
+    if size > max_bytes
       return true
     endif
   endif
@@ -349,7 +408,6 @@ def CompleteJob(buf: number, finished_seq: number)
   endif
   if state.job_seq == finished_seq
     state.job = v:none
-    state.job_mode = ''
   endif
 enddef
 
@@ -374,10 +432,9 @@ def MaybeRunPendingUpdate(buf: number)
 enddef
 
 # async job pipeline
-def StartJob(buf: number, mode: string, argv: list<string>, stdout_file: string, stderr_file: string, ExitCbFactory: func)
+def StartJob(buf: number, argv: list<string>, stdout_file: string, stderr_file: string, ExitCbFactory: func)
   var state = EnsureState(buf)
   StopJob(buf)
-  state.job_mode = mode
   state.job_seq += 1
   var seq = state.job_seq
   var job = job_start(argv, {
@@ -388,7 +445,6 @@ def StartJob(buf: number, mode: string, argv: list<string>, stdout_file: string,
     exit_cb: ExitCbFactory(seq),
   })
   if type(job) != v:t_job
-    state.job_mode = ''
     return
   endif
   state.job = job
@@ -397,15 +453,15 @@ enddef
 def HandleDiffResult(buf: number, finished_seq: number, generation: number, stdout_file: string, stderr_file: string)
   var state = BufState(buf)
   CompleteJob(buf, finished_seq)
-  DeleteFileIfExists(stderr_file)
+  DeleteTrackedTempfile(buf, stderr_file)
   if empty(state) || state.generation != generation || !bufexists(buf)
-    DeleteFileIfExists(stdout_file)
+    DeleteTrackedTempfile(buf, stdout_file)
     MaybeRunPendingUpdate(buf)
     return
   endif
 
   var diff = ReadLines(stdout_file)
-  DeleteFileIfExists(stdout_file)
+  DeleteTrackedTempfile(buf, stdout_file)
 
   if !IsEligibleBuffer(buf)
     ResetBuffer(buf)
@@ -424,14 +480,13 @@ def StartSavedDiffJob(buf: number, generation: number)
   AddTempfile(buf, stderr_file)
   StartJob(
     buf,
-    MODE_SAVED,
     ['git', '-C', state.repo_root, 'diff', '--no-color', '--no-ext-diff', '-U0', '--', state.relpath],
     stdout_file,
     stderr_file,
     (seq) => (_, status) => {
       if status > 1
-        DeleteFileIfExists(stdout_file)
-        DeleteFileIfExists(stderr_file)
+        DeleteTrackedTempfile(buf, stdout_file)
+        DeleteTrackedTempfile(buf, stderr_file)
         CompleteJob(buf, seq)
         MaybeRunPendingUpdate(buf)
         return
@@ -457,15 +512,14 @@ def StartModifiedDiffJob(buf: number, generation: number, basefile: string)
 
   StartJob(
     buf,
-    MODE_MODIFIED,
     ['diff', '-U0', basefile, current_file],
     stdout_file,
     stderr_file,
     (seq) => (_, status) => {
-      DeleteFileIfExists(current_file)
+      DeleteTrackedTempfile(buf, current_file)
       if status > 1
-        DeleteFileIfExists(stdout_file)
-        DeleteFileIfExists(stderr_file)
+        DeleteTrackedTempfile(buf, stdout_file)
+        DeleteTrackedTempfile(buf, stderr_file)
         CompleteJob(buf, seq)
         MaybeRunPendingUpdate(buf)
         return
@@ -497,17 +551,16 @@ def StartShowJob(buf: number, generation: number, head_oid: string)
 
   StartJob(
     buf,
-    MODE_SHOW,
     ['git', '-C', state.repo_root, 'show', head_oid .. ':' .. state.relpath],
     stdout_file,
     stderr_file,
     (seq) => (_, status) => {
       CompleteJob(buf, seq)
-      DeleteFileIfExists(stderr_file)
+      DeleteTrackedTempfile(buf, stderr_file)
 
       var current = BufState(buf)
       if empty(current) || current.generation != generation
-        DeleteFileIfExists(stdout_file)
+        DeleteTrackedTempfile(buf, stdout_file)
         MaybeRunPendingUpdate(buf)
         return
       endif
@@ -523,8 +576,7 @@ def StartShowJob(buf: number, generation: number, head_oid: string)
       var old_entry = get(head_cache, head_key, {})
       DeleteFileIfExists(get(old_entry, 'path', ''))
       head_cache[head_key] = {path: basefile, head_oid: head_oid}
-      AddTempfile(buf, basefile)
-      DeleteFileIfExists(stdout_file)
+      DeleteTrackedTempfile(buf, stdout_file)
       StartModifiedDiffJob(buf, generation, basefile)
     }
   )
@@ -543,17 +595,16 @@ def StartHeadResolveJob(buf: number, generation: number)
 
   StartJob(
     buf,
-    MODE_HEAD,
     ['git', '-C', state.repo_root, 'rev-parse', '--verify', 'HEAD'],
     stdout_file,
     stderr_file,
     (seq) => (_, status) => {
       CompleteJob(buf, seq)
-      DeleteFileIfExists(stderr_file)
+      DeleteTrackedTempfile(buf, stderr_file)
 
       var current = BufState(buf)
       if empty(current) || current.generation != generation
-        DeleteFileIfExists(stdout_file)
+        DeleteTrackedTempfile(buf, stdout_file)
         MaybeRunPendingUpdate(buf)
         return
       endif
@@ -565,7 +616,7 @@ def StartHeadResolveJob(buf: number, generation: number)
           head_oid = trim(lines[0])
         endif
       endif
-      DeleteFileIfExists(stdout_file)
+      DeleteTrackedTempfile(buf, stdout_file)
 
       var head_key = current.repo_root .. "\n" .. current.relpath
       var entry = get(head_cache, head_key, {})
@@ -630,28 +681,21 @@ def ScheduleUpdate(buf: number, immediate: bool = false)
     ResetBuffer(buf)
     return
   endif
-  var git_file = GitFile(file)
-  if empty(git_file) || !filereadable(git_file)
-    ResetBuffer(buf)
-    return
-  endif
-
   if BufferTooLarge(buf, file)
     ResetBuffer(buf)
     return
   endif
 
-  var root = FindGitRoot(fnamemodify(git_file, ':h'))
-  var relpath = RelativePath(root, git_file)
-  if empty(root) || empty(relpath)
+  var git_path = GitPathInfo(file)
+  if empty(git_path.root) || empty(git_path.relpath)
     ResetBuffer(buf)
     return
   endif
 
   var state = EnsureState(buf)
   state.file = file
-  state.repo_root = root
-  state.relpath = relpath
+  state.repo_root = git_path.root
+  state.relpath = git_path.relpath
   state.generation += 1
 
   if immediate
