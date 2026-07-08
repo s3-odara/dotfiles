@@ -374,7 +374,7 @@ set -- "$@" \
     "$player"
 
 if [ "$player" = "mpv" ]; then
-    set -- "$@" --force-window=yes
+    set -- "$@" --force-window=yes --keep-open=yes
 else
     set -- "$@" -autoexit
 fi
