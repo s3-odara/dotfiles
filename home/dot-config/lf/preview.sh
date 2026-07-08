@@ -11,8 +11,6 @@ height=${3:-24}
 mode=${6:-preview}
 cell_width=${LF_PREVIEW_CELL_WIDTH:-40}
 cell_height=${LF_PREVIEW_CELL_HEIGHT:-18}
-pixel_width=$((width * cell_width))
-pixel_height=$((height * cell_height))
 
 if [ -z "$file_path" ]; then
     exit 1
@@ -47,12 +45,28 @@ fi
 
 mime=$(file --dereference --brief --mime-type -- "$file_path" 2>/dev/null || printf 'application/octet-stream')
 
+show_file_fallback() {
+    file --brief --dereference -- "$1"
+}
+
 show_text_preview() {
     {
         sed -n "1,${height}p" -- "$1" 2>/dev/null ||
             head -n "$height" -- "$1" 2>/dev/null ||
             true
     } | sanitize_terminal_text
+}
+
+show_directory_preview() {
+    if [ "$mode" = "preview" ]; then
+        find "$1" -mindepth 1 -maxdepth 1 2>/dev/null |
+            sed 's#^.*/##' |
+            head -n "$height" |
+            sanitize_terminal_path_lines
+    else
+        printf '%s' "$1" | sanitize_terminal_path_value
+        printf '\n'
+    fi
 }
 
 emit_sixel_from_stdin() {
@@ -109,23 +123,15 @@ case "$mime" in
         show_text_preview "$file_path"
         ;;
     image/*|video/*)
-        show_media_preview "$file_path" || file --brief --dereference -- "$file_path"
+        show_media_preview "$file_path" || show_file_fallback "$file_path"
         ;;
     application/pdf)
-        show_pdf_preview "$file_path" || file --brief --dereference -- "$file_path"
+        show_pdf_preview "$file_path" || show_file_fallback "$file_path"
         ;;
     inode/directory)
-        if [ "$mode" = "preview" ]; then
-            find "$file_path" -mindepth 1 -maxdepth 1 2>/dev/null |
-                sed 's#^.*/##' |
-                head -n "$height" |
-                sanitize_terminal_path_lines
-        else
-            printf '%s' "$file_path" | sanitize_terminal_path_value
-            printf '\n'
-        fi
+        show_directory_preview "$file_path"
         ;;
     *)
-        file --brief --dereference -- "$file_path"
+        show_file_fallback "$file_path"
         ;;
 esac
