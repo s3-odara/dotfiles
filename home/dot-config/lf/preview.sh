@@ -77,8 +77,8 @@ emit_sixel_preview() {
         return 0
     fi
 
-    if command -v chafa >/dev/null 2>&1 &&
-        chafa --format=sixels "$input" >"$output" 2>/dev/null &&
+    if command -v magick >/dev/null 2>&1 &&
+        magick "$input" sixel:- >"$output" 2>/dev/null &&
         [ -s "$output" ]; then
         return 0
     fi
