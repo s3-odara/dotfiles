@@ -19,7 +19,7 @@ pi install npm:@spences10/pi-lsp
   - `webfetch/` — constrained HTTP/HTTPS URL fetch tool.
   - `skill-tmux/` — `/skill:name` tmux routing, `run_skill`, and tmux-skill discovery helpers.
 - `skills/` — bundled tmux skills and native prompt-style skills.
-- `skills/scripts/` — central tmux skill launcher, wait helper, and pane starter.
+- `skills/scripts/` — tmux pane starter and wait helper.
 - `test/` — unit and contract tests run by `npm test`.
 - `APPEND_SYSTEM.md` — additional workspace instructions appended to the system prompt.
 
@@ -41,15 +41,15 @@ Tmux-managed bundled skills:
 - `tester`
 - `code-reviewer`
 - `plan-reviewer`
+- `planner`
+- `specifier`
 
 Native prompt-style skills:
 
 - `operator`
 - `delegator`
-- `planner`
-- `specifier`
 
-Native skills are intentionally not listed in `extension-src/skill-tmux/skills.ts`; explicit `/skill:...` prompts for those names fall through to Pi's native skill expansion. Shared tmux runner details live in `skills/scripts/README.md`.
+Tmux-managed skill metadata lives in `extension-src/skill-tmux/skills.ts`. Shared tmux runner details live in `skills/scripts/README.md`.
 
 ## OSC99 and webfetch
 

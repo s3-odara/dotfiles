@@ -1,22 +1,30 @@
 import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 
-export const TMUX_MANAGED_SKILLS = [
-  "explorer",
-  "internet-researcher",
-  "code-reviewer",
-  "debugger",
-  "tester",
-  "plan-reviewer",
-  "implementer",
-  "review-orchestrator",
-];
+export type ArtifactDir = "research" | "plans" | "specs" | "reviews" | "impl-reports";
+
+const SKILL_CONFIG = {
+  explorer: { artifactDir: "research", workspaceLock: false },
+  "internet-researcher": { artifactDir: "research", workspaceLock: false },
+  "code-reviewer": { artifactDir: "reviews", workspaceLock: false },
+  debugger: { artifactDir: "reviews", workspaceLock: false },
+  tester: { artifactDir: "reviews", workspaceLock: false },
+  "plan-reviewer": { artifactDir: "reviews", workspaceLock: false },
+  implementer: { artifactDir: "impl-reports", workspaceLock: true },
+  "review-orchestrator": { artifactDir: "reviews", workspaceLock: false },
+  planner: { artifactDir: "plans", workspaceLock: false },
+  specifier: { artifactDir: "specs", workspaceLock: false },
+} as const satisfies Record<string, { artifactDir: ArtifactDir; workspaceLock: boolean }>;
+
+export const TMUX_MANAGED_SKILLS = Object.keys(SKILL_CONFIG);
 
 export interface Skill {
   name: string;
-  launcherPath: string;
+  startPanePath: string;
   promptPath: string;
   waitForChildrenPath: string;
+  artifactDir: ArtifactDir;
+  workspaceLock: boolean;
 }
 
 export function findSkills(): Skill[] {
@@ -25,17 +33,19 @@ export function findSkills(): Skill[] {
     join(process.env.HOME ?? "/home/user", ".config", "pi", "agent"),
     "skills",
   );
-  const launcherPath = normalizePath(join(base, "scripts", "run-skill-background.sh"));
+  const startPanePath = normalizePath(join(base, "scripts", "start-bg-pane.sh"));
   const waitForChildrenPath = normalizePath(join(base, "scripts", "wait-for-children.sh"));
-  if (!existsSync(launcherPath)) return [];
+  if (!existsSync(startPanePath) || !existsSync(waitForChildrenPath)) return [];
 
-  return TMUX_MANAGED_SKILLS
-    .filter((name) => existsSync(join(base, name, "SKILL.md")))
-    .map((name) => ({
+  return Object.entries(SKILL_CONFIG)
+    .filter(([name]) => existsSync(join(base, name, "SKILL.md")))
+    .map(([name, config]) => ({
       name,
-      launcherPath,
+      startPanePath,
       promptPath: normalizePath(join(base, name, "SKILL.md")),
       waitForChildrenPath,
+      artifactDir: config.artifactDir,
+      workspaceLock: config.workspaceLock,
     }));
 }
 

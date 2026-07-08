@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { modelArgsForSkill } from "./model-config.ts";
 import { findSkills, normalizePath, parseLauncherOutput, snippet, type Skill } from "./skills.ts";
 
@@ -55,7 +55,7 @@ export default function registerSkillTmuxAutoRunner(pi: any) {
     pi.registerTool({
       name: "run_skill",
       label: "Run Skill",
-      description: "Run a tmux-managed bundled Pi skill through the central tmux launcher and return its artifact path.",
+      description: "Run a tmux-managed bundled Pi skill in a tmux child pane and return its artifact path.",
       promptSnippet: "Use run_skill for tmux-managed bundled skills instead of reading their SKILL.md prompts inline.",
       promptGuidelines: [
         "The run_skill child session has no prior conversation or tool context; the task must be self-contained.",
@@ -100,8 +100,7 @@ async function runSkillTool(pi: any, skillByName: Map<string, Skill>, params: an
     return failedToolResult(details);
   }
 
-  const args = ["--skill", skill.name, "--task", task, "--cwd", cwd, ...modelArgsForSkill(skill.name)];
-  if (noWait) args.push("--no-wait");
+  const args = buildStartPaneArgs(skill, task, cwd);
 
   try {
     if (typeof pi?.exec !== "function") {
@@ -110,11 +109,11 @@ async function runSkillTool(pi: any, skillByName: Map<string, Skill>, params: an
     if (noWait && typeof pi?.sendUserMessage !== "function") {
       return failedToolResult({ status: "failed", skill: skill.name, cwd, error: "noWait requires Pi follow-up message support" });
     }
-    if (noWait && !existsSync(skill.waitForChildrenPath)) {
+    if (!existsSync(skill.waitForChildrenPath)) {
       return failedToolResult({ status: "failed", skill: skill.name, cwd, error: "wait-for-children.sh is unavailable" });
     }
 
-    const result = await pi.exec(skill.launcherPath, args, { signal });
+    const result = await pi.exec(skill.startPanePath, args, { signal });
     const stdout = String(result?.stdout ?? "");
     const stderr = String(result?.stderr ?? "");
     const code = typeof result?.code === "number" ? result.code : undefined;
@@ -126,16 +125,17 @@ async function runSkillTool(pi: any, skillByName: Map<string, Skill>, params: an
       return failedToolResult({ status: "failed", skill: skill.name, cwd, code, killed, stdout: snippet(stdout), stderr: snippet(stderr) });
     }
     if (!artifactPath) {
-      return failedToolResult({ status: "failed", skill: skill.name, cwd, code, killed, stdout: snippet(stdout), stderr: snippet(stderr), error: "Launcher output did not include a trusted ARTIFACT_PATH='...' line" });
+      return failedToolResult({ status: "failed", skill: skill.name, cwd, code, killed, stdout: snippet(stdout), stderr: snippet(stderr), error: "start-bg-pane output did not include a trusted ARTIFACT_PATH='...' line" });
     }
 
+    const successSentinel = launch.SUCCESS_SENTINEL;
+    const failureSentinel = launch.FAILURE_SENTINEL;
+    if (!successSentinel || !failureSentinel) {
+      return failedToolResult({ status: "failed", skill: skill.name, cwd, code, killed, stdout: snippet(stdout), stderr: snippet(stderr), error: "start-bg-pane output did not include sentinel paths" });
+    }
+
+    const run = { skill: skill.name, cwd, artifactPath, successSentinel, failureSentinel, waitForChildrenPath: skill.waitForChildrenPath };
     if (noWait) {
-      const successSentinel = launch.SUCCESS_SENTINEL;
-      const failureSentinel = launch.FAILURE_SENTINEL;
-      if (!successSentinel || !failureSentinel) {
-        return failedToolResult({ status: "failed", skill: skill.name, cwd, code, killed, stdout: snippet(stdout), stderr: snippet(stderr), error: "Launcher --no-wait output did not include sentinel paths" });
-      }
-      const run = { skill: skill.name, cwd, artifactPath, successSentinel, failureSentinel, waitForChildrenPath: skill.waitForChildrenPath };
       void watchStartedRun(pi, run, signal).catch((error) => {
         console.warn(`run_skill watcher failed for ${skill.name}:`, error);
       });
@@ -143,6 +143,11 @@ async function runSkillTool(pi: any, skillByName: Map<string, Skill>, params: an
         content: [{ type: "text", text: `${skill.name} tmux child started. I will send a follow-up message when it finishes. Artifact path: ${artifactPath}` }],
         details: { status: "started", skill: skill.name, cwd, artifactPath, successSentinel, failureSentinel },
       };
+    }
+
+    const waitResult = await waitForRun(pi, run, signal);
+    if (waitResult.status !== "success") {
+      return failedToolResult({ status: "failed", skill: skill.name, cwd, artifactPath, code: waitResult.code, killed: waitResult.killed, stdout: snippet(waitResult.stdout), stderr: snippet(waitResult.stderr), error: waitResult.reason });
     }
 
     return {
@@ -154,9 +159,21 @@ async function runSkillTool(pi: any, skillByName: Map<string, Skill>, params: an
   }
 }
 
-async function watchStartedRun(pi: any, run: StartedRun, signal?: AbortSignal): Promise<void> {
-  if (typeof pi?.exec !== "function") return;
+function buildStartPaneArgs(skill: Skill, task: string, cwd: string): string[] {
+  const args = [
+    "--skill", skill.name,
+    "--artifact-dir", skill.artifactDir,
+    "--prompt-template", skill.promptPath,
+    "--task", task,
+    "--cwd", cwd,
+    "--timeout", "1800",
+    ...modelArgsForSkill(skill.name),
+  ];
+  if (skill.workspaceLock) args.push("--workspace-lock");
+  return args;
+}
 
+async function waitForRun(pi: any, run: StartedRun, signal?: AbortSignal) {
   const result = await pi.exec(run.waitForChildrenPath, [
     "--success", run.successSentinel,
     "--failure", run.failureSentinel,
@@ -167,12 +184,31 @@ async function watchStartedRun(pi: any, run: StartedRun, signal?: AbortSignal): 
   const stderr = String(result?.stderr ?? "");
   const code = typeof result?.code === "number" ? result.code : undefined;
   const killed = result?.killed === true;
-  const status = !killed && code === 0 ? "completed" : "failed";
+  const status = !killed && code === 0 ? "success" : "failed";
+  const reason = status === "success" ? undefined : ((readFailureReason(run.failureSentinel) ?? stderr) || stdout || "child run failed");
+  return { status, stdout, stderr, code, killed, reason };
+}
+
+function readFailureReason(failureSentinel: string): string | undefined {
+  try {
+    return readFileSync(`${failureSentinel}.reason`, "utf8").trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function watchStartedRun(pi: any, run: StartedRun, signal?: AbortSignal): Promise<void> {
+  if (typeof pi?.exec !== "function") return;
+
+  const result = await waitForRun(pi, run, signal);
+  const status = result.status === "success" ? "completed" : "failed";
+  const stdout = result.stdout;
+  const stderr = result.stderr;
   const text = [
     `run_skill ${status}: ${run.skill}`,
     `Artifact: ${run.artifactPath}`,
     `Working directory: ${run.cwd}`,
-    status === "failed" ? `Diagnostics: ${snippet(stderr) ?? snippet(stdout) ?? "check the tmux pane and sentinels"}` : undefined,
+    status === "failed" ? `Diagnostics: ${result.reason ?? snippet(stderr) ?? snippet(stdout) ?? "check the tmux pane and sentinels"}` : undefined,
   ].filter(Boolean).join("\n");
 
   if (signal?.aborted) return;
@@ -186,7 +222,7 @@ async function watchStartedRun(pi: any, run: StartedRun, signal?: AbortSignal): 
 
 function failedToolResult(details: ToolResultDetails) {
   return {
-    content: [{ type: "text", text: `run_skill failed: ${details.error ?? "launcher did not complete successfully"}` }],
+    content: [{ type: "text", text: `run_skill failed: ${details.error ?? "child run did not complete successfully"}` }],
     details,
     isError: true,
   };

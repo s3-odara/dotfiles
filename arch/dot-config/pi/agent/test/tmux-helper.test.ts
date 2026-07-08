@@ -6,7 +6,6 @@ import { spawn, spawnSync } from "node:child_process";
 
 const root = new URL("..", import.meta.url).pathname;
 const helper = join(root, "skills", "scripts", "start-bg-pane.sh");
-const centralLauncher = join(root, "skills", "scripts", "run-skill-background.sh");
 const waitHelper = join(root, "skills", "scripts", "wait-for-children.sh");
 
 type TmuxFixture = { dir: string; bin: string; cwd: string; prompt: string };
@@ -103,15 +102,6 @@ function parseLaunch(stdout: string): Record<string, string> {
   assert(values.SUCCESS_SENTINEL, "helper stdout should include SUCCESS_SENTINEL");
   assert(values.FAILURE_SENTINEL, "helper stdout should include FAILURE_SENTINEL");
   assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
-  return values;
-}
-
-function parseKeyValues(stdout: string): Record<string, string> {
-  const values: Record<string, string> = {};
-  for (const line of stdout.trim().split(/\n/)) {
-    const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
-    if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
-  }
   return values;
 }
 
@@ -214,25 +204,6 @@ async function testWaitForChildrenUsesSentinelPairs() {
   assert.doesNotMatch(result.stdout, /\{|status_json|run-id/);
 }
 
-async function testCentralLauncherWaitsAndPrintsArtifactOnly() {
-  const fixture = await makeFixture();
-  const result = spawnSync(centralLauncher, [
-    "--skill", "tester",
-    "--task", "Central launcher wait",
-    "--cwd", fixture.cwd,
-    "--timeout", "1",
-    "--pi-bin", join(fixture.bin, "pi"),
-  ], {
-    cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  const values = parseKeyValues(result.stdout);
-  assert.deepEqual(Object.keys(values), ["ARTIFACT_PATH"]);
-  assert.match(await readFile(values.ARTIFACT_PATH, "utf8"), /# Artifact/);
-}
-
 await testSuccess();
 await testValidation();
 await testMissingArtifactFailure();
@@ -241,10 +212,9 @@ await testMissingTmuxDiagnostic();
 await testTmuxPaneFailureFinalizesStatus();
 await testConcurrentNamesDoNotCollide();
 await testWaitForChildrenUsesSentinelPairs();
-await testCentralLauncherWaitsAndPrintsArtifactOnly();
-
 const policyWords = await readdir(join(root, "skills", "scripts"));
 assert(policyWords.includes("start-bg-pane.sh"));
-assert(policyWords.includes("run-skill-background.sh"));
+assert(policyWords.includes("wait-for-children.sh"));
+assert(!policyWords.includes("run-skill-background.sh"));
 assert(!policyWords.includes("tmux-managed-skills.tsv"));
 console.log("tmux helper tests passed");

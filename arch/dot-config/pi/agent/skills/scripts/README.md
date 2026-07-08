@@ -1,43 +1,39 @@
 # Shared skill scripts
 
-Shared launcher scripts for tmux-managed bundled Pi skills.
+Shared low-level scripts for tmux-managed bundled Pi skills.
 
 ## Files
 
-- `run-skill-background.sh` — public launcher for bundled tmux-managed skills.
-- `start-bg-pane.sh` — internal pane starter; validates inputs, creates `.agents/` directories, starts the child Pi pane, and manages logs/sentinels.
+- `start-bg-pane.sh` — starts a child Pi pane, validates inputs, creates `.agents/` directories, and manages logs/sentinels.
 - `wait-for-children.sh` — waits for one or more child runs and prints a key=value summary.
 
-Native Pi skills such as `operator`, `delegator`, `planner`, and `specifier` are not routed through these scripts.
+The Pi extension owns skill policy and calls these helpers directly. Skill metadata such as artifact directory, prompt template, and workspace locking lives in `extension-src/skill-tmux/skills.ts`.
 
-## Launcher contract
+## Pane starter contract
 
 Call:
 
 ```sh
-skills/scripts/run-skill-background.sh --skill NAME --task TEXT --cwd DIR
+skills/scripts/start-bg-pane.sh \
+  --skill NAME \
+  --artifact-dir research|plans|specs|reviews|impl-reports \
+  --prompt-template FILE \
+  --task TEXT \
+  --cwd DIR
 ```
 
 Optional arguments:
 
 - Pi routing: `--provider`, `--model`, `--thinking`
-- runner behavior: `--timeout`, `--pi-bin`, `--no-wait`
+- runner behavior: `--timeout`, `--pi-bin`, `--workspace-lock`, `--artifact`
 
-The launcher owns artifact-dir and prompt-template selection so call sites cannot bypass skill policy.
-
-By default, the launcher waits for completion and prints only:
-
-```sh
-ARTIFACT_PATH='quoted value'
-```
-
-On failure or timeout it exits non-zero and writes diagnostics to stderr.
-
-With `--no-wait`, it starts the pane and returns immediately with:
+The helper starts the pane and returns immediately with:
 
 - `ARTIFACT_PATH`
 - `SUCCESS_SENTINEL`
 - `FAILURE_SENTINEL`
+
+Callers that need synchronous behavior should pass the sentinel paths to `wait-for-children.sh`.
 
 ## Outputs
 
@@ -68,13 +64,13 @@ Each run writes:
 
 ## Completion and failures
 
-The parent launcher waits for success or failure sentinels. The finish helper marks failure when a successful finish has no primary artifact, and the generated runner marks failure if Pi exits without either sentinel.
+The finish helper marks failure when a successful finish has no primary artifact, and the generated runner marks failure if Pi exits without either sentinel.
 
 Successful finishes close the child pane by default. Failed runs keep the pane open for diagnostics.
 
 ## Locks
 
-`implementer` runs acquire a non-blocking `flock` from the canonical working directory before starting child Pi. If another implementer is active for the same workspace, the launcher does not start a child process. It writes a `workspace-lock-held` failure artifact, failure sentinel, and failure reason.
+Callers can pass `--workspace-lock` to acquire a non-blocking `flock` from the canonical working directory before starting child Pi. If another locked run is active for the same workspace, the helper writes a `workspace-lock-held` failure artifact, failure sentinel, and failure reason.
 
 ## Waiting for children
 

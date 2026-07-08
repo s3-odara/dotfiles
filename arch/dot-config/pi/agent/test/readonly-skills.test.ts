@@ -68,28 +68,29 @@ function parseLaunch(stdout: string): Record<string, string> {
     const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
     if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
   }
-  assert(values.ARTIFACT_PATH, "wrapper stdout should include ARTIFACT_PATH");
-  assert(values.SUCCESS_SENTINEL, "wrapper stdout should include SUCCESS_SENTINEL");
-  assert(values.FAILURE_SENTINEL, "wrapper stdout should include FAILURE_SENTINEL");
+  assert(values.ARTIFACT_PATH, "helper stdout should include ARTIFACT_PATH");
+  assert(values.SUCCESS_SENTINEL, "helper stdout should include SUCCESS_SENTINEL");
+  assert(values.FAILURE_SENTINEL, "helper stdout should include FAILURE_SENTINEL");
   assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
   return values;
 }
 
-function wrapperPath(skill: string) {
-  return join(root, "skills", "scripts", "run-skill-background.sh");
+function helperPath() {
+  return join(root, "skills", "scripts", "start-bg-pane.sh");
 }
 
 function slug(value: string) {
   return value.replaceAll("_", "-");
 }
 
-async function runWrapper(fixture: SkillFixture, skill: Skill, extraEnv: Record<string, string> = {}) {
-  const result = spawnSync(wrapperPath(skill.name), [
+async function runHelper(fixture: SkillFixture, skill: Skill, extraEnv: Record<string, string> = {}) {
+  const result = spawnSync(helperPath(), [
     "--skill", skill.name,
+    "--artifact-dir", skill.artifactDir,
+    "--prompt-template", join(root, "skills", skill.name, "SKILL.md"),
     "--task", `Check ${skill.name}`,
     "--cwd", fixture.cwd,
     "--timeout", "1",
-    "--no-wait",
   ], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", ...extraEnv },
@@ -104,7 +105,7 @@ async function runWrapper(fixture: SkillFixture, skill: Skill, extraEnv: Record<
   return launch;
 }
 
-async function testSkillMetadataAndWrappers() {
+async function testSkillMetadataAndHelpers() {
   for (const skill of skills) {
     const markdown = await readFile(join(root, "skills", skill.name, "SKILL.md"), "utf8");
     assert.match(markdown, /^---\n[\s\S]*?\n---\n/, `${skill.name} must have YAML frontmatter`);
@@ -117,23 +118,24 @@ async function testSkillMetadataAndWrappers() {
   }
 }
 
-async function testWrappersProduceCanonicalArtifacts() {
+async function testHelpersProduceCanonicalArtifacts() {
   const fixture = await makeFixture();
-  for (const skill of skills) await runWrapper(fixture, skill);
+  for (const skill of skills) await runHelper(fixture, skill);
   const panes = (await readFile(join(fixture.dir, "panes.log"), "utf8")).trim().split(/\n/);
   assert.equal(panes.length, skills.length);
 }
 
-async function testConcurrentReadonlyWrappersDoNotCollide() {
+async function testConcurrentReadonlyHelpersDoNotCollide() {
   const fixture = await makeFixture();
   const selected = skills.filter((skill) => skill.readonly).slice(0, 2);
   const run = (skill) => new Promise((resolve, reject) => {
-    const child = spawn(wrapperPath(skill.name), [
+    const child = spawn(helperPath(), [
       "--skill", skill.name,
+      "--artifact-dir", skill.artifactDir,
+      "--prompt-template", join(root, "skills", skill.name, "SKILL.md"),
       "--task", "Concurrent read check",
       "--cwd", fixture.cwd,
       "--timeout", "1",
-      "--no-wait",
     ], { env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" } });
     let stdout = "";
     let stderr = "";
@@ -147,12 +149,13 @@ async function testConcurrentReadonlyWrappersDoNotCollide() {
 
 async function testInternetResearcherUnavailableMcpWritesFailureArtifact() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("internet-researcher"), [
+  const result = spawnSync(helperPath(), [
     "--skill", "internet-researcher",
+    "--artifact-dir", "research",
+    "--prompt-template", join(root, "skills", "internet-researcher", "SKILL.md"),
     "--task", "Research with unavailable MCP tools",
     "--cwd", fixture.cwd,
     "--timeout", "1",
-    "--no-wait",
   ], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_FAKE_MODE: "missing-artifact" },
@@ -167,12 +170,13 @@ async function testInternetResearcherUnavailableMcpWritesFailureArtifact() {
 
 async function testInternetResearcherUnavailableMcpWritesLimitationArtifact() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("internet-researcher"), [
+  const result = spawnSync(helperPath(), [
     "--skill", "internet-researcher",
+    "--artifact-dir", "research",
+    "--prompt-template", join(root, "skills", "internet-researcher", "SKILL.md"),
     "--task", "Research with unavailable MCP tools",
     "--cwd", fixture.cwd,
     "--timeout", "1",
-    "--no-wait",
   ], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_FAKE_MODE: "mcp-unavailable" },
@@ -185,9 +189,9 @@ async function testInternetResearcherUnavailableMcpWritesLimitationArtifact() {
   assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /MCP Web Tools Unavailable/);
 }
 
-await testSkillMetadataAndWrappers();
-await testWrappersProduceCanonicalArtifacts();
-await testConcurrentReadonlyWrappersDoNotCollide();
+await testSkillMetadataAndHelpers();
+await testHelpersProduceCanonicalArtifacts();
+await testConcurrentReadonlyHelpersDoNotCollide();
 await testInternetResearcherUnavailableMcpWritesFailureArtifact();
 await testInternetResearcherUnavailableMcpWritesLimitationArtifact();
 

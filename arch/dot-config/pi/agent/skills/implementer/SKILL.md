@@ -5,7 +5,7 @@ description: Use to make focused code changes for a specified task or implementa
 
 # Implementer
 
-Use this skill for small, targeted implementation work. The implementer launcher acquires a workspace-scoped `flock`, so only one implementer edits a given working directory at a time.
+Use this skill for small, targeted implementation work. The tmux runner acquires a workspace-scoped `flock`, so only one implementer edits a given working directory at a time.
 
 ## Boundaries
 

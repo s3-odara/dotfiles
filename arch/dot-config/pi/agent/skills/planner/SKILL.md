@@ -12,7 +12,7 @@ Internal reasoning, tool inputs, and Pi skill instructions may be written in Eng
 
 Use delegation proactively.
 
-Do not implement the change. Only create files under `.agents/plans/`.
+Do not implement the change. Write the implementation plan to the Primary artifact path provided by the tmux runner. The Primary artifact path will be under `.agents/plans/`.
 
 ## Delegation Policy
 
@@ -29,7 +29,7 @@ Do not implement the change. Only create files under `.agents/plans/`.
 * The purpose is to distribute review load and make it easier to judge whether the plan is appropriate.
 * Evaluate implementation size, uncertainty, and whether work can be executed in parallel.
 * Split the work into relatively large phases, using the amount that can be implemented in one PR as a guideline.
-* If the work is split into multiple phases, create a separate `.agents/plans/*.md` file for each phase.
+* If the work is split into multiple phases, include a separate section for each phase in the single Primary artifact path.
 * Treat phases that cannot be executed in parallel as Stacked PRs. Treat the others as ordinary splits.
 
 ### 2. Questions
@@ -47,7 +47,7 @@ Treat feedback from `plan-reviewer` as suggestions. You decide whether to apply 
 
 ### 4. Output
 
-Create `.agents/plans/*.md` file(s) in the following format.
+Write the plan to the Primary artifact path in the following format.
 
 ---
 
@@ -89,16 +89,9 @@ This phase does not complete:
 
 ---
 
-Filename policy (strict):
+Artifact policy (strict):
 
-* Create a new timestamped file:
-
-  `.agents/plans/YYYYMMDD-HHMM-<kebab-task-slug>.md`
-
-* `<kebab-task-slug>` is required and must not be empty.
-
-* The slug may contain only lowercase letters, digits, and hyphens.
-
-* Never overwrite existing files.
-
-* If a collision occurs, append `-v2`, `-v3`, etc.
+* Write the plan directly to the Primary artifact path from the runner instructions.
+* Do not choose a different filename.
+* Do not overwrite unrelated files.
+* If creating multiple phase plans, put all phases in the single Primary artifact path unless the user explicitly asks for separate files.

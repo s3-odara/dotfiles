@@ -1,4 +1,3 @@
-import { modelArgsForSkill } from "./model-config.ts";
 import { findSkills, type Skill } from "./skills.ts";
 
 export default function registerSkillTmuxManualRunner(pi: any) {
@@ -24,28 +23,20 @@ export default function registerSkillTmuxManualRunner(pi: any) {
     ctx?.ui?.notify?.(`🚀 ${skill.name} → tmux child`, "info");
     return {
       action: "transform",
-      text: buildSpawnInstruction(skill, task, ctx?.cwd ?? process.cwd()),
+      text: buildRunSkillInstruction(skill, task, ctx?.cwd ?? process.cwd()),
     };
   });
 }
 
-function buildSpawnInstruction(skill: Skill, task: string, cwd: string): string {
+function buildRunSkillInstruction(skill: Skill, task: string, cwd: string): string {
   return [
-    "Run this explicit skill request by starting an interactive Pi pane in the shared tmux `agent` window. Use bash to execute the command block exactly. The launcher waits for the child to finish; while it is waiting, the child can be viewed or steered in the `agent` tmux window. When it completes, print the artifact path returned by the launcher.",
+    "Run this explicit skill request with the `run_skill` tool. Do not read or execute the SKILL.md inline.",
     "",
-    "```bash",
-    "set -euo pipefail",
-    `launch_output=$(${shellQuote(skill.launcherPath)} ${shellArgs(["--skill", skill.name, "--task", task, "--cwd", cwd, ...modelArgsForSkill(skill.name)])})`,
-    "printf '%s\\n' \"$launch_output\"",
-    "printf '\\nChild ran interactively in tmux window `agent` and finished.\\n'",
-    "```",
+    "Tool arguments:",
+    `- skill: ${skill.name}`,
+    `- task: ${task}`,
+    `- cwd: ${cwd}`,
+    "",
+    "After the tool completes, read/use the returned artifactPath as the primary result.",
   ].join("\n");
-}
-
-function shellArgs(values: string[]): string {
-  return values.map(shellQuote).join(" ");
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
 }

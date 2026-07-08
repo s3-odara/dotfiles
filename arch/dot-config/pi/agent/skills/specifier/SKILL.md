@@ -40,7 +40,7 @@ For anything that is not clearly determined by best current practice, ask the us
 
 ### 4. Output
 
-Create a `.agents/specs/*.md` file in the following format.
+Write a specification to the Primary artifact path provided by the tmux runner. The Primary artifact path will be under `.agents/specs/`. Use the following format.
 
 ---
 
@@ -68,16 +68,8 @@ Normal and error scenarios with expected results.
 - Information obtained from the web
 - Links to existing implementations
 
-Filename policy: strict compliance required.
+Artifact policy: strict compliance required.
 
-Create a new timestamped file:
+Write the specification directly to the Primary artifact path from the runner instructions.
 
-`.agents/specs/YYYYMMDD-HHMM-<kebab-task-slug>.md`
-
-`<kebab-task-slug>` is required and must not be empty.
-
-The slug may contain only lowercase letters, numbers, and hyphens.
-
-Never overwrite an existing file.
-
-If a collision occurs, append `-v2`, `-v3`, and so on.
+Do not choose a different filename. Do not overwrite unrelated files.

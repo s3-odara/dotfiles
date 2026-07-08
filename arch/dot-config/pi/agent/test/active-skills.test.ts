@@ -68,8 +68,8 @@ esac
   return { dir, bin, cwd };
 }
 
-function wrapperPath(skill: string) {
-  return join(root, "skills", "scripts", "run-skill-background.sh");
+function helperPath() {
+  return join(root, "skills", "scripts", "start-bg-pane.sh");
 }
 
 function parseLaunch(stdout: string): Record<string, string> {
@@ -78,14 +78,14 @@ function parseLaunch(stdout: string): Record<string, string> {
     const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
     if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
   }
-  assert(values.ARTIFACT_PATH, "wrapper stdout should include ARTIFACT_PATH");
-  assert(values.SUCCESS_SENTINEL, "wrapper stdout should include SUCCESS_SENTINEL");
-  assert(values.FAILURE_SENTINEL, "wrapper stdout should include FAILURE_SENTINEL");
+  assert(values.ARTIFACT_PATH, "helper stdout should include ARTIFACT_PATH");
+  assert(values.SUCCESS_SENTINEL, "helper stdout should include SUCCESS_SENTINEL");
+  assert(values.FAILURE_SENTINEL, "helper stdout should include FAILURE_SENTINEL");
   assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
   return values;
 }
 
-async function testSkillMetadataAndWrappers() {
+async function testSkillMetadataAndHelpers() {
   for (const skill of skills) {
     const markdown = await readFile(join(root, "skills", skill.name, "SKILL.md"), "utf8");
     assert.match(markdown, /^---\n[\s\S]*?\n---\n/, `${skill.name} must have YAML frontmatter`);
@@ -107,7 +107,9 @@ async function testSkillMetadataAndWrappers() {
 async function testImplementerAndDebuggerArtifacts() {
   const fixture = await makeFixture();
   for (const skill of skills.slice(0, 2)) {
-    const result = spawnSync(wrapperPath(skill.name), ["--skill", skill.name, "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1", "--no-wait"], {
+    const args = ["--skill", skill.name, "--artifact-dir", skill.artifactDir, "--prompt-template", join(root, "skills", skill.name, "SKILL.md"), "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1"];
+    if (skill.name === "implementer") args.push("--workspace-lock");
+    const result = spawnSync(helperPath(), args, {
       cwd: root,
       env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
       encoding: "utf8",
@@ -125,7 +127,7 @@ async function testImplementerAndDebuggerArtifacts() {
 async function testImplementerWorkspaceLock() {
   const fixture = await makeFixture();
   const run = () => new Promise<string>((resolve, reject) => {
-    const child = spawn(wrapperPath("implementer"), ["--skill", "implementer", "--task", "Same workspace", "--cwd", fixture.cwd, "--timeout", "3", "--no-wait"], {
+    const child = spawn(helperPath(), ["--skill", "implementer", "--artifact-dir", "impl-reports", "--prompt-template", join(root, "skills", "implementer", "SKILL.md"), "--task", "Same workspace", "--cwd", fixture.cwd, "--timeout", "3", "--workspace-lock"], {
       env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_FAKE_MODE: "slow" },
     });
     let stdout = "";
@@ -153,7 +155,7 @@ async function testImplementerWorkspaceLock() {
 
 async function testReviewOrchestratorRunsAsNormalSkill() {
   const fixture = await makeFixture();
-  const result = spawnSync(wrapperPath("review-orchestrator"), ["--skill", "review-orchestrator", "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1", "--no-wait"], {
+  const result = spawnSync(helperPath(), ["--skill", "review-orchestrator", "--artifact-dir", "reviews", "--prompt-template", join(root, "skills", "review-orchestrator", "SKILL.md"), "--task", "Review target", "--cwd", fixture.cwd, "--timeout", "1"], {
     cwd: root,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
     encoding: "utf8",
@@ -165,7 +167,7 @@ async function testReviewOrchestratorRunsAsNormalSkill() {
   assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /^# review-orchestrator artifact/);
 }
 
-await testSkillMetadataAndWrappers();
+await testSkillMetadataAndHelpers();
 await testImplementerAndDebuggerArtifacts();
 await testImplementerWorkspaceLock();
 await testReviewOrchestratorRunsAsNormalSkill();

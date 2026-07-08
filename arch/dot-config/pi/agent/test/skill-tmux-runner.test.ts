@@ -47,6 +47,8 @@ assert.equal(typeof second.handlers.input, "function", "reload/rebind should reg
 assert.equal(typeof second.handlers.tool_result, "function", "runtime should register tool_result hook");
 assert.equal(second.tools.length, 1, "runtime should register exactly one tool");
 assert.equal(second.tools[0].name, "run_skill");
+assert(second.tools[0].parameters.properties.skill.enum.includes("planner"));
+assert(second.tools[0].parameters.properties.skill.enum.includes("specifier"));
 
 const result = await second.handlers.input(
   { source: "interactive", text: "/skill:code-reviewer\nReview this diff\nwith details" },
@@ -54,31 +56,20 @@ const result = await second.handlers.input(
 );
 
 assert.equal(result?.action, "transform");
-assert.match(result.text, /run-skill-background\.sh/);
-assert.match(result.text, /'--skill' 'code-reviewer'/);
-assert.match(result.text, /'--provider' 'openai-codex'/);
-assert.match(result.text, /'--model' 'gpt-5\.4-mini'/);
-assert.match(result.text, /'--thinking' 'medium'/);
+assert.match(result.text, /run_skill/);
+assert.match(result.text, /skill: code-reviewer/);
 assert.match(result.text, /Review this diff\nwith details/);
-assert.doesNotMatch(result.text, /wait-for-children\.sh/);
-assert.match(result.text, /launcher waits for the child to finish/);
-assert.doesNotMatch(result.text, /ATTACH_TARGET/);
-assert.match(result.text, /tmux window `agent`/);
-assert.doesNotMatch(result.text, /node -e|JSON\.parse|status_json/);
+assert.match(result.text, /returned artifactPath/);
+assert.doesNotMatch(result.text, /run-skill-background\.sh|wait-for-children\.sh|node -e|JSON\.parse|status_json/);
 
 const orchestratorResult = await second.handlers.input(
   { source: "interactive", text: "/skill:review-orchestrator Review this branch" },
   { cwd: root, ui: { notify() {} } },
 );
 assert.equal(orchestratorResult?.action, "transform");
-assert.match(orchestratorResult.text, /run-skill-background\.sh/);
-assert.match(orchestratorResult.text, /'--skill' 'review-orchestrator'/);
-assert.match(orchestratorResult.text, /'--provider' 'openai-codex'/);
-assert.match(orchestratorResult.text, /'--model' 'gpt-5\.5'/);
-assert.match(orchestratorResult.text, /'--thinking' 'high'/);
-assert.match(orchestratorResult.text, /launch_output=/);
-assert.doesNotMatch(orchestratorResult.text, /wait-for-children\.sh/);
-assert.doesNotMatch(orchestratorResult.text, /artifact_path=\$\(/);
+assert.match(orchestratorResult.text, /run_skill/);
+assert.match(orchestratorResult.text, /skill: review-orchestrator/);
+assert.doesNotMatch(orchestratorResult.text, /run-skill-background\.sh|launch_output=|wait-for-children\.sh|artifact_path=\$\(/);
 
 const nativeSkillResult = await second.handlers.input(
   { source: "interactive", text: "/skill:web-search Find sources" },
@@ -118,7 +109,9 @@ const plannerRead = await second.handlers.tool_result(
   { toolName: "read", input: { path: join(root, "skills", "planner", "SKILL.md") }, content: [], details: {}, isError: false },
   { cwd: root },
 );
-assert.equal(plannerRead, undefined);
+assert.equal(plannerRead?.isError, false);
+assert.match(plannerRead.content[0].text, /run_skill/);
+assert.match(plannerRead.content[0].text, /planner/);
 
 const arbitraryRead = await second.handlers.tool_result(
   { toolName: "read", input: { path: join(root, "package.json") }, content: [], details: {}, isError: false },
@@ -136,7 +129,10 @@ const execCalls: any[] = [];
 const signal = new AbortController().signal;
 (second.pi as any).exec = (command: string, args: string[], options: { signal?: AbortSignal }) => {
   execCalls.push({ command, args, options });
-  return { stdout: "noise\nARTIFACT_PATH='/tmp/artifact.md'\n", stderr: "", code: 0, killed: false };
+  if (command.endsWith("start-bg-pane.sh")) {
+    return { stdout: "noise\nARTIFACT_PATH='/tmp/artifact.md'\nSUCCESS_SENTINEL='/tmp/artifact.success'\nFAILURE_SENTINEL='/tmp/artifact.failure'\n", stderr: "", code: 0, killed: false };
+  }
+  return { stdout: "OVERALL='success'\n", stderr: "", code: 0, killed: false };
 };
 const successToolResult = await second.tools[0].execute(
   "tool-call-1",
@@ -145,26 +141,59 @@ const successToolResult = await second.tools[0].execute(
   undefined,
   { cwd: "/should/not/use" },
 );
-assert.equal(execCalls.length, 1);
-assert.match(execCalls[0].command, /run-skill-background\.sh$/);
+assert.equal(execCalls.length, 2);
+assert.match(execCalls[0].command, /start-bg-pane\.sh$/);
 assert.deepEqual(execCalls[0].args, [
   "--skill", "code-reviewer",
+  "--artifact-dir", "reviews",
+  "--prompt-template", join(root, "skills", "code-reviewer", "SKILL.md"),
   "--task", "Review this diff",
   "--cwd", root,
+  "--timeout", "1800",
   "--provider", "openai-codex",
   "--model", "gpt-5.4-mini",
   "--thinking", "medium",
 ]);
-assert.equal(execCalls[0].args.includes("--no-wait"), false);
 assert.equal(execCalls[0].options.signal, signal);
+assert.match(execCalls[1].command, /wait-for-children\.sh$/);
+assert.deepEqual(execCalls[1].args, ["--success", "/tmp/artifact.success", "--failure", "/tmp/artifact.failure", "--timeout", "1800", "--poll", "1"]);
 assert.equal(successToolResult.details.status, "success");
 assert.equal(successToolResult.details.artifactPath, "/tmp/artifact.md");
+
+execCalls.length = 0;
+await second.tools[0].execute(
+  "tool-call-planner",
+  { skill: "planner", task: "Plan this", cwd: root },
+  signal,
+  undefined,
+  { cwd: root },
+);
+assert.match(execCalls[0].command, /start-bg-pane\.sh$/);
+assert.deepEqual(execCalls[0].args.slice(0, 6), [
+  "--skill", "planner",
+  "--artifact-dir", "plans",
+  "--prompt-template", join(root, "skills", "planner", "SKILL.md"),
+]);
+
+execCalls.length = 0;
+await second.tools[0].execute(
+  "tool-call-specifier",
+  { skill: "specifier", task: "Specify this", cwd: root },
+  signal,
+  undefined,
+  { cwd: root },
+);
+assert.deepEqual(execCalls[0].args.slice(0, 6), [
+  "--skill", "specifier",
+  "--artifact-dir", "specs",
+  "--prompt-template", join(root, "skills", "specifier", "SKILL.md"),
+]);
 
 const noWaitExecCalls: any[] = [];
 const noWaitSignal = new AbortController().signal;
 (second.pi as any).exec = (command: string, args: string[], options?: { signal?: AbortSignal }) => {
   noWaitExecCalls.push({ command, args, options });
-  if (command.endsWith("run-skill-background.sh")) {
+  if (command.endsWith("start-bg-pane.sh")) {
     return {
       stdout: "ARTIFACT_PATH='/tmp/started.md'\nSUCCESS_SENTINEL='/tmp/started.success'\nFAILURE_SENTINEL='/tmp/started.failure'\n",
       stderr: "",
@@ -183,7 +212,8 @@ const noWaitToolResult = await second.tools[0].execute(
 );
 assert.equal(noWaitToolResult.details.status, "started");
 assert.equal(noWaitToolResult.details.artifactPath, "/tmp/started.md");
-assert(noWaitExecCalls[0].args.includes("--no-wait"));
+assert(!noWaitExecCalls[0].args.includes("--no-wait"));
+assert.match(noWaitExecCalls[0].command, /start-bg-pane\.sh$/);
 // Give the detached watcher promise a tick to run its fake wait helper and notification.
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(noWaitExecCalls.length, 2);

@@ -247,7 +247,7 @@ if [[ $tmux_status -ne 0 ]]; then
   write_failure_artifact "tmux-pane-failed" "tmux exited with status $tmux_status"
   printf '%s\n' tmux-pane-failed >"$failure_reason_file"
   : >"$failure_sentinel"
-  # Keep stdout as the tiny public contract consumed by humans and wrappers.
+  # Keep stdout as the tiny public contract consumed by humans and callers.
   # Internal paths remain in the task/env/log files instead of leaking as extra
   # parseable keys that callers might accidentally depend on.
   print_kv ARTIFACT_PATH "$artifact_path"
