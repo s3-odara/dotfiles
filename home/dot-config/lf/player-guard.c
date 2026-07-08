@@ -35,32 +35,24 @@ static int ll_restrict_self(int ruleset_fd, __u32 flags)
     return syscall(SYS_landlock_restrict_self, ruleset_fd, flags);
 }
 
-static uint64_t handled_fs_access(int abi)
+static uint64_t handled_fs_access(void)
 {
-    uint64_t access = LANDLOCK_ACCESS_FS_EXECUTE |
-                      LANDLOCK_ACCESS_FS_WRITE_FILE |
-                      LANDLOCK_ACCESS_FS_READ_FILE |
-                      LANDLOCK_ACCESS_FS_READ_DIR |
-                      LANDLOCK_ACCESS_FS_REMOVE_DIR |
-                      LANDLOCK_ACCESS_FS_REMOVE_FILE |
-                      LANDLOCK_ACCESS_FS_MAKE_CHAR |
-                      LANDLOCK_ACCESS_FS_MAKE_DIR |
-                      LANDLOCK_ACCESS_FS_MAKE_REG |
-                      LANDLOCK_ACCESS_FS_MAKE_SOCK |
-                      LANDLOCK_ACCESS_FS_MAKE_FIFO |
-                      LANDLOCK_ACCESS_FS_MAKE_BLOCK |
-                      LANDLOCK_ACCESS_FS_MAKE_SYM |
-                      LANDLOCK_ACCESS_FS_REFER;
-
-    if (abi >= 3) {
-        access |= LANDLOCK_ACCESS_FS_TRUNCATE;
-    }
-
-    if (abi >= 5) {
-        access |= LANDLOCK_ACCESS_FS_IOCTL_DEV;
-    }
-
-    return access;
+    return LANDLOCK_ACCESS_FS_EXECUTE |
+           LANDLOCK_ACCESS_FS_WRITE_FILE |
+           LANDLOCK_ACCESS_FS_READ_FILE |
+           LANDLOCK_ACCESS_FS_READ_DIR |
+           LANDLOCK_ACCESS_FS_REMOVE_DIR |
+           LANDLOCK_ACCESS_FS_REMOVE_FILE |
+           LANDLOCK_ACCESS_FS_MAKE_CHAR |
+           LANDLOCK_ACCESS_FS_MAKE_DIR |
+           LANDLOCK_ACCESS_FS_MAKE_REG |
+           LANDLOCK_ACCESS_FS_MAKE_SOCK |
+           LANDLOCK_ACCESS_FS_MAKE_FIFO |
+           LANDLOCK_ACCESS_FS_MAKE_BLOCK |
+           LANDLOCK_ACCESS_FS_MAKE_SYM |
+           LANDLOCK_ACCESS_FS_REFER |
+           LANDLOCK_ACCESS_FS_TRUNCATE |
+           LANDLOCK_ACCESS_FS_IOCTL_DEV;
 }
 
 static uint64_t ro_access(void)
@@ -70,36 +62,23 @@ static uint64_t ro_access(void)
            LANDLOCK_ACCESS_FS_READ_DIR;
 }
 
-static uint64_t rw_access(int abi)
+static uint64_t rw_access(void)
 {
-    uint64_t access = LANDLOCK_ACCESS_FS_READ_FILE |
-                      LANDLOCK_ACCESS_FS_READ_DIR |
-                      LANDLOCK_ACCESS_FS_WRITE_FILE;
-
-    if (abi >= 3) {
-        access |= LANDLOCK_ACCESS_FS_TRUNCATE;
-    }
-
-    if (abi >= 5) {
-        access |= LANDLOCK_ACCESS_FS_IOCTL_DEV;
-    }
-
-    return access;
+    return LANDLOCK_ACCESS_FS_READ_FILE |
+           LANDLOCK_ACCESS_FS_READ_DIR |
+           LANDLOCK_ACCESS_FS_WRITE_FILE |
+           LANDLOCK_ACCESS_FS_TRUNCATE |
+           LANDLOCK_ACCESS_FS_IOCTL_DEV;
 }
 
-static uint64_t tmp_access(int abi)
+static uint64_t tmp_access(void)
 {
-    uint64_t access = LANDLOCK_ACCESS_FS_READ_FILE |
-                      LANDLOCK_ACCESS_FS_READ_DIR |
-                      LANDLOCK_ACCESS_FS_WRITE_FILE |
-                      LANDLOCK_ACCESS_FS_REMOVE_FILE |
-                      LANDLOCK_ACCESS_FS_MAKE_REG;
-
-    if (abi >= 3) {
-        access |= LANDLOCK_ACCESS_FS_TRUNCATE;
-    }
-
-    return access;
+    return LANDLOCK_ACCESS_FS_READ_FILE |
+           LANDLOCK_ACCESS_FS_READ_DIR |
+           LANDLOCK_ACCESS_FS_WRITE_FILE |
+           LANDLOCK_ACCESS_FS_REMOVE_FILE |
+           LANDLOCK_ACCESS_FS_MAKE_REG |
+           LANDLOCK_ACCESS_FS_TRUNCATE;
 }
 
 static bool path_exists(const char *path)
@@ -230,13 +209,13 @@ static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
     }
 }
 
-static void add_rw_rule_if_exists(int ruleset_fd, const char *path, int abi)
+static void add_rw_rule_if_exists(int ruleset_fd, const char *path)
 {
     if (!path_exists(path)) {
         return;
     }
 
-    if (add_path_rule(ruleset_fd, path, rw_access(abi)) != 0) {
+    if (add_path_rule(ruleset_fd, path, rw_access()) != 0) {
         fprintf(stderr, "player-guard: landlock RW rule failed for %s: %s\n",
                 path, strerror(errno));
         exit(1);
@@ -265,36 +244,21 @@ static void print_ro_path_visitor(const char *path, void *userdata)
 
 struct rw_rule_ctx {
     int ruleset_fd;
-    int abi;
 };
 
 static void add_rw_rule_visitor(const char *path, void *userdata)
 {
     struct rw_rule_ctx *ctx = userdata;
-    add_rw_rule_if_exists(ctx->ruleset_fd, path, ctx->abi);
+    add_rw_rule_if_exists(ctx->ruleset_fd, path);
 }
 
 static void install_landlock(const char *target_dir, const char *lf_config_dir)
 {
-    int abi = ll_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
-    if (abi < 1) {
-        if (errno == ENOSYS || errno == EOPNOTSUPP) {
-            return;
-        }
-
-        fprintf(stderr, "player-guard: landlock ABI query failed: %s\n",
-                strerror(errno));
-        exit(1);
-    }
-
     struct landlock_ruleset_attr ruleset = {
-        .handled_access_fs = handled_fs_access(abi),
+        .handled_access_fs = handled_fs_access(),
+        .handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+                              LANDLOCK_ACCESS_NET_CONNECT_TCP,
     };
-
-    if (abi >= 4) {
-        ruleset.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
-                                     LANDLOCK_ACCESS_NET_CONNECT_TCP;
-    }
 
     int ruleset_fd = ll_create_ruleset(&ruleset, sizeof(ruleset), 0);
     if (ruleset_fd < 0) {
@@ -306,7 +270,7 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
     visit_ro_paths(target_dir, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
 
     if (path_exists("/var/tmp") &&
-        add_path_rule(ruleset_fd, "/var/tmp", tmp_access(abi)) != 0) {
+        add_path_rule(ruleset_fd, "/var/tmp", tmp_access()) != 0) {
         fprintf(stderr, "player-guard: /var/tmp rule failed: %s\n",
                 strerror(errno));
         exit(1);
@@ -315,7 +279,6 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
     {
         struct rw_rule_ctx ctx = {
             .ruleset_fd = ruleset_fd,
-            .abi = abi,
         };
         visit_extra_rw_paths(add_rw_rule_visitor, &ctx);
     }
