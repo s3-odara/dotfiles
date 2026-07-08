@@ -15,6 +15,7 @@ zstyle ':prompt:pure:prompt:*' color '#33add6'
 zstyle ':prompt:pure:path' color '#5db47b'
 zstyle ':prompt:pure:execution_time' color '#a5a645'
 zstyle ':prompt:pure:git:dirty' color '#da7fa2'
+zstyle ':prompt:pure:git:dirty' detailed yes
 zstyle ':prompt:pure:git:action' color '#d87fa2'
 zstyle ':prompt:pure:git:arrow' color '#33add6'
 zstyle ':prompt:pure:git:stash' show yes
