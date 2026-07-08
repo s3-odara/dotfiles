@@ -17,8 +17,8 @@
  * - Profile: player; CLI compatibility is part of the security contract.
  * - Read-only filesystem inputs: /bin, /usr, /lib, /lib64, /etc,
  *   lf_config_dir, target_path, and PLAYER_EXTRA_RO_PATHS.
- * - Read/write filesystem inputs: PLAYER_EXTRA_RW_PATHS, currently used by
- *   the launcher for /dev/shm.
+ * - Read/write filesystem inputs: minimal /dev nodes and PLAYER_EXTRA_RW_PATHS,
+ *   currently used by the launcher for /dev/shm.
  * - Unix socket resolution inputs: PLAYER_EXTRA_UNIX_SOCKET_PATHS.
  * - Networking/socket policy: seccomp denies internet, netlink, packet,
  *   bluetooth, and vsock socket domains plus bind/listen/accept/accept4;
@@ -120,6 +120,17 @@ static void add_rw_rule_visitor(const char *path, void *userdata)
     add_rw_rule_if_exists(ctx->ruleset_fd, path);
 }
 
+static void add_dev_rule_visitor(const char *path, void *userdata)
+{
+    int ruleset_fd = *(int *)userdata;
+
+    if (guard_add_path_rule(ruleset_fd, path, guard_dev_rw_access()) != 0) {
+        fprintf(stderr, "player-guard: device rule failed for %s: %s\n",
+                path, strerror(errno));
+        exit(1);
+    }
+}
+
 static void add_unix_socket_rule_visitor(const char *path, void *userdata)
 {
     int ruleset_fd = *(int *)userdata;
@@ -144,6 +155,8 @@ static void install_landlock(const char *target_path, const char *lf_config_dir)
     }
 
     visit_ro_paths(target_path, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
+
+    guard_visit_minimal_dev_paths(add_dev_rule_visitor, &ruleset_fd);
 
     if (guard_path_exists("/var/tmp") &&
         guard_add_path_rule(ruleset_fd, "/var/tmp", guard_tmp_access()) != 0) {

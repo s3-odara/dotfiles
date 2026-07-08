@@ -16,8 +16,8 @@
  * - Profile: preview; CLI compatibility is part of the security contract.
  * - Read-only filesystem inputs: /bin, /usr, /lib, /lib64, /etc,
  *   lf_config_dir, regular-file target_path, and PREVIEW_EXTRA_RO_PATHS.
- * - Special access: /dev/null may be read/written/ioctl'd; /var/tmp allows
- *   limited temporary-file creation, writes, truncation, reads, and removal.
+ * - Special access: minimal /dev nodes may be read/written/ioctl'd; /var/tmp
+ *   allows limited temporary-file creation, writes, truncation, reads, and removal.
  * - Networking/socket policy: Landlock handles TCP bind/connect restrictions;
  *   seccomp denies socket, socketpair, connect, bind, listen, accept, accept4,
  *   and shutdown outright for this preview profile.
@@ -69,6 +69,17 @@ static void add_ro_rule_visitor(const char *path, void *userdata)
     add_ro_rule_if_exists(ruleset_fd, path);
 }
 
+static void add_dev_rule_visitor(const char *path, void *userdata)
+{
+    int ruleset_fd = *(int *)userdata;
+
+    if (guard_add_path_rule(ruleset_fd, path, guard_dev_rw_access()) != 0) {
+        fprintf(stderr, "preview-guard: device rule failed for %s: %s\n",
+                path, strerror(errno));
+        exit(1);
+    }
+}
+
 static void print_ro_path_visitor(const char *path, void *userdata)
 {
     (void)userdata;
@@ -96,12 +107,7 @@ static void install_landlock(const char *target_path, const char *lf_config_dir)
 
     visit_ro_paths(target_path, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
 
-    if (guard_path_exists("/dev/null") &&
-        guard_add_path_rule(ruleset_fd, "/dev/null", guard_dev_null_access()) != 0) {
-        fprintf(stderr, "preview-guard: /dev/null rule failed: %s\n",
-                strerror(errno));
-        exit(1);
-    }
+    guard_visit_minimal_dev_paths(add_dev_rule_visitor, &ruleset_fd);
 
     if (guard_path_exists("/var/tmp") &&
         guard_add_path_rule(ruleset_fd, "/var/tmp", guard_tmp_access()) != 0) {

@@ -75,11 +75,16 @@ uint64_t guard_tmp_access(void)
            LANDLOCK_ACCESS_FS_TRUNCATE;
 }
 
-uint64_t guard_dev_null_access(void)
+uint64_t guard_dev_rw_access(void)
 {
     return LANDLOCK_ACCESS_FS_READ_FILE |
            LANDLOCK_ACCESS_FS_WRITE_FILE |
            LANDLOCK_ACCESS_FS_IOCTL_DEV;
+}
+
+uint64_t guard_dev_null_access(void)
+{
+    return guard_dev_rw_access();
 }
 
 uint64_t guard_unix_socket_access(void)
@@ -159,6 +164,24 @@ void guard_visit_system_ro_paths(guard_path_visitor visitor, void *userdata)
     for (i = 0; i < sizeof(base_paths) / sizeof(base_paths[0]); i++) {
         if (guard_path_exists(base_paths[i])) {
             visitor(base_paths[i], userdata);
+        }
+    }
+}
+
+void guard_visit_minimal_dev_paths(guard_path_visitor visitor, void *userdata)
+{
+    static const char *const dev_paths[] = {
+        "/dev/null",
+        "/dev/zero",
+        "/dev/full",
+        "/dev/random",
+        "/dev/urandom",
+    };
+
+    size_t i;
+    for (i = 0; i < sizeof(dev_paths) / sizeof(dev_paths[0]); i++) {
+        if (guard_path_exists(dev_paths[i])) {
+            visitor(dev_paths[i], userdata);
         }
     }
 }

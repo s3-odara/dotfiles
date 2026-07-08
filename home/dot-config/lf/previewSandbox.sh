@@ -4,7 +4,8 @@ set -eu
 
 # Preview launcher policy summary:
 # - resolves the canonical target parent before sandboxing;
-# - constructs a bwrap namespace and read-only binds from preview-guard;
+# - constructs a bwrap namespace with minimal /dev nodes and read-only binds
+#   from preview-guard;
 # - exposes the preview script directory through PREVIEW_EXTRA_RO_PATHS;
 # - runs the selected backend with preview timeout and resource limits;
 # - delegates final filesystem/seccomp enforcement to preview-guard.
@@ -85,7 +86,12 @@ set -- \
     --setenv PATH "$safe_path" \
     --setenv PREVIEW_EXTRA_RO_PATHS "$preview_script_dir" \
     --setenv TMPDIR /var/tmp \
-    --dev /dev \
+    --dir /dev \
+    --dev-bind /dev/null /dev/null \
+    --dev-bind /dev/zero /dev/zero \
+    --dev-bind /dev/full /dev/full \
+    --dev-bind /dev/random /dev/random \
+    --dev-bind /dev/urandom /dev/urandom \
     --tmpfs /home \
     --tmpfs /root \
     --tmpfs /tmp \

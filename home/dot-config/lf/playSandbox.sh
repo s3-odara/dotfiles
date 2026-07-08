@@ -5,7 +5,8 @@ set -eu
 # Player launcher policy summary:
 # - resolves the target and selected player before sandboxing;
 # - validates runtime sockets;
-# - constructs a bwrap namespace and guard-derived read-only binds;
+# - constructs a bwrap namespace with minimal /dev nodes and guard-derived
+#   read-only binds;
 # - passes player-specific RO/RW/Unix-socket environment variables;
 # - runs backend resource limits without a preview timeout;
 # - delegates final filesystem/seccomp enforcement to player-guard.
@@ -266,7 +267,12 @@ set -- \
     --setenv XDG_CONFIG_HOME /tmp/.config \
     --setenv XDG_CACHE_HOME /tmp/.cache \
     --setenv XDG_DATA_HOME /tmp/.local/share \
-    --dev /dev \
+    --dir /dev \
+    --dev-bind /dev/null /dev/null \
+    --dev-bind /dev/zero /dev/zero \
+    --dev-bind /dev/full /dev/full \
+    --dev-bind /dev/random /dev/random \
+    --dev-bind /dev/urandom /dev/urandom \
     --tmpfs /home \
     --tmpfs /root \
     --tmpfs /tmp \

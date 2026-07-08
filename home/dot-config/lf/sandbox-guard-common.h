@@ -22,6 +22,7 @@ uint64_t guard_handled_fs_access(void);
 uint64_t guard_ro_access(void);
 uint64_t guard_rw_access(void);
 uint64_t guard_tmp_access(void);
+uint64_t guard_dev_rw_access(void);
 uint64_t guard_dev_null_access(void);
 uint64_t guard_unix_socket_access(void);
 
@@ -30,6 +31,7 @@ bool guard_path_is_dir(const char *path);
 bool guard_path_is_regular(const char *path);
 void guard_visit_colon_env_paths(const char *program_name, const char *env_name, guard_path_visitor visitor, void *userdata);
 void guard_visit_system_ro_paths(guard_path_visitor visitor, void *userdata);
+void guard_visit_minimal_dev_paths(guard_path_visitor visitor, void *userdata);
 void guard_visit_base_ro_paths(const char *target_path, const char *lf_config_dir, guard_path_visitor visitor, void *userdata);
 int guard_add_path_rule(int ruleset_fd, const char *path, uint64_t access);
 void guard_add_errno_rule(const char *program_name, scmp_filter_ctx ctx, int syscall_nr);
