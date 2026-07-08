@@ -1,6 +1,13 @@
 # Prompt (Pure)
-autoload -Uz promptinit
+autoload -Uz promptinit add-zsh-hook
 promptinit
+
+# 前のコマンドのステータス
+typeset -g PURE_LAST_STATUS=0
+pure_capture_last_status() {
+  PURE_LAST_STATUS=$?
+}
+add-zsh-hook precmd pure_capture_last_status
 
 export PURE_CMD_MAX_EXEC_TIME=1
 export PURE_GIT_PULL=0
@@ -19,9 +26,18 @@ zstyle ':prompt:pure:git:dirty' detailed yes
 zstyle ':prompt:pure:git:action' color '#d87fa2'
 zstyle ':prompt:pure:git:arrow' color '#33add6'
 zstyle ':prompt:pure:git:stash' show yes
+zstyle ':prompt:pure:custom:suffix' color '#d87fa2'
 
 prompt pure
 RPROMPT+='%F{#8798e8}%T'
+
+prompt_pure_precustom() {
+    if (( PURE_LAST_STATUS != 0 )); then
+        psvar[23]="[${PURE_LAST_STATUS}]"
+    else
+        psvar[23]=""
+    fi
+}
 
 # mise
 if command -v mise >/dev/null 2>&1; then
