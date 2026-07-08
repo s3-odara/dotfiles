@@ -28,17 +28,17 @@ sanitize_terminal_path_lines() {
     perl -pe 's/\\/\\\\/g; s/\t/\\t/g; s/\r/\\r/g; s/([\x00-\x08\x0b-\x1f\x7f\x80-\x9f])/sprintf("\\x%02X", ord($1))/ge'
 }
 
-if [ ! -e "$file_path" ]; then
-    printf 'missing: '
-    printf '%s' "$file_path" | sanitize_terminal_path_value
-    printf '\n'
-    exit 0
-fi
-
 if [ -L "$file_path" ]; then
     link_target=$(readlink -- "$file_path" 2>/dev/null || printf '?')
     printf 'symlink -> '
     printf '%s' "$link_target" | sanitize_terminal_path_value
+    printf '\n'
+    exit 0
+fi
+
+if [ ! -e "$file_path" ]; then
+    printf 'missing: '
+    printf '%s' "$file_path" | sanitize_terminal_path_value
     printf '\n'
     exit 0
 fi
@@ -55,18 +55,6 @@ show_text_preview() {
             head -n "$height" -- "$1" 2>/dev/null ||
             true
     } | sanitize_terminal_text
-}
-
-show_directory_preview() {
-    if [ "$mode" = "preview" ]; then
-        find "$1" -mindepth 1 -maxdepth 1 2>/dev/null |
-            sed 's#^.*/##' |
-            head -n "$height" |
-            sanitize_terminal_path_lines
-    else
-        printf '%s' "$1" | sanitize_terminal_path_value
-        printf '\n'
-    fi
 }
 
 emit_sixel_preview() {
@@ -141,7 +129,7 @@ case "$mime" in
         show_pdf_preview "$file_path" || show_file_fallback "$file_path"
         ;;
     inode/directory)
-        show_directory_preview "$file_path"
+        show_file_fallback "$file_path"
         ;;
     *)
         show_file_fallback "$file_path"

@@ -54,6 +54,23 @@ if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
 fi
 
 resolved_target="$parent_dir/$target_name"
+if [ -L "$resolved_target" ]; then
+    printf 'playSandbox.sh: symlink targets are not supported in sandbox mode: %s\n' "$resolved_target" >&2
+    exit 1
+elif [ -d "$resolved_target" ]; then
+    if ! target_ro_path=$(cd -- "$resolved_target" 2>/dev/null && pwd -P); then
+        printf 'playSandbox.sh: cannot resolve target directory: %s\n' "$resolved_target" >&2
+        exit 1
+    fi
+    resolved_target=$target_ro_path
+elif [ -f "$resolved_target" ]; then
+    target_ro_path=$resolved_target
+elif [ -e "$resolved_target" ]; then
+    printf 'playSandbox.sh: unsupported target type in sandbox mode: %s\n' "$resolved_target" >&2
+    exit 1
+else
+    target_ro_path=/__lf_sandbox_no_target__
+fi
 
 resolve_runtime_dir() {
     path=$1
@@ -261,12 +278,17 @@ set -- \
     --dir "$lf_config_parent" \
     --dir "$parent_dir"
 
-bind_paths=$(PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$parent_dir" "$lf_config_dir")
+bind_paths=$(PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
 old_ifs=$IFS
 IFS='
 '
 for bind_path in $bind_paths; do
-    set -- "$@" --dir "$bind_path" --ro-bind "$bind_path" "$bind_path"
+    if [ -d "$bind_path" ]; then
+        bind_mountpoint=$bind_path
+    else
+        bind_mountpoint=$(dirname -- "$bind_path")
+    fi
+    set -- "$@" --dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path"
 done
 IFS=$old_ifs
 
@@ -333,7 +355,7 @@ set -- "$@" \
     --setenv PLAYER_EXTRA_RW_PATHS "$player_extra_rw_paths" \
     --setenv PLAYER_EXTRA_UNIX_SOCKET_PATHS "$player_extra_unix_socket_paths" \
     "$guard_bin_real" \
-    "$parent_dir" \
+    "$target_ro_path" \
     "$lf_config_dir" \
     "$player"
 

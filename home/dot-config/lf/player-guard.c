@@ -16,7 +16,7 @@
  * Player guard policy summary:
  * - Profile: player; CLI compatibility is part of the security contract.
  * - Read-only filesystem inputs: /bin, /usr, /lib, /lib64, /etc,
- *   lf_config_dir, target_dir, and PLAYER_EXTRA_RO_PATHS.
+ *   lf_config_dir, target_path, and PLAYER_EXTRA_RO_PATHS.
  * - Read/write filesystem inputs: PLAYER_EXTRA_RW_PATHS, currently used by
  *   the launcher for /dev/shm.
  * - Unix socket resolution inputs: PLAYER_EXTRA_UNIX_SOCKET_PATHS.
@@ -46,10 +46,10 @@ static void visit_extra_unix_socket_paths(guard_path_visitor visitor, void *user
                                 visitor, userdata);
 }
 
-static void visit_ro_paths(const char *target_dir, const char *lf_config_dir,
+static void visit_ro_paths(const char *target_path, const char *lf_config_dir,
                            guard_path_visitor visitor, void *userdata)
 {
-    guard_visit_base_ro_paths(target_dir, lf_config_dir, visitor, userdata);
+    guard_visit_base_ro_paths(target_path, lf_config_dir, visitor, userdata);
     visit_extra_ro_paths(visitor, userdata);
 }
 
@@ -59,7 +59,10 @@ static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
         return;
     }
 
-    if (guard_add_path_rule(ruleset_fd, path, guard_ro_access()) != 0) {
+    uint64_t access = guard_path_is_dir(path) ? guard_ro_access()
+                                               : LANDLOCK_ACCESS_FS_READ_FILE;
+
+    if (guard_add_path_rule(ruleset_fd, path, access) != 0) {
         fprintf(stderr, "player-guard: landlock RO rule failed for %s: %s\n",
                 path, strerror(errno));
         exit(1);
@@ -123,7 +126,7 @@ static void add_unix_socket_rule_visitor(const char *path, void *userdata)
     add_unix_socket_rule_if_exists(ruleset_fd, path);
 }
 
-static void install_landlock(const char *target_dir, const char *lf_config_dir)
+static void install_landlock(const char *target_path, const char *lf_config_dir)
 {
     struct landlock_ruleset_attr ruleset = {
         .handled_access_fs = guard_handled_fs_access(),
@@ -140,7 +143,7 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
         exit(1);
     }
 
-    visit_ro_paths(target_dir, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
+    visit_ro_paths(target_path, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
 
     if (guard_path_exists("/var/tmp") &&
         guard_add_path_rule(ruleset_fd, "/var/tmp", guard_tmp_access()) != 0) {
@@ -227,18 +230,18 @@ int main(int argc, char **argv)
 
     if (argc < 6) {
         fprintf(stderr,
-                "usage: %s <target-dir> <lf-config-dir> <command> [args...]\n"
-                "       %s --print-bwrap-ro-paths <target-dir> <lf-config-dir>\n",
+                "usage: %s <target-path> <lf-config-dir> <command> [args...]\n"
+                "       %s --print-bwrap-ro-paths <target-path> <lf-config-dir>\n",
                 argv[0],
                 argv[0]);
         return 1;
     }
 
-    const char *target_dir = argv[1];
+    const char *target_path = argv[1];
     const char *lf_config_dir = argv[2];
     char **cmd = &argv[3];
 
-    install_landlock(target_dir, lf_config_dir);
+    install_landlock(target_path, lf_config_dir);
     install_seccomp();
 
     execvp(cmd[0], cmd);

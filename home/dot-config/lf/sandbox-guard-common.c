@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 int guard_ll_create_ruleset(const struct landlock_ruleset_attr *attr, size_t size,
@@ -90,6 +91,28 @@ bool guard_path_exists(const char *path)
     return access(path, F_OK) == 0;
 }
 
+bool guard_path_is_dir(const char *path)
+{
+    struct stat st;
+
+    if (stat(path, &st) != 0) {
+        return false;
+    }
+
+    return S_ISDIR(st.st_mode);
+}
+
+bool guard_path_is_regular(const char *path)
+{
+    struct stat st;
+
+    if (stat(path, &st) != 0) {
+        return false;
+    }
+
+    return S_ISREG(st.st_mode);
+}
+
 void guard_visit_colon_env_paths(const char *program_name, const char *env_name,
                                  guard_path_visitor visitor, void *userdata)
 {
@@ -121,8 +144,7 @@ void guard_visit_colon_env_paths(const char *program_name, const char *env_name,
     free(paths_copy);
 }
 
-void guard_visit_base_ro_paths(const char *target_dir, const char *lf_config_dir,
-                               guard_path_visitor visitor, void *userdata)
+void guard_visit_system_ro_paths(guard_path_visitor visitor, void *userdata)
 {
     static const char *const base_paths[] = {
         "/bin",
@@ -138,13 +160,19 @@ void guard_visit_base_ro_paths(const char *target_dir, const char *lf_config_dir
             visitor(base_paths[i], userdata);
         }
     }
+}
+
+void guard_visit_base_ro_paths(const char *target_path, const char *lf_config_dir,
+                               guard_path_visitor visitor, void *userdata)
+{
+    guard_visit_system_ro_paths(visitor, userdata);
 
     if (guard_path_exists(lf_config_dir)) {
         visitor(lf_config_dir, userdata);
     }
 
-    if (guard_path_exists(target_dir)) {
-        visitor(target_dir, userdata);
+    if (guard_path_exists(target_path)) {
+        visitor(target_path, userdata);
     }
 }
 

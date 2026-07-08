@@ -44,8 +44,24 @@ if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
     exit 1
 fi
 
+resolved_target="$parent_dir/$target_name"
+target_is_symlink=
+target_link=
+if [ -L "$resolved_target" ]; then
+    target_is_symlink=1
+    if ! target_link=$(readlink -- "$resolved_target" 2>/dev/null); then
+        printf 'previewSandbox.sh: cannot read target symlink: %s\n' "$resolved_target" >&2
+        exit 1
+    fi
+    target_ro_path=/__lf_sandbox_no_target__
+elif [ -f "$resolved_target" ]; then
+    target_ro_path=$resolved_target
+else
+    target_ro_path=/__lf_sandbox_no_target__
+fi
+
 set -- \
-    "$parent_dir/$target_name" \
+    "$resolved_target" \
     "$width" \
     "$height" \
     "$xpos" \
@@ -80,18 +96,27 @@ set -- \
     --dir "$lf_config_parent" \
     --dir "$parent_dir"
 
-bind_paths=$(PREVIEW_EXTRA_RO_PATHS=$preview_script_dir "$guard_bin" --print-bwrap-ro-paths "$parent_dir" "$lf_config_dir")
+bind_paths=$(PREVIEW_EXTRA_RO_PATHS=$preview_script_dir "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
 old_ifs=$IFS
 IFS='
 '
 for bind_path in $bind_paths; do
-    set -- "$@" --dir "$bind_path" --ro-bind "$bind_path" "$bind_path"
+    if [ -d "$bind_path" ]; then
+        bind_mountpoint=$bind_path
+    else
+        bind_mountpoint=$(dirname -- "$bind_path")
+    fi
+    set -- "$@" --dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path"
 done
 IFS=$old_ifs
 
+if [ -n "$target_is_symlink" ]; then
+    set -- "$@" --symlink "$target_link" "$resolved_target"
+fi
+
 set -- "$@" \
     "$guard_bin" \
-    "$parent_dir" \
+    "$target_ro_path" \
     "$lf_config_dir" \
     /bin/sh "$preview_script" \
     "$preview_target" \

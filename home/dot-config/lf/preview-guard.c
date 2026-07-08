@@ -15,7 +15,7 @@
  * Preview guard policy summary:
  * - Profile: preview; CLI compatibility is part of the security contract.
  * - Read-only filesystem inputs: /bin, /usr, /lib, /lib64, /etc,
- *   lf_config_dir, target_dir, and PREVIEW_EXTRA_RO_PATHS.
+ *   lf_config_dir, regular-file target_path, and PREVIEW_EXTRA_RO_PATHS.
  * - Special access: /dev/null may be read/written/ioctl'd; /var/tmp allows
  *   limited temporary-file creation, writes, truncation, reads, and removal.
  * - Networking/socket policy: Landlock handles TCP bind/connect restrictions;
@@ -31,10 +31,19 @@ static void visit_extra_ro_paths(guard_path_visitor visitor, void *userdata)
                                 visitor, userdata);
 }
 
-static void visit_ro_paths(const char *target_dir, const char *lf_config_dir,
+static void visit_ro_paths(const char *target_path, const char *lf_config_dir,
                            guard_path_visitor visitor, void *userdata)
 {
-    guard_visit_base_ro_paths(target_dir, lf_config_dir, visitor, userdata);
+    guard_visit_system_ro_paths(visitor, userdata);
+
+    if (guard_path_exists(lf_config_dir)) {
+        visitor(lf_config_dir, userdata);
+    }
+
+    if (guard_path_is_regular(target_path)) {
+        visitor(target_path, userdata);
+    }
+
     visit_extra_ro_paths(visitor, userdata);
 }
 
@@ -44,7 +53,10 @@ static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
         return;
     }
 
-    if (guard_add_path_rule(ruleset_fd, path, guard_ro_access()) != 0) {
+    uint64_t access = guard_path_is_regular(path) ? LANDLOCK_ACCESS_FS_READ_FILE
+                                                   : guard_ro_access();
+
+    if (guard_add_path_rule(ruleset_fd, path, access) != 0) {
         fprintf(stderr, "preview-guard: landlock rule failed for %s: %s\n",
                 path, strerror(errno));
         exit(1);
@@ -65,7 +77,7 @@ static void print_ro_path_visitor(const char *path, void *userdata)
     puts(path);
 }
 
-static void install_landlock(const char *target_dir, const char *lf_config_dir)
+static void install_landlock(const char *target_path, const char *lf_config_dir)
 {
     struct landlock_ruleset_attr ruleset = {
         .handled_access_fs = guard_handled_fs_access(),
@@ -82,7 +94,7 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
         exit(1);
     }
 
-    visit_ro_paths(target_dir, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
+    visit_ro_paths(target_path, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
 
     if (guard_path_exists("/dev/null") &&
         guard_add_path_rule(ruleset_fd, "/dev/null", guard_dev_null_access()) != 0) {
@@ -149,18 +161,18 @@ int main(int argc, char **argv)
 
     if (argc < 6) {
         fprintf(stderr,
-                "usage: %s <target-dir> <lf-config-dir> <command> [args...]\n"
-                "       %s --print-bwrap-ro-paths <target-dir> <lf-config-dir>\n",
+                "usage: %s <target-path> <lf-config-dir> <command> [args...]\n"
+                "       %s --print-bwrap-ro-paths <target-path> <lf-config-dir>\n",
                 argv[0],
                 argv[0]);
         return 1;
     }
 
-    const char *target_dir = argv[1];
+    const char *target_path = argv[1];
     const char *lf_config_dir = argv[2];
     char **cmd = &argv[3];
 
-    install_landlock(target_dir, lf_config_dir);
+    install_landlock(target_path, lf_config_dir);
     install_seccomp();
 
     execvp(cmd[0], cmd);
