@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -204,6 +205,65 @@ void guard_add_errno_rule(const char *program_name, scmp_filter_ctx ctx, int sys
     }
 }
 
+static void guard_add_syscall_errno_rule(const char *program_name,
+                                         scmp_filter_ctx ctx,
+                                         int syscall_nr,
+                                         int errno_value)
+{
+    if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(errno_value), syscall_nr, 0) < 0) {
+        fprintf(stderr, "%s: seccomp rule failed for syscall %d\n",
+                program_name, syscall_nr);
+        exit(1);
+    }
+}
+
+static void guard_add_clone_flag_errno_rule(const char *program_name,
+                                            scmp_filter_ctx ctx,
+                                            scmp_datum_t flag,
+                                            const char *flag_name)
+{
+    if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(clone), 1,
+                         SCMP_A0(SCMP_CMP_MASKED_EQ, flag, flag)) < 0) {
+        fprintf(stderr, "%s: seccomp clone rule failed for %s\n",
+                program_name, flag_name);
+        exit(1);
+    }
+}
+
+void guard_add_namespace_clone_deny_rules(const char *program_name,
+                                          scmp_filter_ctx ctx)
+{
+#ifdef __NR_clone3
+    /*
+     * Return ENOSYS instead of EPERM so ordinary clone3 users (notably
+     * glibc pthread_create) fall back to legacy clone. Namespace creation
+     * remains blocked by the masked CLONE_NEW* rules on clone below.
+     */
+    guard_add_syscall_errno_rule(program_name, ctx, SCMP_SYS(clone3), ENOSYS);
+#endif
+
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWNS,
+                                    "CLONE_NEWNS");
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWUTS,
+                                    "CLONE_NEWUTS");
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWIPC,
+                                    "CLONE_NEWIPC");
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWUSER,
+                                    "CLONE_NEWUSER");
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWPID,
+                                    "CLONE_NEWPID");
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWNET,
+                                    "CLONE_NEWNET");
+#ifdef CLONE_NEWCGROUP
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWCGROUP,
+                                    "CLONE_NEWCGROUP");
+#endif
+#ifdef CLONE_NEWTIME
+    guard_add_clone_flag_errno_rule(program_name, ctx, CLONE_NEWTIME,
+                                    "CLONE_NEWTIME");
+#endif
+}
+
 void guard_add_common_deny_syscalls(const char *program_name, scmp_filter_ctx ctx)
 {
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(mount));
@@ -235,6 +295,7 @@ void guard_add_common_deny_syscalls(const char *program_name, scmp_filter_ctx ct
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(kexec_file_load));
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(setns));
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(unshare));
+    guard_add_namespace_clone_deny_rules(program_name, ctx);
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(keyctl));
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(add_key));
     guard_add_errno_rule(program_name, ctx, SCMP_SYS(request_key));

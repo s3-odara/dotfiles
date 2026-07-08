@@ -33,6 +33,7 @@ void guard_visit_system_ro_paths(guard_path_visitor visitor, void *userdata);
 void guard_visit_base_ro_paths(const char *target_path, const char *lf_config_dir, guard_path_visitor visitor, void *userdata);
 int guard_add_path_rule(int ruleset_fd, const char *path, uint64_t access);
 void guard_add_errno_rule(const char *program_name, scmp_filter_ctx ctx, int syscall_nr);
+void guard_add_namespace_clone_deny_rules(const char *program_name, scmp_filter_ctx ctx);
 void guard_add_common_deny_syscalls(const char *program_name, scmp_filter_ctx ctx);
 void guard_validate_bind_path_or_die(const char *program_name, const char *path);
 
