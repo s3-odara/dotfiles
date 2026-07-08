@@ -51,7 +51,8 @@ static uint64_t handled_fs_access(void)
            LANDLOCK_ACCESS_FS_MAKE_SYM |
            LANDLOCK_ACCESS_FS_REFER |
            LANDLOCK_ACCESS_FS_TRUNCATE |
-           LANDLOCK_ACCESS_FS_IOCTL_DEV;
+           LANDLOCK_ACCESS_FS_IOCTL_DEV |
+           LANDLOCK_ACCESS_FS_RESOLVE_UNIX;
 }
 
 static uint64_t ro_access(void)
@@ -203,6 +204,8 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
         .handled_access_fs = handled_fs_access(),
         .handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
                               LANDLOCK_ACCESS_NET_CONNECT_TCP,
+        .scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
+                  LANDLOCK_SCOPE_SIGNAL,
     };
 
     int ruleset_fd = ll_create_ruleset(&ruleset, sizeof(ruleset), 0);
@@ -234,7 +237,7 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
         exit(1);
     }
 
-    if (ll_restrict_self(ruleset_fd, 0) != 0) {
+    if (ll_restrict_self(ruleset_fd, LANDLOCK_RESTRICT_SELF_TSYNC) != 0) {
         fprintf(stderr, "preview-guard: landlock_restrict_self failed: %s\n",
                 strerror(errno));
         exit(1);

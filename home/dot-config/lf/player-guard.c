@@ -52,7 +52,8 @@ static uint64_t handled_fs_access(void)
            LANDLOCK_ACCESS_FS_MAKE_SYM |
            LANDLOCK_ACCESS_FS_REFER |
            LANDLOCK_ACCESS_FS_TRUNCATE |
-           LANDLOCK_ACCESS_FS_IOCTL_DEV;
+           LANDLOCK_ACCESS_FS_IOCTL_DEV |
+           LANDLOCK_ACCESS_FS_RESOLVE_UNIX;
 }
 
 static uint64_t ro_access(void)
@@ -79,6 +80,11 @@ static uint64_t tmp_access(void)
            LANDLOCK_ACCESS_FS_REMOVE_FILE |
            LANDLOCK_ACCESS_FS_MAKE_REG |
            LANDLOCK_ACCESS_FS_TRUNCATE;
+}
+
+static uint64_t unix_socket_access(void)
+{
+    return LANDLOCK_ACCESS_FS_RESOLVE_UNIX;
 }
 
 static bool path_exists(const char *path)
@@ -121,6 +127,36 @@ static void visit_extra_ro_paths(path_visitor visitor, void *userdata)
 static void visit_extra_rw_paths(path_visitor visitor, void *userdata)
 {
     const char *extra_paths = getenv("PLAYER_EXTRA_RW_PATHS");
+    char *cursor;
+    char *path;
+    char *paths_copy;
+
+    if (extra_paths == NULL || extra_paths[0] == '\0') {
+        return;
+    }
+
+    paths_copy = strdup(extra_paths);
+    if (paths_copy == NULL) {
+        fprintf(stderr, "player-guard: strdup failed\n");
+        exit(1);
+    }
+
+    cursor = paths_copy;
+    while ((path = strsep(&cursor, ":")) != NULL) {
+        if (path[0] == '\0') {
+            continue;
+        }
+        if (path_exists(path)) {
+            visitor(path, userdata);
+        }
+    }
+
+    free(paths_copy);
+}
+
+static void visit_extra_unix_socket_paths(path_visitor visitor, void *userdata)
+{
+    const char *extra_paths = getenv("PLAYER_EXTRA_UNIX_SOCKET_PATHS");
     char *cursor;
     char *path;
     char *paths_copy;
@@ -222,6 +258,20 @@ static void add_rw_rule_if_exists(int ruleset_fd, const char *path)
     }
 }
 
+static void add_unix_socket_rule_if_exists(int ruleset_fd, const char *path)
+{
+    if (!path_exists(path)) {
+        return;
+    }
+
+    if (add_path_rule(ruleset_fd, path, unix_socket_access()) != 0) {
+        fprintf(stderr,
+                "player-guard: landlock UNIX socket rule failed for %s: %s\n",
+                path, strerror(errno));
+        exit(1);
+    }
+}
+
 static void add_ro_rule_visitor(const char *path, void *userdata)
 {
     int ruleset_fd = *(int *)userdata;
@@ -252,12 +302,20 @@ static void add_rw_rule_visitor(const char *path, void *userdata)
     add_rw_rule_if_exists(ctx->ruleset_fd, path);
 }
 
+static void add_unix_socket_rule_visitor(const char *path, void *userdata)
+{
+    int ruleset_fd = *(int *)userdata;
+    add_unix_socket_rule_if_exists(ruleset_fd, path);
+}
+
 static void install_landlock(const char *target_dir, const char *lf_config_dir)
 {
     struct landlock_ruleset_attr ruleset = {
         .handled_access_fs = handled_fs_access(),
         .handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
                               LANDLOCK_ACCESS_NET_CONNECT_TCP,
+        .scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
+                  LANDLOCK_SCOPE_SIGNAL,
     };
 
     int ruleset_fd = ll_create_ruleset(&ruleset, sizeof(ruleset), 0);
@@ -283,13 +341,15 @@ static void install_landlock(const char *target_dir, const char *lf_config_dir)
         visit_extra_rw_paths(add_rw_rule_visitor, &ctx);
     }
 
+    visit_extra_unix_socket_paths(add_unix_socket_rule_visitor, &ruleset_fd);
+
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
         fprintf(stderr, "player-guard: PR_SET_NO_NEW_PRIVS failed: %s\n",
                 strerror(errno));
         exit(1);
     }
 
-    if (ll_restrict_self(ruleset_fd, 0) != 0) {
+    if (ll_restrict_self(ruleset_fd, LANDLOCK_RESTRICT_SELF_TSYNC) != 0) {
         fprintf(stderr, "player-guard: landlock_restrict_self failed: %s\n",
                 strerror(errno));
         exit(1);

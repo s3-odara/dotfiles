@@ -37,6 +37,7 @@ player_tasks_max=${LF_PLAYER_TASKS_MAX:-256}
 player_gpu=${LF_PLAYER_GPU:-0}
 player_gpu_render_node=${LF_PLAYER_GPU_RENDER_NODE:-/dev/dri/renderD128}
 player_extra_rw_paths=/dev/shm
+player_extra_unix_socket_paths=
 runtime_uid=
 backend_unavailable=200
 
@@ -452,7 +453,7 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
     if [ -n "$wayland_display" ] &&
        wayland_socket=$(resolve_runtime_socket "$wayland_display" "$runtime_dir"); then
         wayland_socket_dir=$(dirname -- "$wayland_socket")
-        player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$wayland_socket_dir")
+        player_extra_unix_socket_paths=$(append_unique_colon_path "$player_extra_unix_socket_paths" "$wayland_socket")
         set -- "$@" --dir "$runtime_dir" --dir "$wayland_socket_dir" --bind "$wayland_socket" "$wayland_socket"
         set -- "$@" --setenv WAYLAND_DISPLAY "$(basename -- "$wayland_socket")"
         runtime_env_enabled=1
@@ -478,7 +479,7 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
 
     if [ -n "$pulse_socket" ]; then
         pulse_socket_dir=$(dirname -- "$pulse_socket")
-        player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$pulse_socket_dir")
+        player_extra_unix_socket_paths=$(append_unique_colon_path "$player_extra_unix_socket_paths" "$pulse_socket")
         set -- "$@" --dir "$runtime_dir" --dir "$pulse_socket_dir" --bind "$pulse_socket" "$pulse_socket"
         set -- "$@" --setenv PULSE_SERVER "unix:$pulse_socket"
         runtime_env_enabled=1
@@ -493,7 +494,7 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
     if [ -n "$pipewire_remote" ] &&
        pipewire_socket=$(resolve_runtime_socket "$pipewire_remote" "$pipewire_base_dir"); then
         pipewire_socket_dir=$(dirname -- "$pipewire_socket")
-        player_extra_rw_paths=$(append_unique_colon_path "$player_extra_rw_paths" "$pipewire_socket_dir")
+        player_extra_unix_socket_paths=$(append_unique_colon_path "$player_extra_unix_socket_paths" "$pipewire_socket")
         set -- "$@" --dir "$runtime_dir" --dir "$pipewire_base_dir" --dir "$pipewire_socket_dir" --bind "$pipewire_socket" "$pipewire_socket"
         set -- "$@" --setenv PIPEWIRE_RUNTIME_DIR "$pipewire_base_dir"
         set -- "$@" --setenv PIPEWIRE_REMOTE "$(basename -- "$pipewire_socket")"
@@ -507,6 +508,7 @@ fi
 
 set -- "$@" \
     --setenv PLAYER_EXTRA_RW_PATHS "$player_extra_rw_paths" \
+    --setenv PLAYER_EXTRA_UNIX_SOCKET_PATHS "$player_extra_unix_socket_paths" \
     "$guard_bin_real" \
     "$parent_dir" \
     "$lf_config_dir" \
