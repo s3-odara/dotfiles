@@ -4,7 +4,7 @@ set -eu
 
 # Player launcher policy summary:
 # - resolves the target and selected player before sandboxing;
-# - validates runtime sockets and optional GPU device exposure;
+# - validates runtime sockets;
 # - constructs a bwrap namespace and guard-derived read-only binds;
 # - passes player-specific RO/RW/Unix-socket environment variables;
 # - runs backend resource limits without a preview timeout;
@@ -45,8 +45,6 @@ player_cpu_quota=${LF_PLAYER_CPU_QUOTA:-300%}
 player_memory_high=${LF_PLAYER_MEMORY_HIGH:-2G}
 player_memory_max=${LF_PLAYER_MEMORY_MAX:-3G}
 player_tasks_max=${LF_PLAYER_TASKS_MAX:-256}
-player_gpu=${LF_PLAYER_GPU:-0}
-player_gpu_render_node=${LF_PLAYER_GPU_RENDER_NODE:-/dev/dri/renderD128}
 player_extra_rw_paths=/dev/shm
 player_extra_unix_socket_paths=
 runtime_uid=
@@ -171,28 +169,6 @@ resolve_default_pulse_socket() {
     resolve_runtime_socket pulse/native "$base_dir"
 }
 
-resolve_gpu_render_node() {
-    path=$1
-
-    if [ -z "$path" ] || [ "${path#/}" = "$path" ]; then
-        return 1
-    fi
-
-    path_dir=$(dirname -- "$path")
-    path_name=$(basename -- "$path")
-
-    if ! resolved_dir=$(cd -- "$path_dir" 2>/dev/null && pwd -P); then
-        return 1
-    fi
-
-    resolved=$resolved_dir/$path_name
-    if [ ! -c "$resolved" ]; then
-        return 1
-    fi
-
-    printf '%s\n' "$resolved"
-}
-
 append_unique_colon_path() {
     list_value=$1
     path_value=$2
@@ -260,14 +236,6 @@ if [ "$guard_bin_dir" != "$player_bin_dir" ]; then
     player_extra_ro_paths=$player_extra_ro_paths:$guard_bin_dir
 fi
 
-gpu_render_node=
-gpu_render_node_dir=
-if [ "$player_gpu" = "1" ] &&
-   gpu_render_node=$(resolve_gpu_render_node "$player_gpu_render_node"); then
-    gpu_render_node_dir=$(dirname -- "$gpu_render_node")
-    player_extra_ro_paths=$(append_unique_colon_path "$player_extra_ro_paths" "$gpu_render_node_dir")
-fi
-
 set -- \
     bwrap \
     --unshare-all \
@@ -292,10 +260,6 @@ set -- \
     --dir "$home_dir" \
     --dir "$lf_config_parent" \
     --dir "$parent_dir"
-
-if [ -n "$gpu_render_node" ]; then
-    set -- "$@" --dir "$gpu_render_node_dir" --dev-bind "$gpu_render_node" "$gpu_render_node"
-fi
 
 bind_paths=$(PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$parent_dir" "$lf_config_dir")
 old_ifs=$IFS
@@ -374,7 +338,10 @@ set -- "$@" \
     "$player"
 
 if [ "$player" = "mpv" ]; then
-    set -- "$@" --force-window=yes --keep-open=yes
+    # Prefer wlshm explicitly. This sandbox does not expose enough DRM/sys/udev
+    # state for mpv's gpu/gpu-next backends to initialize reliably, and their
+    # fallback to wlshm can race on Wayland.
+    set -- "$@" --force-window=yes --keep-open=yes --vo=wlshm
 else
     set -- "$@" -autoexit
 fi
