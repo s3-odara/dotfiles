@@ -69,8 +69,21 @@ show_directory_preview() {
     fi
 }
 
-emit_sixel_from_stdin() {
-    img2sixel - 2>/dev/null || return 1
+emit_sixel_preview() {
+    input=$1
+    output=$2
+
+    if img2sixel "$input" >"$output" 2>/dev/null && [ -s "$output" ]; then
+        return 0
+    fi
+
+    if command -v chafa >/dev/null 2>&1 &&
+        chafa --format=sixels "$input" >"$output" 2>/dev/null &&
+        [ -s "$output" ]; then
+        return 0
+    fi
+
+    return 1
 }
 
 ffmpeg_to_ppm() {
@@ -93,8 +106,7 @@ show_media_preview() {
 
     if ! ffmpeg_to_ppm "$1" >"$media_ppm" 2>/dev/null ||
         [ ! -s "$media_ppm" ] ||
-        ! img2sixel "$media_ppm" >"$media_out" 2>/dev/null ||
-        [ ! -s "$media_out" ]; then
+        ! emit_sixel_preview "$media_ppm" "$media_out"; then
         rm -f "$media_ppm" "$media_out"
         return 1
     fi
