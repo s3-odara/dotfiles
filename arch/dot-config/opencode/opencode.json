@@ -150,7 +150,7 @@
     "implementer": {
       "description": "Primary implementation/validation agent with proactive best-effort delegation to testing and debugging subagents.",
       "mode": "all",
-      "model": "opencode-go/kimi-k2.7-code",
+      "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "allow"
@@ -195,7 +195,7 @@
     "review_orchestrator": {
       "description": "Primary orchestrated reviewer for explicit code targets, canonical handoffs, or both, with exploration, optional research, multi-perspective subreviews, and report output.",
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2",
+      "model": "openai/gpt-5.5",
       "permission": {
         "edit": {
           "*": "allow",
@@ -242,7 +242,7 @@
     "explorer": {
       "description": "Read-only exploration agent that uses relevant skills provided by primary-agent delegation context.",
       "mode": "subagent",
-      "model": "opencode/deepseek-v4-flash-free",
+      "model": "opencode-go/deepseek-v4-flash",
       "permission": {
         "edit": {
           "*": "deny"
