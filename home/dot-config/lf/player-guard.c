@@ -15,7 +15,7 @@
 /*
  * Player guard policy summary:
  * - Profile: player; CLI compatibility is part of the security contract.
- * - Read-only filesystem inputs: /bin, /usr, /lib, /lib64, /etc,
+ * - Read-only filesystem inputs: LF_SANDBOX_SYSTEM_RO_PATHS entries,
  *   lf_config_dir, target_path, and PLAYER_EXTRA_RO_PATHS.
  * - Read/write filesystem inputs: minimal /dev nodes and PLAYER_EXTRA_RW_PATHS,
  *   currently used by the launcher for /dev/shm.
@@ -49,24 +49,40 @@ static void visit_extra_unix_socket_paths(guard_path_visitor visitor, void *user
 static void visit_ro_paths(const char *target_path, const char *lf_config_dir,
                            guard_path_visitor visitor, void *userdata)
 {
-    guard_visit_base_ro_paths(target_path, lf_config_dir, visitor, userdata);
+    guard_visit_base_ro_paths("player-guard", target_path, lf_config_dir, visitor, userdata);
     visit_extra_ro_paths(visitor, userdata);
 }
 
-static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
+static void add_ro_rule_with_access(int ruleset_fd, const char *path,
+                                    uint64_t access)
 {
     if (!guard_path_exists(path)) {
         return;
     }
-
-    uint64_t access = guard_path_is_dir(path) ? guard_ro_access()
-                                               : LANDLOCK_ACCESS_FS_READ_FILE;
 
     if (guard_add_path_rule(ruleset_fd, path, access) != 0) {
         fprintf(stderr, "player-guard: landlock RO rule failed for %s: %s\n",
                 path, strerror(errno));
         exit(1);
     }
+}
+
+static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
+{
+    uint64_t access = guard_path_is_dir(path)
+                          ? guard_ro_access()
+                          : (LANDLOCK_ACCESS_FS_READ_FILE |
+                             LANDLOCK_ACCESS_FS_EXECUTE);
+
+    add_ro_rule_with_access(ruleset_fd, path, access);
+}
+
+static void add_target_ro_rule_if_exists(int ruleset_fd, const char *path)
+{
+    uint64_t access = guard_path_is_dir(path) ? guard_ro_access()
+                                               : LANDLOCK_ACCESS_FS_READ_FILE;
+
+    add_ro_rule_with_access(ruleset_fd, path, access);
 }
 
 static void add_rw_rule_if_exists(int ruleset_fd, const char *path)
@@ -154,7 +170,17 @@ static void install_landlock(const char *target_path, const char *lf_config_dir)
         exit(1);
     }
 
-    visit_ro_paths(target_path, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
+    guard_visit_system_ro_paths("player-guard", add_ro_rule_visitor, &ruleset_fd);
+
+    if (guard_path_exists(lf_config_dir)) {
+        add_ro_rule_if_exists(ruleset_fd, lf_config_dir);
+    }
+
+    if (guard_path_exists(target_path)) {
+        add_target_ro_rule_if_exists(ruleset_fd, target_path);
+    }
+
+    visit_extra_ro_paths(add_ro_rule_visitor, &ruleset_fd);
 
     guard_visit_minimal_dev_paths(add_dev_rule_visitor, &ruleset_fd);
 

@@ -200,13 +200,119 @@ append_unique_colon_path() {
         *:"$path_value":*)
             printf '%s\n' "$list_value"
             ;;
-        :)
+        ::)
             printf '%s\n' "$path_value"
             ;;
         *)
             printf '%s:%s\n' "$list_value" "$path_value"
             ;;
     esac
+}
+
+append_existing_path() {
+    list_value=$1
+    path_value=$2
+
+    if [ -z "$path_value" ] || [ "${path_value#/}" = "$path_value" ] || [ ! -e "$path_value" ]; then
+        printf '%s\n' "$list_value"
+        return 0
+    fi
+
+    if real_path=$(readlink -f -- "$path_value" 2>/dev/null) && [ -e "$real_path" ]; then
+        path_value=$real_path
+    fi
+
+    append_unique_colon_path "$list_value" "$path_value"
+}
+
+append_ldd_closure() {
+    list_value=$1
+    binary_path=$2
+
+    if ! command -v ldd >/dev/null 2>&1; then
+        printf '%s\n' "$list_value"
+        return 0
+    fi
+
+    for ldd_path in $(ldd "$binary_path" 2>/dev/null | awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /^\//) {
+                    sub(/\(.*/, "", $i)
+                    print $i
+                }
+            }
+        }')
+    do
+        if [ -e "$ldd_path" ]; then
+            list_value=$(append_unique_colon_path "$list_value" "$ldd_path")
+        fi
+        list_value=$(append_existing_path "$list_value" "$ldd_path")
+    done
+
+    printf '%s\n' "$list_value"
+}
+
+path_is_script() {
+    [ "$(dd if="$1" bs=2 count=1 2>/dev/null || true)" = '#!' ]
+}
+
+append_binary_closure() {
+    list_value=$1
+    shift
+
+    for command_name do
+        if ! command_path=$(command -v -- "$command_name" 2>/dev/null); then
+            continue
+        fi
+        case "$command_path" in
+            /*) ;;
+            *) continue ;;
+        esac
+        if [ -e "$command_path" ]; then
+            list_value=$(append_unique_colon_path "$list_value" "$command_path")
+        fi
+        if command_real=$(readlink -f -- "$command_path" 2>/dev/null) && [ -e "$command_real" ]; then
+            command_path=$command_real
+            list_value=$(append_existing_path "$list_value" "$command_path")
+        fi
+        if path_is_script "$command_path"; then
+            list_value=$(append_existing_path "$list_value" "$(dirname -- "$command_path")")
+        fi
+        list_value=$(append_ldd_closure "$list_value" "$command_path")
+    done
+
+    printf '%s\n' "$list_value"
+}
+
+build_player_system_ro_paths() {
+    path_list=
+
+    path_list=$(append_binary_closure "$path_list" "$player_bin_real" "$guard_bin_real")
+    if path_is_script "$player_bin_real" || path_is_script "$guard_bin_real"; then
+        path_list=$(append_binary_closure "$path_list" /bin/sh)
+    fi
+
+    for data_path in \
+        /etc/ld.so.cache \
+        /etc/nsswitch.conf \
+        /etc/hosts \
+        /etc/resolv.conf \
+        /etc/pulse \
+        /usr/lib/libSDL3.so* \
+        /usr/lib/libSDL2-2.0.so* \
+        /usr/share/alsa \
+        /usr/share/pipewire \
+        /usr/share/vulkan \
+        /usr/share/glvnd
+    do
+        if [ -e "$data_path" ]; then
+            path_list=$(append_unique_colon_path "$path_list" "$data_path")
+        fi
+        path_list=$(append_existing_path "$path_list" "$data_path")
+    done
+
+    printf '%s\n' "$path_list"
 }
 
 select_player() {
@@ -253,6 +359,7 @@ player_extra_ro_paths=$player_bin_dir
 if [ "$guard_bin_dir" != "$player_bin_dir" ]; then
     player_extra_ro_paths=$player_extra_ro_paths:$guard_bin_dir
 fi
+player_system_ro_paths=$(build_player_system_ro_paths)
 
 set -- \
     bwrap \
@@ -263,6 +370,7 @@ set -- \
     --setenv HOME "$home_dir" \
     --setenv PATH "$safe_path" \
     --setenv PLAYER_EXTRA_RO_PATHS "$player_extra_ro_paths" \
+    --setenv LF_SANDBOX_SYSTEM_RO_PATHS "$player_system_ro_paths" \
     --setenv TMPDIR /var/tmp \
     --setenv XDG_CONFIG_HOME /tmp/.config \
     --setenv XDG_CACHE_HOME /tmp/.cache \
@@ -284,7 +392,7 @@ set -- \
     --dir "$lf_config_parent" \
     --dir "$parent_dir"
 
-bind_paths=$(PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
+bind_paths=$(LF_SANDBOX_SYSTEM_RO_PATHS=$player_system_ro_paths PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
 old_ifs=$IFS
 IFS='
 '

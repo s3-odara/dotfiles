@@ -31,6 +31,7 @@ sandbox_backend_lib="$lf_config_dir/sandbox-backend.sh"
 . "$sandbox_backend_lib"
 lf_config_parent=$(dirname -- "$lf_config_dir")
 guard_bin="$lf_config_dir/preview-guard"
+guard_bin_real=$(readlink -f -- "$guard_bin")
 preview_script=$(readlink -f -- "$lf_config_dir/preview.sh")
 preview_script_dir=$(dirname -- "$preview_script")
 safe_path=/usr/bin:/bin
@@ -61,6 +62,126 @@ else
     target_ro_path=/__lf_sandbox_no_target__
 fi
 
+append_unique_colon_path() {
+    list_value=$1
+    path_value=$2
+
+    if [ -z "$path_value" ]; then
+        printf '%s\n' "$list_value"
+        return 0
+    fi
+
+    case ":$list_value:" in
+        *:"$path_value":*)
+            printf '%s\n' "$list_value"
+            ;;
+        ::)
+            printf '%s\n' "$path_value"
+            ;;
+        *)
+            printf '%s:%s\n' "$list_value" "$path_value"
+            ;;
+    esac
+}
+
+append_existing_path() {
+    list_value=$1
+    path_value=$2
+
+    if [ -z "$path_value" ] || [ "${path_value#/}" = "$path_value" ] || [ ! -e "$path_value" ]; then
+        printf '%s\n' "$list_value"
+        return 0
+    fi
+
+    if real_path=$(readlink -f -- "$path_value" 2>/dev/null) && [ -e "$real_path" ]; then
+        path_value=$real_path
+    fi
+
+    append_unique_colon_path "$list_value" "$path_value"
+}
+
+append_ldd_closure() {
+    list_value=$1
+    binary_path=$2
+
+    if ! command -v ldd >/dev/null 2>&1; then
+        printf '%s\n' "$list_value"
+        return 0
+    fi
+
+    for ldd_path in $(ldd "$binary_path" 2>/dev/null | awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /^\//) {
+                    sub(/\(.*/, "", $i)
+                    print $i
+                }
+            }
+        }')
+    do
+        if [ -e "$ldd_path" ]; then
+            list_value=$(append_unique_colon_path "$list_value" "$ldd_path")
+        fi
+        list_value=$(append_existing_path "$list_value" "$ldd_path")
+    done
+
+    printf '%s\n' "$list_value"
+}
+
+append_binary_closure() {
+    list_value=$1
+    shift
+
+    for command_name do
+        if ! command_path=$(command -v -- "$command_name" 2>/dev/null); then
+            continue
+        fi
+        case "$command_path" in
+            /*) ;;
+            *) continue ;;
+        esac
+        if [ -e "$command_path" ]; then
+            list_value=$(append_unique_colon_path "$list_value" "$command_path")
+        fi
+        if command_real=$(readlink -f -- "$command_path" 2>/dev/null) && [ -e "$command_real" ]; then
+            command_path=$command_real
+            list_value=$(append_existing_path "$list_value" "$command_path")
+        fi
+        if [ "$(dd if="$command_path" bs=2 count=1 2>/dev/null || true)" = '#!' ]; then
+            list_value=$(append_existing_path "$list_value" "$(dirname -- "$command_path")")
+        fi
+        list_value=$(append_ldd_closure "$list_value" "$command_path")
+    done
+
+    printf '%s\n' "$list_value"
+}
+
+build_preview_system_ro_paths() {
+    path_list=
+
+    path_list=$(append_binary_closure "$path_list" "$guard_bin" /bin/sh file sed head perl readlink mktemp rm cat)
+    path_list=$(append_binary_closure "$path_list" img2sixel magick ffmpeg pdftotext)
+
+    for data_path in \
+        /etc/ld.so.cache \
+        /etc/mime.types \
+        /etc/magic \
+        /usr/share/misc/magic.mgc \
+        /usr/share/file/magic.mgc \
+        /usr/share/file/misc/magic.mgc \
+        /usr/share/terminfo
+    do
+        if [ -e "$data_path" ]; then
+            path_list=$(append_unique_colon_path "$path_list" "$data_path")
+        fi
+        path_list=$(append_existing_path "$path_list" "$data_path")
+    done
+
+    printf '%s\n' "$path_list"
+}
+
+preview_system_ro_paths=$(build_preview_system_ro_paths)
+
 set -- \
     "$resolved_target" \
     "$width" \
@@ -85,6 +206,7 @@ set -- \
     --setenv HOME "$home_dir" \
     --setenv PATH "$safe_path" \
     --setenv PREVIEW_EXTRA_RO_PATHS "$preview_script_dir" \
+    --setenv LF_SANDBOX_SYSTEM_RO_PATHS "$preview_system_ro_paths" \
     --setenv TMPDIR /var/tmp \
     --dir /dev \
     --dev-bind /dev/null /dev/null \
@@ -102,7 +224,7 @@ set -- \
     --dir "$lf_config_parent" \
     --dir "$parent_dir"
 
-bind_paths=$(PREVIEW_EXTRA_RO_PATHS=$preview_script_dir "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
+bind_paths=$(LF_SANDBOX_SYSTEM_RO_PATHS=$preview_system_ro_paths PREVIEW_EXTRA_RO_PATHS=$preview_script_dir "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
 old_ifs=$IFS
 IFS='
 '
@@ -121,7 +243,7 @@ if [ -n "$target_is_symlink" ]; then
 fi
 
 set -- "$@" \
-    "$guard_bin" \
+    "$guard_bin_real" \
     "$target_ro_path" \
     "$lf_config_dir" \
     /bin/sh "$preview_script" \

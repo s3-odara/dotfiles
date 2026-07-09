@@ -14,7 +14,7 @@
 /*
  * Preview guard policy summary:
  * - Profile: preview; CLI compatibility is part of the security contract.
- * - Read-only filesystem inputs: /bin, /usr, /lib, /lib64, /etc,
+ * - Read-only filesystem inputs: LF_SANDBOX_SYSTEM_RO_PATHS entries,
  *   lf_config_dir, regular-file target_path, and PREVIEW_EXTRA_RO_PATHS.
  * - Special access: minimal /dev nodes may be read/written/ioctl'd; /var/tmp
  *   allows limited temporary-file creation, writes, truncation, reads, and removal.
@@ -34,7 +34,7 @@ static void visit_extra_ro_paths(guard_path_visitor visitor, void *userdata)
 static void visit_ro_paths(const char *target_path, const char *lf_config_dir,
                            guard_path_visitor visitor, void *userdata)
 {
-    guard_visit_system_ro_paths(visitor, userdata);
+    guard_visit_system_ro_paths("preview-guard", visitor, userdata);
 
     if (guard_path_exists(lf_config_dir)) {
         visitor(lf_config_dir, userdata);
@@ -47,20 +47,36 @@ static void visit_ro_paths(const char *target_path, const char *lf_config_dir,
     visit_extra_ro_paths(visitor, userdata);
 }
 
-static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
+static void add_ro_rule_with_access(int ruleset_fd, const char *path,
+                                    uint64_t access)
 {
     if (!guard_path_exists(path)) {
         return;
     }
-
-    uint64_t access = guard_path_is_regular(path) ? LANDLOCK_ACCESS_FS_READ_FILE
-                                                   : guard_ro_access();
 
     if (guard_add_path_rule(ruleset_fd, path, access) != 0) {
         fprintf(stderr, "preview-guard: landlock rule failed for %s: %s\n",
                 path, strerror(errno));
         exit(1);
     }
+}
+
+static void add_ro_rule_if_exists(int ruleset_fd, const char *path)
+{
+    uint64_t access = guard_path_is_regular(path)
+                          ? (LANDLOCK_ACCESS_FS_READ_FILE |
+                             LANDLOCK_ACCESS_FS_EXECUTE)
+                          : guard_ro_access();
+
+    add_ro_rule_with_access(ruleset_fd, path, access);
+}
+
+static void add_target_ro_rule_if_exists(int ruleset_fd, const char *path)
+{
+    uint64_t access = guard_path_is_regular(path) ? LANDLOCK_ACCESS_FS_READ_FILE
+                                                   : guard_ro_access();
+
+    add_ro_rule_with_access(ruleset_fd, path, access);
 }
 
 static void add_ro_rule_visitor(const char *path, void *userdata)
@@ -105,7 +121,17 @@ static void install_landlock(const char *target_path, const char *lf_config_dir)
         exit(1);
     }
 
-    visit_ro_paths(target_path, lf_config_dir, add_ro_rule_visitor, &ruleset_fd);
+    guard_visit_system_ro_paths("preview-guard", add_ro_rule_visitor, &ruleset_fd);
+
+    if (guard_path_exists(lf_config_dir)) {
+        add_ro_rule_if_exists(ruleset_fd, lf_config_dir);
+    }
+
+    if (guard_path_is_regular(target_path)) {
+        add_target_ro_rule_if_exists(ruleset_fd, target_path);
+    }
+
+    visit_extra_ro_paths(add_ro_rule_visitor, &ruleset_fd);
 
     guard_visit_minimal_dev_paths(add_dev_rule_visitor, &ruleset_fd);
 

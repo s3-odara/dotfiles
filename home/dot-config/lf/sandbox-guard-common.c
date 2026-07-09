@@ -150,7 +150,37 @@ void guard_visit_colon_env_paths(const char *program_name, const char *env_name,
     free(paths_copy);
 }
 
-void guard_visit_system_ro_paths(guard_path_visitor visitor, void *userdata)
+static bool guard_is_disallowed_system_ro_path(const char *path)
+{
+    return strcmp(path, "/") == 0 ||
+           strcmp(path, "/proc") == 0 ||
+           strcmp(path, "/sys") == 0 ||
+           strcmp(path, "/dev") == 0 ||
+           strcmp(path, "/run") == 0;
+}
+
+static char *guard_canonicalize_system_ro_path(const char *program_name,
+                                               const char *path)
+{
+    char *canonical_path;
+
+    if (!guard_path_exists(path)) {
+        return NULL;
+    }
+
+    canonical_path = realpath(path, NULL);
+    if (canonical_path == NULL) {
+        fprintf(stderr,
+                "%s: skipping LF_SANDBOX_SYSTEM_RO_PATHS entry that cannot be canonicalized: %s: %s\n",
+                program_name, path, strerror(errno));
+        return NULL;
+    }
+
+    return canonical_path;
+}
+
+static void guard_visit_legacy_system_ro_paths(guard_path_visitor visitor,
+                                               void *userdata)
 {
     static const char *const base_paths[] = {
         "/bin",
@@ -166,6 +196,69 @@ void guard_visit_system_ro_paths(guard_path_visitor visitor, void *userdata)
             visitor(base_paths[i], userdata);
         }
     }
+}
+
+void guard_visit_system_ro_paths(const char *program_name,
+                                 guard_path_visitor visitor,
+                                 void *userdata)
+{
+    const char *legacy = getenv("LF_SANDBOX_LEGACY_SYSTEM_RO");
+    const char *system_paths;
+    char *cursor;
+    char *path;
+    char *paths_copy;
+
+    if (legacy != NULL && strcmp(legacy, "1") == 0) {
+        guard_visit_legacy_system_ro_paths(visitor, userdata);
+        return;
+    }
+
+    system_paths = getenv("LF_SANDBOX_SYSTEM_RO_PATHS");
+    if (system_paths == NULL || system_paths[0] == '\0') {
+        return;
+    }
+
+    paths_copy = strdup(system_paths);
+    if (paths_copy == NULL) {
+        fprintf(stderr, "%s: strdup failed\n", program_name);
+        exit(1);
+    }
+
+    cursor = paths_copy;
+    while ((path = strsep(&cursor, ":")) != NULL) {
+        if (path[0] == '\0') {
+            continue;
+        }
+        if (path[0] != '/') {
+            fprintf(stderr, "%s: LF_SANDBOX_SYSTEM_RO_PATHS entry is not absolute: %s\n",
+                    program_name, path);
+            free(paths_copy);
+            exit(1);
+        }
+        if (strchr(path, '\n') != NULL) {
+            fprintf(stderr,
+                    "%s: newline in LF_SANDBOX_SYSTEM_RO_PATHS entry is not supported: %s\n",
+                    program_name, path);
+            free(paths_copy);
+            exit(1);
+        }
+        if (guard_path_exists(path)) {
+            char *canonical_path = guard_canonicalize_system_ro_path(program_name, path);
+
+            if (canonical_path == NULL) {
+                continue;
+            }
+            if (guard_is_disallowed_system_ro_path(canonical_path)) {
+                free(canonical_path);
+                continue;
+            }
+
+            visitor(path, userdata);
+            free(canonical_path);
+        }
+    }
+
+    free(paths_copy);
 }
 
 void guard_visit_minimal_dev_paths(guard_path_visitor visitor, void *userdata)
@@ -186,10 +279,11 @@ void guard_visit_minimal_dev_paths(guard_path_visitor visitor, void *userdata)
     }
 }
 
-void guard_visit_base_ro_paths(const char *target_path, const char *lf_config_dir,
+void guard_visit_base_ro_paths(const char *program_name, const char *target_path,
+                               const char *lf_config_dir,
                                guard_path_visitor visitor, void *userdata)
 {
-    guard_visit_system_ro_paths(visitor, userdata);
+    guard_visit_system_ro_paths(program_name, visitor, userdata);
 
     if (guard_path_exists(lf_config_dir)) {
         visitor(lf_config_dir, userdata);
