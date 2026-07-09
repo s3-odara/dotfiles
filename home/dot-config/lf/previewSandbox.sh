@@ -41,6 +41,7 @@ preview_timeout=${LF_PREVIEW_TIMEOUT:-5s}
 preview_debug=${LF_PREVIEW_DEBUG:-0}
 preview_cgroup_mode=${LF_PREVIEW_CGROUP:-auto}
 cgroup_root=${LF_PREVIEW_CGROUP_ROOT:-/sys/fs/cgroup}
+preview_cache_dir=${LF_SANDBOX_CACHE_DIR:-${XDG_CACHE_HOME:-$home_dir/.cache}/lf/sandbox-preview-ro-v1}
 if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
     printf 'previewSandbox.sh: cannot resolve target parent: %s\n' "$target_dir" >&2
     exit 1
@@ -156,11 +157,38 @@ append_binary_closure() {
     printf '%s\n' "$list_value"
 }
 
-build_preview_system_ro_paths() {
-    path_list=
+detect_preview_profile() {
+    if [ -n "$target_is_symlink" ] || [ ! -e "$resolved_target" ]; then
+        printf 'basic\n'
+        return 0
+    fi
 
-    path_list=$(append_binary_closure "$path_list" "$guard_bin" /bin/sh file sed head perl readlink mktemp rm cat)
-    path_list=$(append_binary_closure "$path_list" img2sixel magick ffmpeg pdftotext)
+    if [ -d "$resolved_target" ]; then
+        printf 'basic\n'
+        return 0
+    fi
+
+    case "$target_name" in
+        *.[pP][nN][gG]|*.[jJ][pP][gG]|*.[jJ][pP][eE][gG]|*.[gG][iI][fF]|*.[wW][eE][bB][pP]|*.[bB][mM][pP]|*.[tT][iI][fF]|*.[tT][iI][fF][fF])
+            printf 'image\n'
+            ;;
+        *.[mM][pP]4|*.[mM]4[vV]|*.[mM][kK][vV]|*.[wW][eE][bB][mM]|*.[aA][vV][iI]|*.[mM][oO][vV]|*.[mM][pP][gG]|*.[mM][pP][eE][gG]|*.[oO][gG][vV])
+            printf 'video\n'
+            ;;
+        *.[pP][dD][fF])
+            printf 'pdf\n'
+            ;;
+        *.[tT][xX][tT]|*.[mM][dD]|*.[jJ][sS][oO][nN]|*.[xX][mM][lL]|*.[jJ][sS]|*.[sS][hH]|*.[cC]|*.[hH]|*.[pP][yY]|*.[rR][bB]|*.[gG][oO]|*.[rR][sS]|*.[tT][oO][mM][lL]|*.[yY][mM][lL]|*.[yY][aA][mM][lL])
+            printf 'text\n'
+            ;;
+        *)
+            printf 'text\n'
+            ;;
+    esac
+}
+
+append_preview_data_paths() {
+    path_list=$1
 
     for data_path in \
         /etc/ld.so.cache \
@@ -180,7 +208,123 @@ build_preview_system_ro_paths() {
     printf '%s\n' "$path_list"
 }
 
-preview_system_ro_paths=$(build_preview_system_ro_paths)
+append_imagemagick_paths() {
+    path_list=$1
+
+    if command -v magick >/dev/null 2>&1; then
+        for data_path in \
+            /etc/ImageMagick-* \
+            /usr/share/ImageMagick-* \
+            /usr/lib/ImageMagick-* \
+            /usr/lib/*/ImageMagick-*
+        do
+            if [ -e "$data_path" ]; then
+                path_list=$(append_existing_path "$path_list" "$data_path")
+            fi
+        done
+    fi
+
+    printf '%s\n' "$path_list"
+}
+
+preview_tools_for_profile() {
+    profile=$1
+
+    case "$profile" in
+        text)
+            printf '%s\n' 'sed head'
+            ;;
+        image|video)
+            printf '%s\n' 'mktemp rm cat ffmpeg img2sixel magick'
+            ;;
+        pdf)
+            printf '%s\n' 'head mktemp rm cat pdftotext ffmpeg img2sixel magick'
+            ;;
+        *)
+            printf '\n'
+            ;;
+    esac
+}
+
+file_mtime() {
+    if [ -e "$1" ]; then
+        stat -Lc '%Y' -- "$1" 2>/dev/null || printf '0\n'
+    else
+        printf '0\n'
+    fi
+}
+
+preview_cache_key() {
+    profile=$1
+    tools=$2
+
+    {
+        printf 'preview-ro-v2\n'
+        printf 'profile=%s\n' "$profile"
+        printf 'script=%s:%s\n' "$preview_script" "$(file_mtime "$preview_script")"
+        printf 'launcher=%s:%s\n' "$0" "$(file_mtime "$0")"
+        printf 'guard=%s:%s\n' "$guard_bin_real" "$(file_mtime "$guard_bin_real")"
+        for command_name in $tools; do
+            if command_path=$(command -v -- "$command_name" 2>/dev/null); then
+                command_real=$(readlink -f -- "$command_path" 2>/dev/null || printf '%s\n' "$command_path")
+                printf 'tool=%s:%s:%s\n' "$command_name" "$command_real" "$(file_mtime "$command_real")"
+            else
+                printf 'tool=%s:missing\n' "$command_name"
+            fi
+        done
+    } | cksum | awk '{print $1 "-" $2}'
+}
+
+build_preview_system_ro_paths_uncached() {
+    profile=$1
+    tools=$2
+    path_list=
+
+    path_list=$(append_binary_closure "$path_list" "$guard_bin_real" /bin/sh file perl readlink)
+    # shellcheck disable=SC2086
+    path_list=$(append_binary_closure "$path_list" $tools)
+    path_list=$(append_preview_data_paths "$path_list")
+
+    case "$profile" in
+        image|video|pdf)
+            path_list=$(append_imagemagick_paths "$path_list")
+            ;;
+    esac
+
+    printf '%s\n' "$path_list"
+}
+
+build_preview_system_ro_paths() {
+    profile=$1
+    tools=$(preview_tools_for_profile "$profile")
+    cache_tools="$guard_bin_real /bin/sh file perl readlink $tools"
+    cache_key=$(preview_cache_key "$profile" "$cache_tools")
+    cache_file=$preview_cache_dir/$cache_key.paths
+
+    if [ -r "$cache_file" ]; then
+        IFS= read -r cached_paths <"$cache_file" || cached_paths=
+        if [ -n "$cached_paths" ]; then
+            printf '%s\n' "$cached_paths"
+            return 0
+        fi
+    fi
+
+    path_list=$(build_preview_system_ro_paths_uncached "$profile" "$tools")
+
+    if mkdir -p -- "$preview_cache_dir" 2>/dev/null; then
+        tmp_cache=$cache_file.$$.tmp
+        if printf '%s\n' "$path_list" >"$tmp_cache" 2>/dev/null; then
+            mv -f -- "$tmp_cache" "$cache_file" 2>/dev/null || rm -f -- "$tmp_cache"
+        else
+            rm -f -- "$tmp_cache"
+        fi
+    fi
+
+    printf '%s\n' "$path_list"
+}
+
+preview_profile=$(detect_preview_profile)
+preview_system_ro_paths=$(build_preview_system_ro_paths "$preview_profile")
 
 set -- \
     "$resolved_target" \
@@ -232,7 +376,10 @@ for bind_path in $bind_paths; do
     if [ -d "$bind_path" ]; then
         bind_mountpoint=$bind_path
     else
-        bind_mountpoint=$(dirname -- "$bind_path")
+        bind_mountpoint=${bind_path%/*}
+        if [ -z "$bind_mountpoint" ]; then
+            bind_mountpoint=/
+        fi
     fi
     set -- "$@" --dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path"
 done
