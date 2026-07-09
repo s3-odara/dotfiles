@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck disable=SC2034 # SANDBOX_* globals are consumed by sandbox-backend.sh.
 
 set -eu
 
@@ -196,12 +197,14 @@ append_unique_colon_path() {
         return 0
     fi
 
+    if [ -z "$list_value" ]; then
+        printf '%s\n' "$path_value"
+        return 0
+    fi
+
     case ":$list_value:" in
         *:"$path_value":*)
             printf '%s\n' "$list_value"
-            ;;
-        :)
-            printf '%s\n' "$path_value"
             ;;
         *)
             printf '%s:%s\n' "$list_value" "$path_value"
@@ -254,49 +257,50 @@ if [ "$guard_bin_dir" != "$player_bin_dir" ]; then
     player_extra_ro_paths=$player_extra_ro_paths:$guard_bin_dir
 fi
 
-set -- \
-    bwrap \
-    --unshare-all \
-    --new-session \
-    --die-with-parent \
-    --clearenv \
-    --setenv HOME "$home_dir" \
-    --setenv PATH "$safe_path" \
-    --setenv PLAYER_EXTRA_RO_PATHS "$player_extra_ro_paths" \
-    --setenv TMPDIR /var/tmp \
-    --setenv XDG_CONFIG_HOME /tmp/.config \
-    --setenv XDG_CACHE_HOME /tmp/.cache \
-    --setenv XDG_DATA_HOME /tmp/.local/share \
-    --dir /dev \
-    --dev-bind /dev/null /dev/null \
-    --dev-bind /dev/zero /dev/zero \
-    --dev-bind /dev/full /dev/full \
-    --dev-bind /dev/random /dev/random \
-    --dev-bind /dev/urandom /dev/urandom \
-    --tmpfs /home \
-    --tmpfs /root \
-    --tmpfs /tmp \
-    --tmpfs /var/tmp \
-    --tmpfs /proc \
-    --tmpfs /sys \
-    --tmpfs /dev/shm \
-    --dir "$home_dir" \
-    --dir "$lf_config_parent" \
+cmd=(
+    bwrap
+    --unshare-all
+    --new-session
+    --die-with-parent
+    --clearenv
+    --setenv HOME "$home_dir"
+    --setenv PATH "$safe_path"
+    --setenv PLAYER_EXTRA_RO_PATHS "$player_extra_ro_paths"
+    --setenv TMPDIR /var/tmp
+    --setenv XDG_CONFIG_HOME /tmp/.config
+    --setenv XDG_CACHE_HOME /tmp/.cache
+    --setenv XDG_DATA_HOME /tmp/.local/share
+    --dir /dev
+    --dev-bind /dev/null /dev/null
+    --dev-bind /dev/zero /dev/zero
+    --dev-bind /dev/full /dev/full
+    --dev-bind /dev/random /dev/random
+    --dev-bind /dev/urandom /dev/urandom
+    --tmpfs /home
+    --tmpfs /root
+    --tmpfs /tmp
+    --tmpfs /var/tmp
+    --tmpfs /proc
+    --tmpfs /sys
+    --tmpfs /dev/shm
+    --dir "$home_dir"
+    --dir "$lf_config_parent"
     --dir "$parent_dir"
+)
 
-bind_paths=$(PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
-old_ifs=$IFS
-IFS='
-'
-for bind_path in $bind_paths; do
+if ! bind_paths=$(PLAYER_EXTRA_RO_PATHS=$player_extra_ro_paths "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir"); then
+    exit 1
+fi
+
+while IFS= read -r bind_path; do
+    [ -n "$bind_path" ] || continue
     if [ -d "$bind_path" ]; then
         bind_mountpoint=$bind_path
     else
         bind_mountpoint=$(dirname -- "$bind_path")
     fi
-    set -- "$@" --dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path"
-done
-IFS=$old_ifs
+    cmd+=(--dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path")
+done <<< "$bind_paths"
 
 runtime_env_enabled=
 
@@ -305,8 +309,8 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
        wayland_socket=$(resolve_runtime_socket "$wayland_display" "$runtime_dir"); then
         wayland_socket_dir=$(dirname -- "$wayland_socket")
         player_extra_unix_socket_paths=$(append_unique_colon_path "$player_extra_unix_socket_paths" "$wayland_socket")
-        set -- "$@" --dir "$runtime_dir" --dir "$wayland_socket_dir" --bind "$wayland_socket" "$wayland_socket"
-        set -- "$@" --setenv WAYLAND_DISPLAY "$(basename -- "$wayland_socket")"
+        cmd+=(--dir "$runtime_dir" --dir "$wayland_socket_dir" --bind "$wayland_socket" "$wayland_socket")
+        cmd+=(--setenv WAYLAND_DISPLAY "$(basename -- "$wayland_socket")")
         runtime_env_enabled=1
     fi
 
@@ -331,8 +335,8 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
     if [ -n "$pulse_socket" ]; then
         pulse_socket_dir=$(dirname -- "$pulse_socket")
         player_extra_unix_socket_paths=$(append_unique_colon_path "$player_extra_unix_socket_paths" "$pulse_socket")
-        set -- "$@" --dir "$runtime_dir" --dir "$pulse_socket_dir" --bind "$pulse_socket" "$pulse_socket"
-        set -- "$@" --setenv PULSE_SERVER "unix:$pulse_socket"
+        cmd+=(--dir "$runtime_dir" --dir "$pulse_socket_dir" --bind "$pulse_socket" "$pulse_socket")
+        cmd+=(--setenv PULSE_SERVER "unix:$pulse_socket")
         runtime_env_enabled=1
     fi
 
@@ -346,40 +350,43 @@ if [ -n "$runtime_dir" ] && runtime_dir=$(resolve_runtime_dir "$runtime_dir"); t
        pipewire_socket=$(resolve_runtime_socket "$pipewire_remote" "$pipewire_base_dir"); then
         pipewire_socket_dir=$(dirname -- "$pipewire_socket")
         player_extra_unix_socket_paths=$(append_unique_colon_path "$player_extra_unix_socket_paths" "$pipewire_socket")
-        set -- "$@" --dir "$runtime_dir" --dir "$pipewire_base_dir" --dir "$pipewire_socket_dir" --bind "$pipewire_socket" "$pipewire_socket"
-        set -- "$@" --setenv PIPEWIRE_RUNTIME_DIR "$pipewire_base_dir"
-        set -- "$@" --setenv PIPEWIRE_REMOTE "$(basename -- "$pipewire_socket")"
+        cmd+=(--dir "$runtime_dir" --dir "$pipewire_base_dir" --dir "$pipewire_socket_dir" --bind "$pipewire_socket" "$pipewire_socket")
+        cmd+=(--setenv PIPEWIRE_RUNTIME_DIR "$pipewire_base_dir")
+        cmd+=(--setenv PIPEWIRE_REMOTE "$(basename -- "$pipewire_socket")")
         runtime_env_enabled=1
     fi
 
     if [ -n "$runtime_env_enabled" ]; then
-        set -- "$@" --setenv XDG_RUNTIME_DIR "$runtime_dir"
+        cmd+=(--setenv XDG_RUNTIME_DIR "$runtime_dir")
     fi
 fi
 
-set -- "$@" \
-    --setenv PLAYER_EXTRA_RW_PATHS "$player_extra_rw_paths" \
-    --setenv PLAYER_EXTRA_UNIX_SOCKET_PATHS "$player_extra_unix_socket_paths" \
-    "$guard_bin_real" \
-    "$target_ro_path" \
-    "$lf_config_dir" \
+cmd+=(
+    --setenv PLAYER_EXTRA_RW_PATHS "$player_extra_rw_paths"
+    --setenv PLAYER_EXTRA_UNIX_SOCKET_PATHS "$player_extra_unix_socket_paths"
+    "$guard_bin_real"
+    "$target_ro_path"
+    "$lf_config_dir"
     "$player"
+)
 
 if [ "$player" = "mpv" ]; then
     # Prefer wlshm explicitly. This sandbox does not expose enough DRM/sys/udev
     # state for mpv's gpu/gpu-next backends to initialize reliably, and their
     # fallback to wlshm can race on Wayland.
-    set -- "$@" --force-window=yes --keep-open=yes --vo=wlshm
+    cmd+=(--force-window=yes --keep-open=yes --vo=wlshm)
 else
-    set -- "$@" -autoexit
+    cmd+=(-autoexit)
 fi
 
 if [ -n "$player_extra_args" ]; then
-    # shellcheck disable=SC2086
-    set -- "$@" $player_extra_args
+    # Intentionally preserve previous unquoted shell-style splitting.
+    # shellcheck disable=SC2206
+    extra_args=( $player_extra_args )
+    cmd+=("${extra_args[@]}")
 fi
 
-set -- "$@" -- "$resolved_target"
+cmd+=(-- "$resolved_target")
 
 SANDBOX_BACKEND_NAME=player
 SANDBOX_BACKEND_MODE=$player_cgroup_mode
@@ -393,4 +400,4 @@ SANDBOX_TIMEOUT=
 SANDBOX_USE_TIMEOUT=0
 SANDBOX_DEBUG=0
 SANDBOX_BACKEND_UNAVAILABLE=200
-sandbox_backend_run "$@"
+sandbox_backend_run "${cmd[@]}"

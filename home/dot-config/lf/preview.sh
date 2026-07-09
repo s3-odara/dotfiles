@@ -8,7 +8,6 @@ export PATH
 file_path=${1:-}
 width=${2:-80}
 height=${3:-24}
-mode=${6:-preview}
 cell_width=${LF_PREVIEW_CELL_WIDTH:-40}
 cell_height=${LF_PREVIEW_CELL_HEIGHT:-18}
 
@@ -22,10 +21,6 @@ sanitize_terminal_text() {
 
 sanitize_terminal_path_value() {
     perl -0pe 's/\\/\\\\/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g; s/([\x00-\x08\x0b-\x1f\x7f\x80-\x9f])/sprintf("\\x%02X", ord($1))/ge'
-}
-
-sanitize_terminal_path_lines() {
-    perl -pe 's/\\/\\\\/g; s/\t/\\t/g; s/\r/\\r/g; s/([\x00-\x08\x0b-\x1f\x7f\x80-\x9f])/sprintf("\\x%02X", ord($1))/ge'
 }
 
 if [ -L "$file_path" ]; then

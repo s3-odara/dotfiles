@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck disable=SC2034 # SANDBOX_* globals are consumed by sandbox-backend.sh.
 
 set -eu
 
@@ -21,9 +22,7 @@ fi
 target=$1
 width=$2
 height=$3
-xpos=$4
-ypos=$5
-mode=$6
+# lf passes xpos, ypos, and mode as args 4-6; preview.sh does not use them.
 home_dir=${HOME:-/home/user}
 lf_config_dir="$home_dir/.config/lf"
 sandbox_backend_lib="$lf_config_dir/sandbox-backend.sh"
@@ -61,76 +60,60 @@ else
     target_ro_path=/__lf_sandbox_no_target__
 fi
 
-set -- \
-    "$resolved_target" \
-    "$width" \
-    "$height" \
-    "$xpos" \
-    "$ypos" \
-    "$mode"
-
-preview_target=$1
-preview_width=$2
-preview_height=$3
-preview_xpos=$4
-preview_ypos=$5
-preview_mode=$6
-
-set -- \
-    bwrap \
-    --unshare-all \
-    --new-session \
-    --die-with-parent \
-    --clearenv \
-    --setenv HOME "$home_dir" \
-    --setenv PATH "$safe_path" \
-    --setenv PREVIEW_EXTRA_RO_PATHS "$preview_script_dir" \
-    --setenv TMPDIR /var/tmp \
-    --dir /dev \
-    --dev-bind /dev/null /dev/null \
-    --dev-bind /dev/zero /dev/zero \
-    --dev-bind /dev/full /dev/full \
-    --dev-bind /dev/random /dev/random \
-    --dev-bind /dev/urandom /dev/urandom \
-    --tmpfs /home \
-    --tmpfs /root \
-    --tmpfs /tmp \
-    --tmpfs /var/tmp \
-    --tmpfs /proc \
-    --tmpfs /sys \
-    --dir "$home_dir" \
-    --dir "$lf_config_parent" \
+cmd=(
+    bwrap
+    --unshare-all
+    --new-session
+    --die-with-parent
+    --clearenv
+    --setenv HOME "$home_dir"
+    --setenv PATH "$safe_path"
+    --setenv PREVIEW_EXTRA_RO_PATHS "$preview_script_dir"
+    --setenv TMPDIR /var/tmp
+    --dir /dev
+    --dev-bind /dev/null /dev/null
+    --dev-bind /dev/zero /dev/zero
+    --dev-bind /dev/full /dev/full
+    --dev-bind /dev/random /dev/random
+    --dev-bind /dev/urandom /dev/urandom
+    --tmpfs /home
+    --tmpfs /root
+    --tmpfs /tmp
+    --tmpfs /var/tmp
+    --tmpfs /proc
+    --tmpfs /sys
+    --dir "$home_dir"
+    --dir "$lf_config_parent"
     --dir "$parent_dir"
+)
 
-bind_paths=$(PREVIEW_EXTRA_RO_PATHS=$preview_script_dir "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir")
-old_ifs=$IFS
-IFS='
-'
-for bind_path in $bind_paths; do
+if ! bind_paths=$(PREVIEW_EXTRA_RO_PATHS=$preview_script_dir "$guard_bin" --print-bwrap-ro-paths "$target_ro_path" "$lf_config_dir"); then
+    exit 1
+fi
+
+while IFS= read -r bind_path; do
+    [ -n "$bind_path" ] || continue
     if [ -d "$bind_path" ]; then
         bind_mountpoint=$bind_path
     else
         bind_mountpoint=$(dirname -- "$bind_path")
     fi
-    set -- "$@" --dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path"
-done
-IFS=$old_ifs
+    cmd+=(--dir "$bind_mountpoint" --ro-bind "$bind_path" "$bind_path")
+done <<< "$bind_paths"
 
 if [ -n "$target_is_symlink" ]; then
-    set -- "$@" --symlink "$target_link" "$resolved_target"
+    cmd+=(--symlink "$target_link" "$resolved_target")
 fi
 
-set -- "$@" \
-    "$guard_bin" \
-    "$target_ro_path" \
-    "$lf_config_dir" \
-    /bin/sh "$preview_script" \
-    "$preview_target" \
-    "$preview_width" \
-    "$preview_height" \
-    "$preview_xpos" \
-    "$preview_ypos" \
-    "$preview_mode"
+cmd+=(
+    "$guard_bin"
+    "$target_ro_path"
+    "$lf_config_dir"
+    /bin/sh "$preview_script"
+    "$resolved_target"
+    "$width"
+    "$height"
+)
 
 SANDBOX_BACKEND_NAME=preview
 SANDBOX_BACKEND_MODE=$preview_cgroup_mode
@@ -144,4 +127,4 @@ SANDBOX_TIMEOUT=$preview_timeout
 SANDBOX_USE_TIMEOUT=1
 SANDBOX_DEBUG=$preview_debug
 SANDBOX_BACKEND_UNAVAILABLE=200
-sandbox_backend_run "$@"
+sandbox_backend_run "${cmd[@]}"
