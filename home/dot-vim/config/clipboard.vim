@@ -8,8 +8,7 @@ def g:Osc52CopySelection()
 
   var b64 = lines->str2blob()->base64_encode()
   echoraw($"\x1b]52;c;{b64}\x07")
+  echomsg 'Copied!'
 enddef
 
 xnoremap <silent> "+y :<C-u>call g:Osc52CopySelection()<CR>
-nnoremap "+p :let @"=substitute(system("wl-paste --no-newline"), '\r', '', 'g')<CR>p
-nnoremap "*p :let @"=substitute(system("wl-paste --no-newline --primary"), '\r', '', 'g')<CR>p
