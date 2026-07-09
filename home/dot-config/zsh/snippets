@@ -52,3 +52,9 @@ curl --proto '=https' --tlsv1.3 -sSf -L https://artifacts.nixos.org/nix-installe
 pi install npm:pi-mcp-adapter
 
 pi install npm:@spences10/pi-lsp
+
+doas su --login
+
+doas nix upgrade-nix --profile /nix/var/nix/profiles/default
+doas systemctl daemon-reload
+doas systemctl restart nix-daemon
