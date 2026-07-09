@@ -403,6 +403,8 @@ SANDBOX_MEMORY_MAX=$player_memory_max
 SANDBOX_TASKS_MAX=$player_tasks_max
 SANDBOX_TIMEOUT=
 SANDBOX_USE_TIMEOUT=0
+# Allow bwrap-only playback on sessions without delegated cgroup/systemd limits.
+SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK=1
 SANDBOX_DEBUG=0
 SANDBOX_BACKEND_UNAVAILABLE=200
 sandbox_backend_run "${cmd[@]}"
