@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # Shared backend and cgroup helpers for lf preview/player sandboxes.
 # Callers set SANDBOX_* globals, build the command in "$@", then call
 # sandbox_backend_run "$@". No command strings or eval are used.
@@ -147,6 +148,7 @@ sandbox_run_with_cgroupfs() {
     if [ "$SANDBOX_USE_TIMEOUT" = "1" ]; then
         (
             trap 'rmdir "$SANDBOX_CGROUP_DIR" 2>/dev/null || true' EXIT INT TERM
+            # shellcheck disable=SC2016 # Variables expand inside the child shell.
             env SANDBOX_CGROUP_PROCS="$SANDBOX_CGROUP_DIR/cgroup.procs" \
                 SANDBOX_TIMEOUT_VALUE="$SANDBOX_TIMEOUT" \
                 sh -c '
@@ -176,6 +178,15 @@ sandbox_run_plain() {
     exec "$@"
 }
 
+sandbox_plain_fallback_allowed() {
+    [ "${SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK:-0}" = "1" ]
+}
+
+sandbox_limits_unavailable() {
+    printf '%sSandbox.sh: resource limits unavailable; refusing plain bwrap fallback (set SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK=1 or SANDBOX_BACKEND_MODE=none to opt out)\n' "$SANDBOX_BACKEND_NAME" >&2
+    return "$SANDBOX_BACKEND_UNAVAILABLE"
+}
+
 sandbox_run_auto_backend() {
     if sandbox_run_with_systemd "$@"; then
         rc=0
@@ -201,7 +212,11 @@ sandbox_run_auto_backend() {
         return "$rc"
     fi
 
-    sandbox_run_plain "$@"
+    if sandbox_plain_fallback_allowed; then
+        sandbox_run_plain "$@"
+    fi
+
+    sandbox_limits_unavailable
 }
 
 sandbox_backend_run() {
@@ -221,8 +236,11 @@ sandbox_backend_run() {
             if [ "$rc" -ne "$SANDBOX_BACKEND_UNAVAILABLE" ]; then
                 exit "$rc"
             fi
-            sandbox_debug_log 'requested systemd backend unavailable, falling back to plain bwrap'
-            sandbox_run_plain "$@"
+            if sandbox_plain_fallback_allowed; then
+                sandbox_debug_log 'requested systemd backend unavailable, falling back to plain bwrap'
+                sandbox_run_plain "$@"
+            fi
+            sandbox_limits_unavailable
             ;;
         cgroupfs)
             if sandbox_run_with_cgroupfs "$@"; then
@@ -236,8 +254,11 @@ sandbox_backend_run() {
             if [ "$rc" -ne "$SANDBOX_BACKEND_UNAVAILABLE" ]; then
                 exit "$rc"
             fi
-            sandbox_debug_log 'requested cgroupfs backend unavailable, falling back to plain bwrap'
-            sandbox_run_plain "$@"
+            if sandbox_plain_fallback_allowed; then
+                sandbox_debug_log 'requested cgroupfs backend unavailable, falling back to plain bwrap'
+                sandbox_run_plain "$@"
+            fi
+            sandbox_limits_unavailable
             ;;
         none)
             sandbox_run_plain "$@"

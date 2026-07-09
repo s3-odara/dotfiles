@@ -39,8 +39,13 @@ preview_timeout=${LF_PREVIEW_TIMEOUT:-5s}
 preview_debug=${LF_PREVIEW_DEBUG:-0}
 preview_cgroup_mode=${LF_PREVIEW_CGROUP:-auto}
 cgroup_root=${LF_PREVIEW_CGROUP_ROOT:-/sys/fs/cgroup}
-if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
+if ! parent_dir_logical=$(cd -- "$target_dir" 2>/dev/null && pwd -L) ||
+   ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
     printf 'previewSandbox.sh: cannot resolve target parent: %s\n' "$target_dir" >&2
+    exit 1
+fi
+if [ "$parent_dir_logical" != "$parent_dir" ]; then
+    printf 'previewSandbox.sh: target parent path contains symlinks: %s\n' "$target_dir" >&2
     exit 1
 fi
 

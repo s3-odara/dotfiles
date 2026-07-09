@@ -50,8 +50,13 @@ player_tasks_max=${LF_PLAYER_TASKS_MAX:-256}
 player_extra_rw_paths=/dev/shm
 player_extra_unix_socket_paths=
 runtime_uid=
-if ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
+if ! parent_dir_logical=$(cd -- "$target_dir" 2>/dev/null && pwd -L) ||
+   ! parent_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -P); then
     printf 'playSandbox.sh: cannot resolve target parent: %s\n' "$target_dir" >&2
+    exit 1
+fi
+if [ "$parent_dir_logical" != "$parent_dir" ]; then
+    printf 'playSandbox.sh: target parent path contains symlinks: %s\n' "$target_dir" >&2
     exit 1
 fi
 
