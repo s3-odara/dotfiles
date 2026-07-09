@@ -130,6 +130,9 @@ SANDBOX_MEMORY_MAX=512M
 SANDBOX_TASKS_MAX=64
 SANDBOX_TIMEOUT=$preview_timeout
 SANDBOX_USE_TIMEOUT=1
+# Preview keeps timeout enforcement in plain mode when `timeout` is available,
+# so allow bwrap-only fallback on non-delegated cgroup/systemd sessions.
+SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK=1
 SANDBOX_DEBUG=$preview_debug
 SANDBOX_BACKEND_UNAVAILABLE=200
 sandbox_backend_run "${cmd[@]}"

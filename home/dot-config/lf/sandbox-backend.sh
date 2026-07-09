@@ -178,16 +178,12 @@ sandbox_run_plain() {
     exec "$@"
 }
 
-sandbox_openrc_detected() {
-    [ -e /run/openrc/softlevel ] || [ -d /run/openrc ]
-}
-
 sandbox_plain_fallback_allowed() {
-    [ "${SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK:-0}" = "1" ] || sandbox_openrc_detected
+    [ "${SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK:-0}" = "1" ]
 }
 
 sandbox_limits_unavailable() {
-    printf '%sSandbox.sh: resource limits unavailable; refusing plain bwrap fallback (set SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK=1, use OpenRC, or set SANDBOX_BACKEND_MODE=none to opt out)\n' "$SANDBOX_BACKEND_NAME" >&2
+    printf '%sSandbox.sh: resource limits unavailable; refusing plain bwrap fallback (set SANDBOX_BACKEND_ALLOW_PLAIN_FALLBACK=1 or SANDBOX_BACKEND_MODE=none to opt out)\n' "$SANDBOX_BACKEND_NAME" >&2
     return "$SANDBOX_BACKEND_UNAVAILABLE"
 }
 
