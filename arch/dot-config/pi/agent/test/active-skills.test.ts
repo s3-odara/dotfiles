@@ -8,7 +8,6 @@ const root = new URL("..", import.meta.url).pathname;
 
 const skills = [
   { name: "implementer", artifactDir: "impl-reports", readonly: false },
-  { name: "debugger", artifactDir: "reviews", readonly: true },
   { name: "review-orchestrator", artifactDir: "reviews", readonly: true },
 ];
 
@@ -104,24 +103,20 @@ async function testSkillMetadataAndHelpers() {
   }
 }
 
-async function testImplementerAndDebuggerArtifacts() {
+async function testImplementerArtifact() {
   const fixture = await makeFixture();
-  for (const skill of skills.slice(0, 2)) {
-    const args = ["--skill", skill.name, "--artifact-dir", skill.artifactDir, "--prompt-template", join(root, "skills", skill.name, "SKILL.md"), "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1"];
-    if (skill.name === "implementer") args.push("--workspace-lock");
-    const result = spawnSync(helperPath(), args, {
-      cwd: root,
-      env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
-      encoding: "utf8",
-    });
-    assert.equal(result.status, 0, result.stderr);
-    const launch = parseLaunch(result.stdout);
-    await stat(launch.SUCCESS_SENTINEL);
-    assert.match(launch.ARTIFACT_PATH, new RegExp(`\\.agents/${skill.artifactDir}/`));
-    if (skill.name === "implementer") {
-      assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /^# Implementation Report:/);
-    }
-  }
+  const skill = skills[0];
+  const args = ["--skill", skill.name, "--artifact-dir", skill.artifactDir, "--prompt-template", join(root, "skills", skill.name, "SKILL.md"), "--task", `Run ${skill.name}`, "--cwd", fixture.cwd, "--timeout", "1", "--workspace-lock"];
+  const result = spawnSync(helperPath(), args, {
+    cwd: root,
+    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true" },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const launch = parseLaunch(result.stdout);
+  await stat(launch.SUCCESS_SENTINEL);
+  assert.match(launch.ARTIFACT_PATH, new RegExp(`\\.agents/${skill.artifactDir}/`));
+  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /^# Implementation Report:/);
 }
 
 async function testImplementerWorkspaceLock() {
@@ -168,7 +163,7 @@ async function testReviewOrchestratorRunsAsNormalSkill() {
 }
 
 await testSkillMetadataAndHelpers();
-await testImplementerAndDebuggerArtifacts();
+await testImplementerArtifact();
 await testImplementerWorkspaceLock();
 await testReviewOrchestratorRunsAsNormalSkill();
 

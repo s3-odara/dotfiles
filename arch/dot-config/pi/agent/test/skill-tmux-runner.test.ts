@@ -47,8 +47,9 @@ assert.equal(typeof second.handlers.input, "function", "reload/rebind should reg
 assert.equal(typeof second.handlers.tool_result, "function", "runtime should register tool_result hook");
 assert.equal(second.tools.length, 1, "runtime should register exactly one tool");
 assert.equal(second.tools[0].name, "run_skill");
-assert(second.tools[0].parameters.properties.skill.enum.includes("planner"));
-assert(second.tools[0].parameters.properties.skill.enum.includes("specifier"));
+assert(!second.tools[0].parameters.properties.skill.enum.includes("planner"));
+assert(!second.tools[0].parameters.properties.skill.enum.includes("specifier"));
+assert(second.tools[0].parameters.properties.skill.enum.includes("code-reviewer"));
 
 const result = await second.handlers.input(
   { source: "interactive", text: "/skill:code-reviewer\nReview this diff\nwith details" },
@@ -71,11 +72,13 @@ assert.match(orchestratorResult.text, /run_skill/);
 assert.match(orchestratorResult.text, /skill: review-orchestrator/);
 assert.doesNotMatch(orchestratorResult.text, /run-skill-background\.sh|launch_output=|wait-for-children\.sh|artifact_path=\$\(/);
 
-const nativeSkillResult = await second.handlers.input(
-  { source: "interactive", text: "/skill:web-search Find sources" },
-  { cwd: root, ui: { notify() {} } },
-);
-assert.equal(nativeSkillResult?.action, "continue");
+for (const [skill, task] of [["web-search", "Find sources"], ["planner", "Plan this"], ["specifier", "Specify this"]]) {
+  const nativeSkillResult = await second.handlers.input(
+    { source: "interactive", text: `/skill:${skill} ${task}` },
+    { cwd: root, ui: { notify() {} } },
+  );
+  assert.equal(nativeSkillResult?.action, "continue", `${skill} should continue through Pi's native skill handling`);
+}
 
 const extensionResult = await second.handlers.input(
   { source: "extension", text: "/skill:code-reviewer Review this" },
@@ -105,13 +108,13 @@ const webSearchRead = await second.handlers.tool_result(
 );
 assert.equal(webSearchRead, undefined);
 
-const plannerRead = await second.handlers.tool_result(
-  { toolName: "read", input: { path: join(root, "skills", "planner", "SKILL.md") }, content: [], details: {}, isError: false },
-  { cwd: root },
-);
-assert.equal(plannerRead?.isError, false);
-assert.match(plannerRead.content[0].text, /run_skill/);
-assert.match(plannerRead.content[0].text, /planner/);
+for (const skill of ["planner", "specifier"]) {
+  const nativeSkillRead = await second.handlers.tool_result(
+    { toolName: "read", input: { path: join(root, "skills", skill, "SKILL.md") }, content: [], details: {}, isError: false },
+    { cwd: root },
+  );
+  assert.equal(nativeSkillRead, undefined, `${skill} SKILL.md reads should not be redirected`);
+}
 
 const arbitraryRead = await second.handlers.tool_result(
   { toolName: "read", input: { path: join(root, "package.json") }, content: [], details: {}, isError: false },
@@ -151,7 +154,7 @@ assert.deepEqual(execCalls[0].args, [
   "--cwd", root,
   "--timeout", "1800",
   "--provider", "openai-codex",
-  "--model", "gpt-5.4-mini",
+  "--model", "gpt-5.6-luna",
   "--thinking", "medium",
 ]);
 assert.equal(execCalls[0].options.signal, signal);
@@ -159,35 +162,6 @@ assert.match(execCalls[1].command, /wait-for-children\.sh$/);
 assert.deepEqual(execCalls[1].args, ["--success", "/tmp/artifact.success", "--failure", "/tmp/artifact.failure", "--timeout", "1800", "--poll", "1"]);
 assert.equal(successToolResult.details.status, "success");
 assert.equal(successToolResult.details.artifactPath, "/tmp/artifact.md");
-
-execCalls.length = 0;
-await second.tools[0].execute(
-  "tool-call-planner",
-  { skill: "planner", task: "Plan this", cwd: root },
-  signal,
-  undefined,
-  { cwd: root },
-);
-assert.match(execCalls[0].command, /start-bg-pane\.sh$/);
-assert.deepEqual(execCalls[0].args.slice(0, 6), [
-  "--skill", "planner",
-  "--artifact-dir", "plans",
-  "--prompt-template", join(root, "skills", "planner", "SKILL.md"),
-]);
-
-execCalls.length = 0;
-await second.tools[0].execute(
-  "tool-call-specifier",
-  { skill: "specifier", task: "Specify this", cwd: root },
-  signal,
-  undefined,
-  { cwd: root },
-);
-assert.deepEqual(execCalls[0].args.slice(0, 6), [
-  "--skill", "specifier",
-  "--artifact-dir", "specs",
-  "--prompt-template", join(root, "skills", "specifier", "SKILL.md"),
-]);
 
 const noWaitExecCalls: any[] = [];
 const noWaitSignal = new AbortController().signal;

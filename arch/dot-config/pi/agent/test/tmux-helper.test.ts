@@ -79,7 +79,7 @@ esac
 
 function runHelper(fixture: TmuxFixture, args: string[] = [], env: Record<string, string> = {}) {
   return spawnSync(helper, [
-    "--skill", "tester",
+    "--skill", "fixture-skill",
     "--task", "Write a small artifact",
     "--cwd", fixture.cwd,
     "--prompt-template", fixture.prompt,
@@ -110,7 +110,7 @@ async function testSuccess() {
   const result = runHelper(fixture, ["--artifact-dir", "reviews", "--model", "openai/example", "--provider", "openai", "--thinking", "low"]);
   assert.equal(result.status, 0, result.stderr);
   const launch = parseLaunch(result.stdout);
-  assert.match(launch.ARTIFACT_PATH, /\.agents\/reviews\/pi-tester-write-a-small-artifact-\d{14}-\d+-[a-f0-9]+\.md$/);
+  assert.match(launch.ARTIFACT_PATH, /\.agents\/reviews\/pi-fixture-skill-write-a-small-artifact-\d{14}-\d+-[a-f0-9]+\.md$/);
   await stat(launch.SUCCESS_SENTINEL);
   assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /# Artifact/);
   assert.doesNotMatch(result.stdout, /status_json|\.json/);
@@ -146,7 +146,7 @@ async function testMissingTmuxDiagnostic() {
   const fixture = await makeFixture();
   await rm(join(fixture.bin, "tmux"));
   const result = spawnSync("/bin/bash", [helper,
-    "--skill", "tester",
+    "--skill", "fixture-skill",
     "--task", "Write a small artifact",
     "--cwd", fixture.cwd,
     "--prompt-template", fixture.prompt,
@@ -174,7 +174,7 @@ async function testConcurrentNamesDoNotCollide() {
   const fixture = await makeFixture();
   const run = () => new Promise<string>((resolve, reject) => {
     const child = spawn(helper, [
-      "--skill", "tester",
+      "--skill", "fixture-skill",
       "--task", "Same task",
       "--cwd", fixture.cwd,
       "--prompt-template", fixture.prompt,

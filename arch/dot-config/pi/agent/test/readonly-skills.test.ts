@@ -9,7 +9,6 @@ const root = new URL("..", import.meta.url).pathname;
 const skills = [
   { name: "explorer", artifactDir: "research", readonly: true },
   { name: "internet-researcher", artifactDir: "research", readonly: true },
-  { name: "tester", artifactDir: "reviews", readonly: false },
   { name: "code-reviewer", artifactDir: "reviews", readonly: true },
   { name: "plan-reviewer", artifactDir: "reviews", readonly: true },
 ];

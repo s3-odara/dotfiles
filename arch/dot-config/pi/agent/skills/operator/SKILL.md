@@ -22,7 +22,5 @@ Use delegation proactively:
 
 * Use `internet-researcher` by default for technical answers, version-sensitive behavior, documentation, compatibility, security guidance, and best practices.
 * Use `explorer` by default for local files, configuration, repository structure, logs, scripts, services, and unfamiliar environments.
-* Use `debugger` for uncertain root causes.
-* Use `tester` for reproducibility or validation loops.
 
 Skip `internet-researcher` or `explorer` only when the task is trivial, explicitly answerable from already inspected context, unsuitable for that skill, or blocked. State the skip reason.
