@@ -34,19 +34,11 @@ For anything that is not clearly determined by best current practice, ask the us
 
 ### 3. Test Design
 
-Plan tests as readable and maintainable behavioral specifications. This policy does not require TDD or test-first development unless the user requests it.
+Do not require TDD or test-first development unless the user asks for it.
 
-- Test public behavior and contracts rather than private functions, internal state, or incidental call order.
-- Give each test a name that communicates the condition and expected behavior.
-- Structure tests so preparation, execution, and verification are easy to distinguish.
-- Keep one test focused on one behavior or one reason for failure.
-- Prefer one logical assertion per test. When multiple values form one result, compare the complete value or use a focused helper instead of unrelated assertions.
-- Use table-driven or parameterized tests when only input data changes for the same behavior. Ensure the failing case can be identified from test output.
-- Keep tests independent and repeatable. Do not depend on execution order, wall-clock time, randomness, uncontrolled external network access, global state, or shared mutable fixtures. Deterministic isolated network dependencies are acceptable for integration or contract tests.
-- Put external dependencies such as clocks, filesystems, processes, and services behind controllable boundaries when needed.
-- Use the smallest sufficient test double. Avoid mocks that unnecessarily fix implementation details or interaction order.
-- Prefer simple test data that makes the expected result obvious. Do not reproduce production logic in test-side calculations.
-- Include regression tests for behavior that must remain unchanged.
+- Test public behavior. Use names that state the condition and expected result, keep preparation/action/verification clear, and focus each test on one logical behavior or failure.
+- Keep tests independent and repeatable. Control external dependencies and use only the test doubles needed.
+- Use identifiable table cases for equivalent inputs, and cover boundaries, representative errors, and regressions.
 
 ### 4. Plan Review
 
@@ -56,7 +48,7 @@ If creating multiple phase plans, include the full set of draft plans in that si
 Pass the request or spec, draft plan, assumptions, open issues, and uncertainty.
 
 Treat the review as a simulation of how a literal, low-capability implementation model would understand the draft plan.
-Ask the reviewer to validate every item in the Test Design policy, especially test naming, visible preparation/execution/verification, one logical assertion or failure reason, independence and repeatability, controlled dependency boundaries, minimal test doubles, simple data, identifiable table cases, and regression coverage.
+Ask the reviewer to check the Test Design policy.
 
 Revise the plan to clarify consequential non-obvious details when the review reveals an unintended interpretation or an unsupported assumption. Do not copy the review or repeat information already stated in the request, spec, or plan.
 
@@ -93,33 +85,10 @@ It is sufficient for this phase to meet the conditions needed for the next phase
 
 ## Test Plan
 
-### Behavioral Test Cases
-
-For each test or group of equivalent table-driven cases, state:
-
-- Test name: condition and expected behavior
-- Public behavior being verified
-- Preparation: input, fixture, and controlled dependencies
-- Execution: public action under test
-- Verification: one logical assertion or failure reason
-- Related FAC
-
-For table-driven cases, identify each row with a case name and list its input and expected result.
-
-### Test Design
-
-- Test level and target file
-- Isolation strategy
-- Clock, randomness, filesystem, network, and environment handling
-- Necessary test doubles
-- Simple test data that makes expected results obvious
-- Table-driven cases and identifiable case names, if applicable
-
-### Regression Coverage
-
-- Existing behavior that must remain unchanged
-
-### Validation Commands
+- Behavioral cases and related FACs
+- Test levels, target files, controlled dependencies, and necessary test doubles
+- Boundary, representative error, and regression coverage
+- Validation commands
 
 ## Relationship to Final Acceptance Criteria
 

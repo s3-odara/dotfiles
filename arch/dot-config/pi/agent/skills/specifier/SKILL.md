@@ -36,15 +36,7 @@ For anything that is not clearly determined by best current practice, ask the us
 
 ### 4. QA Scenario Design
 
-Write QA scenarios as candidates for automated behavioral tests.
-
-- Describe externally observable behavior, not private functions, internal state, or implementation structure.
-- Give each scenario a clear condition, action, and expected result.
-- Keep each scenario focused on one behavior or one reason for failure.
-- Include boundary values and representative error cases without exhaustively listing equivalent inputs.
-- Make scenarios deterministic. Explicitly control time, randomness, environment variables, external services, and shared state when they affect the result.
-- When multiple inputs exercise the same rule, describe them as a table of cases and ensure each failing case can be identified.
-- Do not prescribe test-first development or TDD unless the user requests it.
+Write independent, deterministic scenarios for public behavior, named for the condition and expected result, with clear preparation/action/verification and one logical behavior or failure each. Control dependencies with only necessary test doubles, use identifiable table cases, and cover boundaries, representative errors, and regressions. Do not require TDD or test-first development unless requested.
 
 ### 5. Output
 
@@ -65,15 +57,7 @@ Conditions that the specification must satisfy.
 
 ## QA Scenarios
 
-For each scenario, state:
-
-- Name: condition and expected behavior
-- Given: preconditions and controlled dependencies
-- When: action
-- Then: one observable behavior or failure reason
-- Coverage: relevant boundary value or representative error, when applicable
-
-When multiple inputs exercise the same rule, use a table with an identifiable case name, input, and expected result.
+Deterministic normal, boundary, and error scenarios with clear conditions, actions, and expected public behavior.
 
 ## Non-Goals
 
