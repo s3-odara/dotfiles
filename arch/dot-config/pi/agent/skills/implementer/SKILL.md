@@ -11,6 +11,7 @@ Use this skill for small, targeted implementation work. The tmux runner acquires
 
 - Read relevant `.agents/specs/*.md` and `.agents/plans/*.md` when present; otherwise follow the delegated task exactly.
 - Keep changes minimal and faithful to the requested phase or task.
+- Write implementation comments to explain “why not” (rejected alternatives or why the obvious approach was not chosen) and “why” (intent or rationale), rather than merely describing what the code does.
 - Edit files only in the intended working directory and generated `.agents/` artifact tree.
 - Respect container/user instructions; do not stage, commit, push, install unrelated dependencies, or broaden scope unless explicitly requested.
 - Use Pi built-in tools for file and shell work.
