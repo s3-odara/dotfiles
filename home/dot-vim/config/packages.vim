@@ -25,7 +25,7 @@ def g:PackInit()
 
   # UI / Tools
   minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git', {
-    rev: '40b4bd1e563b3708ff1520846432b7bc66377c03',
+    rev: '72e8fd7139bbaf467cba913b452ff1c0c475aced',
   })
   minpac#add('https://github.com/mattn/emmet-vim.git', {
     rev: '92ef2f74f4093edc99db5e9e4cf7e40116a85bd6',
@@ -49,7 +49,7 @@ def g:PackInit()
 
   # LSP / Completion
   minpac#add('https://github.com/yegappan/lsp.git', {
-    rev: '68b464031206600998c15e60f2b955a24af24542',
+    rev: 'caf44d59b8a3160bb7725140bf4423f61216aa44',
   })
 
   # Snippet
