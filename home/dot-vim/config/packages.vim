@@ -49,7 +49,7 @@ def g:PackInit()
 
   # LSP / Completion
   minpac#add('https://github.com/yegappan/lsp.git', {
-    rev: 'caf44d59b8a3160bb7725140bf4423f61216aa44',
+    rev: 'aac0b4671f8868fb40619c6eb54ed254fdb69dc2',
   })
 
   # Snippet
