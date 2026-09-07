@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "../types.ts";
 
-type EventType = "session-idle" | "session-error";
+type EventType = "session-idle";
 
 interface NotificationBodyInput {
   eventType: EventType | string;
@@ -19,7 +19,6 @@ type NotificationContext = { cwd?: string } | undefined;
 
 const EVENT_MESSAGES: Record<EventType, string> = {
   "session-idle": "session idle",
-  "session-error": "session error",
 };
 
 let nextNotificationID = 0;
@@ -81,13 +80,5 @@ export function registerOsc99Notify(pi: ExtensionAPI): void {
 
   pi.on("agent_end", (_event: unknown, ctx: NotificationContext) => {
     notify("session-idle", EVENT_MESSAGES["session-idle"], ctx);
-  });
-
-  pi.on("after_provider_response", (event: any, ctx: NotificationContext) => {
-    if (typeof event?.status === "number" && event.status >= 400) notify("session-error", `provider status ${event.status}`, ctx);
-  });
-
-  pi.on("tool_execution_end", (event: any, ctx: NotificationContext) => {
-    if (event?.isError) notify("session-error", `${event.toolName ?? "tool"} failed`, ctx);
   });
 }

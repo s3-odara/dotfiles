@@ -35,19 +35,17 @@ Tmux-managed bundled skills:
 
 - `review-orchestrator`
 - `implementer`
-- `debugger`
 - `explorer`
 - `internet-researcher`
-- `tester`
 - `code-reviewer`
 - `plan-reviewer`
-- `planner`
-- `specifier`
 
 Native prompt-style skills:
 
 - `operator`
 - `delegator`
+- `planner`
+- `specifier`
 
 Tmux-managed skill metadata lives in `extension-src/skill-tmux/skills.ts`. Shared tmux runner details live in `skills/scripts/README.md`.
 

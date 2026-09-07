@@ -7,13 +7,9 @@ const SKILL_CONFIG = {
   explorer: { artifactDir: "research", workspaceLock: false },
   "internet-researcher": { artifactDir: "research", workspaceLock: false },
   "code-reviewer": { artifactDir: "reviews", workspaceLock: false },
-  debugger: { artifactDir: "reviews", workspaceLock: false },
-  tester: { artifactDir: "reviews", workspaceLock: false },
   "plan-reviewer": { artifactDir: "reviews", workspaceLock: false },
   implementer: { artifactDir: "impl-reports", workspaceLock: true },
   "review-orchestrator": { artifactDir: "reviews", workspaceLock: false },
-  planner: { artifactDir: "plans", workspaceLock: false },
-  specifier: { artifactDir: "specs", workspaceLock: false },
 } as const satisfies Record<string, { artifactDir: ArtifactDir; workspaceLock: boolean }>;
 
 export const TMUX_MANAGED_SKILLS = Object.keys(SKILL_CONFIG);

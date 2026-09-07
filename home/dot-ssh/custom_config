@@ -1,11 +1,10 @@
 Host github.com
   HostName github.com
-  UpdateHostKeys no
-  KexAlgorithms curve25519-sha256
+  KexAlgorithms sntrup761x25519-sha512
   Ciphers chacha20-poly1305@openssh.com
 Host gitlab.com
   HostName gitlab.com
-  KexAlgorithms curve25519-sha256
+  KexAlgorithms mlkem768x25519-sha256
   Ciphers chacha20-poly1305@openssh.com
 
 Host odarah.org

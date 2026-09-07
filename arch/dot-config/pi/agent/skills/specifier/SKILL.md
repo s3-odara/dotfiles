@@ -12,15 +12,11 @@ Internal reasoning, tool inputs, and Pi skill instructions may be written in Eng
 
 Make active use of delegation.
 
-Do not implement changes. Do not write an implementation plan.
+Do not implement changes. Do not write an implementation plan. Only write files under `.agents/specs/`.
 
 ## Delegation Policy
 
-When creating the specification, as a rule, use `explorer` to conduct local investigation.
-
-You may omit `explorer` only if the task is trivial, the answer can be clearly produced from already-confirmed context, the skill is not suitable for the task, or you are blocked. If omitted, clearly state the reason.
-
-Use `internet-researcher` to collect any necessary information.
+Use `internet-researcher` to collect necessary information.
 
 ## Specification Creation Procedure
 
@@ -38,9 +34,13 @@ Use `internet-researcher` to collect any necessary information.
 
 For anything that is not clearly determined by best current practice, ask the user as many questions as needed.
 
-### 4. Output
+### 4. QA Scenario Design
 
-Write a specification to the Primary artifact path provided by the tmux runner. The Primary artifact path will be under `.agents/specs/`. Use the following format.
+Write independent, deterministic scenarios for public behavior, named for the condition and expected result, with clear preparation/action/verification and one logical behavior or failure each. Control dependencies with only necessary test doubles, use identifiable table cases, and cover boundaries, representative errors, and regressions. Do not require TDD or test-first development unless requested.
+
+### 5. Output
+
+Write a `.agents/specs/*.md` file in the following format.
 
 ---
 
@@ -53,11 +53,11 @@ Write a specification to the Primary artifact path provided by the tmux runner. 
 Conditions that the specification must satisfy.
 
 - FAC-1: ...
-- FAC-2
+- FAC-2: ...
 
 ## QA Scenarios
 
-Normal and error scenarios with expected results.
+Deterministic normal, boundary, and error scenarios with clear conditions, actions, and expected public behavior.
 
 ## Non-Goals
 
@@ -67,9 +67,3 @@ Normal and error scenarios with expected results.
 
 - Information obtained from the web
 - Links to existing implementations
-
-Artifact policy: strict compliance required.
-
-Write the specification directly to the Primary artifact path from the runner instructions.
-
-Do not choose a different filename. Do not overwrite unrelated files.

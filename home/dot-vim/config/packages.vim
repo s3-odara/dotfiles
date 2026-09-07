@@ -25,7 +25,7 @@ def g:PackInit()
 
   # UI / Tools
   minpac#add('https://github.com/vim-fuzzbox/fuzzbox.vim.git', {
-    rev: '3cf18f9fa40c0337dbfdf8f4a3b4edaf6dd6f9ac',
+    rev: '4f9f653158b1d27e6217c97a9da6fbcc00c31cb3',
   })
   minpac#add('https://github.com/mattn/emmet-vim.git', {
     rev: '92ef2f74f4093edc99db5e9e4cf7e40116a85bd6',
@@ -37,7 +37,7 @@ def g:PackInit()
     rev: '1a8ba866f3eaf0194783b9f8573339d6ede8f1ed',
   })
   minpac#add('https://github.com/mao-yining/undotree.vim', {
-    rev: 'c103f3c2e2eb8df4b811b045b8ed626f968f0138',
+    rev: '3e6fbbb8b518a2ffe5db2de497ebd503cfa96732',
   })
   minpac#add('https://github.com/girishji/easyjump.vim.git', {
     rev: '7be7e1b6e8000971d0f6ef9e8480f86094f56635',
@@ -49,7 +49,7 @@ def g:PackInit()
 
   # LSP / Completion
   minpac#add('https://github.com/yegappan/lsp.git', {
-    rev: '989016ae2ae4cbf304a9ca29478f47fec794493f',
+    rev: '58eac06e81bad174cfa897614ae01adf0d31d10a',
   })
 
   # Snippet

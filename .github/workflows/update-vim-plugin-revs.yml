@@ -3,8 +3,8 @@ name: Update Vim plugin revs
 on:
   workflow_dispatch:
   schedule:
-    # Monday 05:42 UTC, avoiding the crowded top of the hour.
-    - cron: '42 5 * * 1'
+    # 05:42 UTC
+    - cron: '42 5 * * *'
 
 # Least-privilege permissions for the standard GITHUB_TOKEN.
 permissions:

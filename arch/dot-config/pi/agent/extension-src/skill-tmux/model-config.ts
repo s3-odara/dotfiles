@@ -9,28 +9,28 @@ export interface SkillModelConfig {
 export const SKILL_MODEL_CONFIG: Record<string, SkillModelConfig> = {
   explorer: {
     provider: "openai-codex",
-    model: "gpt-5.4-mini",
+    model: "gpt-5.6-luna",
     thinking: "low",
   },
   "code-reviewer": {
     provider: "openai-codex",
-    model: "gpt-5.4-mini",
+    model: "gpt-5.6-luna",
     thinking: "medium",
-  },
-  debugger: {
-    provider: "openai-codex",
-    model: "gpt-5.5",
-    thinking: "high",
   },
   implementer: {
     provider: "openai-codex",
-    model: "gpt-5.5",
+    model: "gpt-5.6-sol",
+    thinking: "medium",
+  },
+  "internet-researcher": {
+    provider: "openai-codex",
+    model: "gpt-5.6-terra",
     thinking: "medium",
   },
   "review-orchestrator": {
     provider: "openai-codex",
-    model: "gpt-5.5",
-    thinking: "high",
+    model: "gpt-5.6-sol",
+    thinking: "medium",
   },
 };
 
