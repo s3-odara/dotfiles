@@ -12,7 +12,7 @@ g:vim_ai_complete = {
     endpoint_url: 'https://openrouter.ai/api/v1/chat/completions',
     auth_type: 'bearer',
     token_load_fn: 'g:OpenRouterVimAIToken()',
-    model: 'poolside/laguna-xs.2:free',
+    model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
     temperature: 0.2,
   },
 }
@@ -23,7 +23,7 @@ g:vim_ai_chat = {
     endpoint_url: 'poolside/laguna-m.1:free',
     auth_type: 'bearer',
     token_load_fn: 'g:OpenRouterVimAIToken()',
-    model: 'poolside/laguna-xs.2:free',
+    model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
     temperature: 0.2,
   },
 }

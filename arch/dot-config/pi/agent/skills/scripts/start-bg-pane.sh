@@ -16,7 +16,7 @@ Options:
   --model MODEL           Optional Pi --model hint.
   --provider PROVIDER     Optional Pi --provider hint.
   --thinking LEVEL        Optional Pi --thinking hint.
-  --timeout SECONDS       Metadata timeout for waiters, default 1800.
+  --timeout SECONDS       Metadata timeout for waiters, default 5400.
   --workspace-lock        Internal: serialize child startup by canonical --cwd.
   --pi-bin PATH           Pi executable, default pi.
   --help                  Show this help.
@@ -55,7 +55,7 @@ write_failure_artifact() {
 }
 
 skill= task= cwd= prompt_template= artifact_path= artifact_dir=research model= provider= thinking=
-timeout_seconds=1800 workspace_lock=false pi_bin=${PI_CHILD_RUNNER_PI_BIN:-pi}
+timeout_seconds=5400 workspace_lock=false pi_bin=${PI_CHILD_RUNNER_PI_BIN:-pi}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -238,6 +238,9 @@ set +e
 if window_exists "$tmux_session" "$tmux_window"; then
   pane_info=$(tmux split-window -d -t "$tmux_window_target" -P -F '#{session_name}:#{window_index}.#{pane_index} #{pane_id}' "$runner_script" 2>>"$runner_log")
   tmux_status=$?
+  if [[ $tmux_status -eq 0 ]]; then
+    tmux select-layout -t "$tmux_window_target" tiled 2>>"$runner_log" || true
+  fi
 else
   pane_info=$(tmux new-window -d -t "${tmux_session}:" -n "$tmux_window" -P -F '#{session_name}:#{window_index}.#{pane_index} #{pane_id}' "$runner_script" 2>>"$runner_log")
   tmux_status=$?
