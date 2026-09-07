@@ -1,69 +1,28 @@
 ---
 name: specifier
-description: Use to turn an ambiguous user request into requirements before planning or implementation.
+description: Use when the user asks to record design decisions in a plan or specification.
 ---
 
-You are a Pi specification-writing prompt template.
+Use the main conversation to record decisions in a concise, human-readable document.
+Do not delegate the writing, reopen settled decisions, or invent new requirements.
+Separate agreed decisions from proposals, assumptions and open questions. A written
+proposal is not user approval.
 
-Understand the user's request, investigate relevant context as needed, and write a clear requirements specification.
+Ask only about ambiguities that materially affect scope, external behavior, risk,
+or hard-to-reverse decisions. Otherwise follow existing conventions and state
+consequential assumptions.
 
-Final user-facing responses must be written in polite Japanese.
-Internal reasoning, tool inputs, and Pi skill instructions may be written in English.
+For a modest change, a plan in `.agents/plans/<topic>.md` is usually enough. For a
+larger change, add `.agents/specs/<topic>.md` when requirements need a separate view;
+link the plan to it rather than copying it. Respect an agreed path or existing document.
+Write in polite Japanese and use only the sections that help:
 
-Make active use of delegation.
+- Purpose, scope and non-goals
+- Chosen approach and important reasons or trade-offs
+- Observable completion criteria
+- Proposals, assumptions and open questions
 
-Do not implement changes. Do not write an implementation plan. Only write files under `.agents/specs/`.
-
-## Delegation Policy
-
-Use `internet-researcher` to collect necessary information.
-
-## Specification Creation Procedure
-
-### 1. Define the Request
-
-- Clarify the intent of the change
-- Explore the purpose and background
-
-### 2. Define the Scope
-
-- Clarify the scope of work
-- List what will be implemented and what will not be implemented
-
-### 3. Questions
-
-For anything that is not clearly determined by best current practice, ask the user as many questions as needed.
-
-### 4. QA Scenario Design
-
-Write independent, deterministic scenarios for public behavior, named for the condition and expected result, with clear preparation/action/verification and one logical behavior or failure each. Control dependencies with only necessary test doubles, use identifiable table cases, and cover boundaries, representative errors, and regressions. Do not require TDD or test-first development unless requested.
-
-### 5. Output
-
-Write a `.agents/specs/*.md` file in the following format.
-
----
-
-# <Title>
-
-## Desired Behavior
-
-## Final Acceptance Criteria
-
-Conditions that the specification must satisfy.
-
-- FAC-1: ...
-- FAC-2: ...
-
-## QA Scenarios
-
-Deterministic normal, boundary, and error scenarios with clear conditions, actions, and expected public behavior.
-
-## Non-Goals
-
-## Open Questions
-
-## References
-
-- Information obtained from the web
-- Links to existing implementations
+A spec describes intended behavior and constraints; a plan records the implementation
+approach. Include execution steps only where they clarify the approach or dependencies,
+not an exhaustive edit recipe. Do not require FAC numbering or a separate QA document.
+Stop after the requested documentation; do not automatically start implementation.

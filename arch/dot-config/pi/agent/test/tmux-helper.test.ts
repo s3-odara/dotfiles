@@ -3,218 +3,179 @@ import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { agentNames, promptPath, startPanePath, waitPath } from "../extension-src/agents/config.ts";
+import { parseLauncherOutput } from "../extension-src/agents/index.ts";
 
-const root = new URL("..", import.meta.url).pathname;
-const helper = join(root, "skills", "scripts", "start-bg-pane.sh");
-const waitHelper = join(root, "skills", "scripts", "wait-for-children.sh");
-
-type TmuxFixture = { dir: string; bin: string; cwd: string; prompt: string };
-
-async function makeFixture(): Promise<TmuxFixture> {
-  const dir = await mkdtemp(join(tmpdir(), "pi-coding-kit-tmux-"));
+// No real Pi/model or tmux server is started. Run the actual launcher, generated
+// runner/finish scripts and waiter with a synchronous fake tmux and a fake Pi.
+const fixtures: string[] = [];
+async function makeFixture() {
+  const dir = await mkdtemp(join(tmpdir(), "pi-agent-tmux-"));
+  fixtures.push(dir);
   const bin = join(dir, "bin");
-  const cwd = join(dir, "work");
+  const cwd = join(dir, "work ' space");
   await mkdir(bin);
   await mkdir(cwd);
-  const prompt = join(dir, "prompt.md");
-  await writeFile(prompt, "You are a test prompt.\n");
-await writeFile(join(bin, "tmux"), `#!/usr/bin/env bash
+  await writeFile(join(cwd, "source.txt"), "unchanged\n");
+  await writeFile(join(bin, "tmux"), `#!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
-  display-message)
-    printf '%s\\n' "${'${PI_FAKE_TMUX_SESSION:-parent}'}"
-    ;;
-  list-windows)
-    if [[ "${'${PI_FAKE_TMUX_HAS_AGENT:-1}'}" == "1" ]]; then printf 'agent\\n'; fi
-    ;;
-  has-session)
-    exit 0
-    ;;
-  new-session)
-    printf 'new-session %s\\n' "$*" >>"${dir}/tmux.log"
-    ;;
+  display-message) printf 'parent\\n' ;;
+  list-windows) if [[ "\${PI_TEST_WINDOW_MISSING:-}" != 1 ]]; then printf 'agent\\n'; fi ;;
+  has-session|new-session|kill-pane|select-layout) : ;;
   split-window|new-window)
-    if [[ "${'${PI_FAKE_TMUX_MODE:-success}'}" == "fail" ]]; then
-      printf 'fake tmux pane failure\n' >&2
-      exit 42
-    fi
-    printf '%s %s\\n' "$1" "$*" >>"${dir}/tmux.log"
-    command="${'${@: -1}'}"
+    if [[ "\${PI_TEST_TMUX_FAIL:-}" == 1 ]]; then echo 'pane failed' >&2; exit 42; fi
+    [[ "\${@: -2:1}" == bash ]] || { echo 'runner must use direct tmux argv, not a shell command string' >&2; exit 43; }
+    command="\${@: -1}"
     TMUX_PANE='%7' bash "$command" || true
     printf 'parent:1.2 %%7\\n'
     ;;
-  kill-pane)
-    printf 'kill-pane %s\\n' "$*" >>"${dir}/tmux.log"
-    ;;
-  *)
-    printf 'unsupported fake tmux invocation: %s\\n' "$*" >&2
-    exit 9
-    ;;
+  *) exit 9 ;;
 esac
 `, { mode: 0o755 });
   await writeFile(join(bin, "pi"), `#!/usr/bin/env bash
 set -euo pipefail
-case "${'${PI_FAKE_MODE:-success}'}" in
+[[ "$PI_AGENT_CHILD" == 1 ]]
+printf '%s\\0' "$@" >"${dir}/pi.args"
+# Even a direct bash call to the launcher is rejected in the child environment.
+if "$PI_TEST_LAUNCHER" >"${dir}/nested.out" 2>"${dir}/nested.err"; then exit 99; fi
+case "\${PI_TEST_MODE:-success}" in
   success)
-    if printf '%s\n' "$*" | grep -E -- '(^| )(-p|--no-session)( |$)' >/dev/null; then
-      printf 'obsolete non-interactive flags used: %s\n' "$*" >&2
-      exit 19
-    fi
-    printf '# Artifact\\n\\n%s\\n' "$PI_CHILD_RUNNER_SKILL" >"$PI_CHILD_RUNNER_ARTIFACT_PATH"
-    "$PI_CHILD_RUNNER_FINISH" --success
+    printf '# %s report\\n\\nStatus: complete\\n' "$PI_AGENT_ROLE" >"$PI_AGENT_ARTIFACT_PATH"
+    "$PI_AGENT_FINISH" --success
     ;;
-  missing-artifact)
-    "$PI_CHILD_RUNNER_FINISH" --success
-    ;;
-  crash)
-    exit 17
-    ;;
+  missing-artifact) "$PI_AGENT_FINISH" --success ;;
+  failure) "$PI_AGENT_FINISH" --failure 'test failure' ;;
+  crash) exit 17 ;;
   slow)
+    touch "${dir}/ready"
     sleep 2
+    printf '# report\\n' >"$PI_AGENT_ARTIFACT_PATH"
+    "$PI_AGENT_FINISH" --success
     ;;
 esac
 `, { mode: 0o755 });
-  return { dir, bin, cwd, prompt };
+  const env: Record<string, string | undefined> = { ...process.env, PATH: `${bin}:${process.env.PATH}`, SHELL: "/bin/true", PI_TEST_LAUNCHER: startPanePath };
+  delete env.PI_AGENT_CHILD;
+  delete env.PI_CHILD_RUNNER_SKILL;
+  return { dir, bin, cwd, env };
+}
+type Fixture = Awaited<ReturnType<typeof makeFixture>>;
+function args(f: Fixture, agent = "reviewer") {
+  return ["--agent", agent, "--task", "A concrete assignment with context", "--cwd", f.cwd,
+    "--role-prompt", promptPath(agent as typeof agentNames[number])];
+}
+function run(f: Fixture, extra: string[] = [], env = {}) {
+  return spawnSync(startPanePath, [...args(f), ...extra], { env: { ...f.env, ...env }, encoding: "utf8", timeout: 10000 });
+}
+function launchPaths(stdout: string) {
+  const paths = parseLauncherOutput(stdout);
+  assert.deepEqual(Object.keys(paths).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"]);
+  return paths;
 }
 
-function runHelper(fixture: TmuxFixture, args: string[] = [], env: Record<string, string> = {}) {
-  return spawnSync(helper, [
-    "--skill", "fixture-skill",
-    "--task", "Write a small artifact",
-    "--cwd", fixture.cwd,
-    "--prompt-template", fixture.prompt,
-    "--timeout", "1",
-    ...args,
-  ], {
-    cwd: root,
-    env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, SHELL: "/bin/true", ...env },
-    encoding: "utf8",
-  });
-}
-
-function parseLaunch(stdout: string): Record<string, string> {
-  const values: Record<string, string> = {};
-  for (const line of stdout.trim().split(/\n/)) {
-    const match = line.match(/^([A-Z0-9_]+)='(.*)'$/);
-    if (match) values[match[1]] = match[2].replaceAll("'\\''", "'");
+try {
+  for (const agent of agentNames) {
+    const f = await makeFixture();
+    const result = spawnSync(startPanePath, [...args(f, agent), "--model", "test-model", "--provider", "test-provider", "--thinking", "low"], {
+      env: { ...f.env, PI_TEST_WINDOW_MISSING: agent === "reviewer" ? "1" : "0" }, encoding: "utf8", timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const paths = launchPaths(result.stdout);
+    await stat(paths.SUCCESS_SENTINEL);
+    assert.match(await readFile(paths.ARTIFACT_PATH, "utf8"), new RegExp(`# ${agent} report`));
+    assert.equal(await readFile(join(f.cwd, "source.txt"), "utf8"), "unchanged\n");
+    assert.match(await readFile(join(f.dir, "nested.err"), "utf8"), /subagents cannot launch subagents/);
+    const piArgs = (await readFile(join(f.dir, "pi.args"), "utf8")).split("\0").slice(0, -1);
+    assert(piArgs.includes("--no-skills"));
+    assert(piArgs.includes("--no-prompt-templates"));
+    assert.equal(piArgs[piArgs.indexOf("--exclude-tools") + 1], "run_agent,run_skill");
+    assert(!piArgs.includes("--prompt-template"));
+    assert(!piArgs.includes("--no-extensions"), "MCP/LSP and other tools stay available");
+    const system = piArgs[piArgs.indexOf("--append-system-prompt") + 1];
+    assert.match(system, /You are a subagent, not the main agent/);
+    assert.match(system, /Never delegate/);
+    assert(system.includes((await readFile(promptPath(agent), "utf8")).trimEnd()), "role body is actually injected, not merely registered");
+    assert.match(piArgs.at(-1)!, /Primary artifact path:/);
+    assert.match(piArgs.at(-1)!, /A concrete assignment with context/);
+    assert.equal(piArgs[piArgs.indexOf("--model") + 1], "test-model");
+    assert.equal(piArgs[piArgs.indexOf("--provider") + 1], "test-provider");
+    assert.equal(piArgs[piArgs.indexOf("--thinking") + 1], "low");
   }
-  assert(values.ARTIFACT_PATH, "helper stdout should include ARTIFACT_PATH");
-  assert(values.SUCCESS_SENTINEL, "helper stdout should include SUCCESS_SENTINEL");
-  assert(values.FAILURE_SENTINEL, "helper stdout should include FAILURE_SENTINEL");
-  assert.deepEqual(Object.keys(values).sort(), ["ARTIFACT_PATH", "FAILURE_SENTINEL", "SUCCESS_SENTINEL"].sort());
-  return values;
-}
 
-async function testSuccess() {
-  const fixture = await makeFixture();
-  const result = runHelper(fixture, ["--artifact-dir", "reviews", "--model", "openai/example", "--provider", "openai", "--thinking", "low"]);
-  assert.equal(result.status, 0, result.stderr);
-  const launch = parseLaunch(result.stdout);
-  assert.match(launch.ARTIFACT_PATH, /\.agents\/reviews\/pi-fixture-skill-write-a-small-artifact-\d{14}-\d+-[a-f0-9]+\.md$/);
-  await stat(launch.SUCCESS_SENTINEL);
-  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /# Artifact/);
-  assert.doesNotMatch(result.stdout, /status_json|\.json/);
-}
+  const invalid = await makeFixture();
+  for (const agent of ["planner", "review-orchestrator", "plan-reviewer", "unknown"]) {
+    const result = run(invalid, ["--agent", agent]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /invalid --agent role/);
+  }
+  const missingPrompt = run(invalid, ["--role-prompt", join(invalid.dir, "missing.md")]);
+  assert.notEqual(missingPrompt.status, 0);
+  assert.match(missingPrompt.stderr, /role prompt does not exist/);
+  for (const marker of ["PI_AGENT_CHILD", "PI_CHILD_RUNNER_SKILL"]) {
+    const result = run(invalid, [], { [marker]: "1" });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /subagents cannot launch subagents/);
+  }
+  await assert.rejects(stat(join(invalid.cwd, ".agents")), "invalid/nested requests do not create artifacts or panes");
 
-async function testValidation() {
-  const fixture = await makeFixture();
-  const result = runHelper({ ...fixture, prompt: join(fixture.dir, "missing.md") });
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /prompt template does not exist/);
-}
+  for (const [mode, reason] of [["missing-artifact", "missing-artifact"], ["crash", "child-exit-without-finish"], ["failure", "test failure"]]) {
+    const f = await makeFixture();
+    const result = run(f, [], { PI_TEST_MODE: mode });
+    assert.equal(result.status, 0, result.stderr);
+    const paths = launchPaths(result.stdout);
+    await stat(paths.FAILURE_SENTINEL);
+    await assert.rejects(stat(paths.SUCCESS_SENTINEL));
+    assert.equal(await readFile(`${paths.FAILURE_SENTINEL}.reason`, "utf8"), `${reason}\n`);
+  }
+  const paneFailure = await makeFixture();
+  const badPane = run(paneFailure, [], { PI_TEST_TMUX_FAIL: "1" });
+  assert.equal(badPane.status, 42);
+  const badPaths = launchPaths(badPane.stdout);
+  assert.match(await readFile(badPaths.ARTIFACT_PATH, "utf8"), /tmux-pane-failed/);
+  await stat(badPaths.FAILURE_SENTINEL);
 
-async function testMissingArtifactFailure() {
-  const fixture = await makeFixture();
-  const result = runHelper(fixture, [], { PI_FAKE_MODE: "missing-artifact" });
-  assert.equal(result.status, 0, result.stderr);
-  const launch = parseLaunch(result.stdout);
-  await stat(launch.FAILURE_SENTINEL);
-  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "missing-artifact\n");
-  await assert.rejects(() => stat(launch.ARTIFACT_PATH));
-}
+  const noTmux = await makeFixture();
+  await rm(join(noTmux.bin, "tmux"));
+  const missing = spawnSync("/bin/bash", [startPanePath, ...args(noTmux)], { env: { ...noTmux.env, PATH: noTmux.bin }, encoding: "utf8" });
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /tmux is required/);
 
-async function testChildExitWithoutFinishFailure() {
-  const fixture = await makeFixture();
-  const result = runHelper(fixture, [], { PI_FAKE_MODE: "crash" });
-  assert.equal(result.status, 0, result.stderr);
-  const launch = parseLaunch(result.stdout);
-  await stat(launch.FAILURE_SENTINEL);
-  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "child-exit-without-finish\n");
-}
-
-async function testMissingTmuxDiagnostic() {
-  const fixture = await makeFixture();
-  await rm(join(fixture.bin, "tmux"));
-  const result = spawnSync("/bin/bash", [helper,
-    "--skill", "fixture-skill",
-    "--task", "Write a small artifact",
-    "--cwd", fixture.cwd,
-    "--prompt-template", fixture.prompt,
-    "--timeout", "1",
-  ], {
-    cwd: root,
-    env: { ...process.env, PATH: fixture.bin },
-    encoding: "utf8",
-  });
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /tmux is required and no other multiplexer is supported/);
-}
-
-async function testTmuxPaneFailureFinalizesStatus() {
-  const fixture = await makeFixture();
-  const result = runHelper(fixture, [], { PI_FAKE_TMUX_MODE: "fail" });
-  assert.equal(result.status, 42);
-  const launch = parseLaunch(result.stdout);
-  await stat(launch.FAILURE_SENTINEL);
-  assert.equal(await readFile(`${launch.FAILURE_SENTINEL}.reason`, "utf8"), "tmux-pane-failed\n");
-  assert.match(await readFile(launch.ARTIFACT_PATH, "utf8"), /Reason: tmux-pane-failed/);
-}
-
-async function testConcurrentNamesDoNotCollide() {
-  const fixture = await makeFixture();
-  const run = () => new Promise<string>((resolve, reject) => {
-    const child = spawn(helper, [
-      "--skill", "fixture-skill",
-      "--task", "Same task",
-      "--cwd", fixture.cwd,
-      "--prompt-template", fixture.prompt,
-      "--timeout", "1",
-    ], { env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` } });
+  const lock = await makeFixture();
+  const startLocked = () => new Promise<string>((resolve, reject) => {
+    const child = spawn(startPanePath, [...args(lock, "implementer"), "--workspace-lock"], { env: { ...lock.env, PI_TEST_MODE: "slow" } });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.on("close", (code) => code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr)));
+    child.stdout.on("data", (data: unknown) => { stdout += String(data); });
+    child.stderr.on("data", (data: unknown) => { stderr += String(data); });
+    child.on("error", reject);
+    child.on("close", (code: number | null) => code === 0 ? resolve(stdout) : reject(new Error(stderr)));
   });
-  const launches = (await Promise.all([run(), run()])).map(parseLaunch);
-  assert.notEqual(launches[0].ARTIFACT_PATH, launches[1].ARTIFACT_PATH);
-  const tmuxLog = await readFile(join(fixture.dir, "tmux.log"), "utf8");
-  assert.match(tmuxLog, /split-window/);
-}
+  const first = startLocked();
+  // Wait for fake Pi to start inside the acquired lock, not a scheduling guess.
+  let ready = false;
+  for (let i = 0; i < 100; i++) {
+    try { await stat(join(lock.dir, "ready")); ready = true; break; } catch { await new Promise((r) => setTimeout(r, 20)); }
+  }
+  assert(ready, "first implementer should acquire the workspace lock");
+  const [one, two] = (await Promise.all([first, startLocked()])).map(launchPaths);
+  assert.notEqual(one.ARTIFACT_PATH, two.ARTIFACT_PATH);
+  await stat(one.SUCCESS_SENTINEL);
+  assert.equal(await readFile(`${two.FAILURE_SENTINEL}.reason`, "utf8"), "workspace-lock-held\n");
+  assert.match(await readFile(two.ARTIFACT_PATH, "utf8"), /workspace-lock-held/);
+  const statusFiles = await readdir(join(lock.cwd, ".agents/status"));
+  assert.equal(statusFiles.filter((name: string) => name.endsWith(".runner.sh")).length, 2, "no grandchildren were launched");
 
-async function testWaitForChildrenUsesSentinelPairs() {
-  const dir = await mkdtemp(join(tmpdir(), "pi-coding-kit-wait-"));
-  const success = join(dir, "child.success");
-  const failure = join(dir, "child.failure");
-  await writeFile(success, "");
-  const result = spawnSync(waitHelper, ["--success", success, "--failure", failure, "--timeout", "1", "--poll", "1"], { encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /OVERALL='success'/);
-  assert.match(result.stdout, /CHILD_1_STATUS='success'/);
-  assert.doesNotMatch(result.stdout, /\{|status_json|run-id/);
+  for (const state of ["success", "failure", "timeout"]) {
+    const f = await makeFixture();
+    const success = join(f.dir, "done.success");
+    const failure = join(f.dir, "done.failure");
+    if (state !== "timeout") await writeFile(state === "success" ? success : failure, "");
+    const result = spawnSync(waitPath, ["--success", success, "--failure", failure, "--timeout", "1", "--poll", "1"], { encoding: "utf8", timeout: 5000 });
+    assert.equal(result.status, state === "success" ? 0 : 1);
+    assert.match(result.stdout, new RegExp(`CHILD_1_STATUS='${state}'`));
+  }
+} finally {
+  await Promise.all(fixtures.map((dir) => rm(dir, { recursive: true, force: true })));
 }
-
-await testSuccess();
-await testValidation();
-await testMissingArtifactFailure();
-await testChildExitWithoutFinishFailure();
-await testMissingTmuxDiagnostic();
-await testTmuxPaneFailureFinalizesStatus();
-await testConcurrentNamesDoNotCollide();
-await testWaitForChildrenUsesSentinelPairs();
-const policyWords = await readdir(join(root, "skills", "scripts"));
-assert(policyWords.includes("start-bg-pane.sh"));
-assert(policyWords.includes("wait-for-children.sh"));
-assert(!policyWords.includes("run-skill-background.sh"));
-assert(!policyWords.includes("tmux-managed-skills.tsv"));
-console.log("tmux helper tests passed");
+console.log("tmux agent helper tests passed");

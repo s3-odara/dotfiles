@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_path=${BASH_SOURCE[0]}
-script_dir_part=${script_path%/*}
-[[ "$script_dir_part" == "$script_path" ]] && script_dir_part=.
-script_dir=$(cd "$script_dir_part" && pwd -P)
-
 usage() {
   cat <<'USAGE'
-Usage: start-bg-pane.sh --skill NAME --task TEXT --cwd DIR --prompt-template FILE [options]
+Usage: start-bg-pane.sh --agent NAME --task TEXT --cwd DIR --role-prompt FILE [options]
 
 Options:
   --artifact PATH         Primary artifact path. Relative paths are resolved from --cwd.
@@ -16,7 +11,6 @@ Options:
   --model MODEL           Optional Pi --model hint.
   --provider PROVIDER     Optional Pi --provider hint.
   --thinking LEVEL        Optional Pi --thinking hint.
-  --timeout SECONDS       Metadata timeout for waiters, default 5400.
   --workspace-lock        Internal: serialize child startup by canonical --cwd.
   --pi-bin PATH           Pi executable, default pi.
   --help                  Show this help.
@@ -54,21 +48,23 @@ write_failure_artifact() {
   } >"$artifact_path"
 }
 
-skill= task= cwd= prompt_template= artifact_path= artifact_dir=research model= provider= thinking=
-timeout_seconds=5400 workspace_lock=false pi_bin=${PI_CHILD_RUNNER_PI_BIN:-pi}
+# Reject accidental recursive launches before creating files or panes.
+[[ -z "${PI_AGENT_CHILD:-}${PI_CHILD_RUNNER_SKILL:-}" ]] || die "subagents cannot launch subagents; return to the main agent"
+
+agent= task= cwd= role_prompt= artifact_path= artifact_dir=research model= provider= thinking=
+workspace_lock=false pi_bin=pi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skill) skill=${2-}; shift 2 ;;
+    --agent) agent=${2-}; shift 2 ;;
     --task) task=${2-}; shift 2 ;;
     --cwd) cwd=${2-}; shift 2 ;;
-    --prompt-template) prompt_template=${2-}; shift 2 ;;
+    --role-prompt) role_prompt=${2-}; shift 2 ;;
     --artifact) artifact_path=${2-}; shift 2 ;;
     --artifact-dir) artifact_dir=${2-}; shift 2 ;;
     --model) model=${2-}; shift 2 ;;
     --provider) provider=${2-}; shift 2 ;;
     --thinking) thinking=${2-}; shift 2 ;;
-    --timeout) timeout_seconds=${2-}; shift 2 ;;
     --workspace-lock) workspace_lock=true; shift ;;
     --pi-bin) pi_bin=${2-}; shift 2 ;;
     --lock-key|--lock-timeout) die "$1 is obsolete; workspace locking is derived from --cwd only" ;;
@@ -78,26 +74,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$skill" ]] || die "--skill is required"
+case "$agent" in explorer|implementer|internet-researcher|reviewer) ;; *) die "invalid --agent role" ;; esac
 [[ -n "$task" ]] || die "--task is required"
 [[ -n "$cwd" ]] || die "--cwd is required"
-[[ -n "$prompt_template" ]] || die "--prompt-template is required"
-[[ "$skill" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "--skill must use lowercase letters, digits, and hyphens only"
-[[ "$timeout_seconds" =~ ^[0-9]+$ && "$timeout_seconds" -gt 0 ]] || die "--timeout must be a positive integer number of seconds"
+[[ -n "$role_prompt" ]] || die "--role-prompt is required"
 command -v tmux >/dev/null 2>&1 || die "tmux is required and no other multiplexer is supported"
 command -v "$pi_bin" >/dev/null 2>&1 || die "Pi executable not found: $pi_bin"
 [[ -d "$cwd" ]] || die "working directory does not exist: $cwd"
-[[ -f "$prompt_template" ]] || die "prompt template does not exist: $prompt_template"
+[[ -s "$role_prompt" ]] || die "role prompt does not exist or is empty: $role_prompt"
 
 cwd=$(cd "$cwd" && pwd -P)
-prompt_template=$(cd "$(dirname "$prompt_template")" && pwd -P)/$(basename "$prompt_template")
+role_prompt=$(cd "$(dirname "$role_prompt")" && pwd -P)/$(basename "$role_prompt")
 agents_dir="$cwd/.agents"
-for dir in research plans specs reviews impl-reports logs status locks; do mkdir -p "$agents_dir/$dir"; done
+mkdir -p "$agents_dir/status" "$agents_dir/logs" "$agents_dir/locks"
 agents_dir=$(cd "$agents_dir" && pwd -P)
 
 task_slug=$(slugify "$task")
 timestamp=$(date -u +%Y%m%d%H%M%S)
-run_id="pi-${skill}-${task_slug}-${timestamp}-$$-$(random_suffix)"
+run_id="pi-${agent}-${task_slug}-${timestamp}-$$-$(random_suffix)"
 lock_key= lock_file=
 if [[ "$workspace_lock" == true ]]; then
   lock_key="workspace-$(slugify "$cwd")-$(printf '%s' "$cwd" | cksum | cut -d ' ' -f 1)"
@@ -118,6 +112,7 @@ artifact_path="$artifact_parent/$(basename "$artifact_path")"
 case "$artifact_path" in "$agents_dir"/*) ;; *) die "artifact path must be under $agents_dir" ;; esac
 
 task_file="$agents_dir/status/${run_id}.task.txt"
+system_file="$agents_dir/status/${run_id}.system.txt"
 runner_script="$agents_dir/status/${run_id}.runner.sh"
 finish_script="$agents_dir/status/${run_id}.finish.sh"
 success_sentinel="$agents_dir/status/${run_id}.success"
@@ -126,8 +121,28 @@ failure_reason_file="${failure_sentinel}.reason"
 runner_log="$agents_dir/logs/${run_id}.runner.log"
 tmux_session= tmux_window=agent tmux_window_target= tmux_pane_id= tmux_pane_target=
 
+# Inject the role as actual system-prompt text, not a registered prompt template.
+cat >"$system_file" <<'SYSTEM'
+You are a subagent, not the main agent. Complete only the supplied assignment.
+You have no parent conversation or tool history; use the supplied handoff and
+inspect relevant files yourself. Do not assume unprovided decisions or approvals.
+Never delegate, run another Pi/agent process, or invoke agent launch scripts.
+Investigate facts within your assigned role. If essential assignment context or a
+user decision/approval is missing, report what is needed to the main agent rather
+than asking the user or launching another agent.
+Do not stage, commit, push, install dependencies, or start services unless the
+handoff explicitly includes the user's authorization. Other risky actions also
+require explicit authorization; if absent, report blocked work to the main agent.
+Write a concise report to the Primary artifact path from the assignment, including
+status (complete, partial, or blocked), results/evidence, validation and open issues.
+Use the supplied finish helper after writing the report. A partial/blocked report
+is a successfully delivered report, not a claim that the assignment was completed.
+SYSTEM
+printf '\n' >>"$system_file"
+cat "$role_prompt" >>"$system_file"
+
 cat >"$task_file" <<TASK
-You are running as an interactive tmux child pane for Pi skill: $skill.
+You are running as the $agent subagent in a tmux pane. Only the main agent orchestrates.
 
 Primary artifact path: $artifact_path
 Task file path: $task_file
@@ -137,10 +152,10 @@ Failure sentinel path: $failure_sentinel
 
 Write your final result to the Primary artifact path. When the run is successful,
 execute exactly:
-"\$PI_CHILD_RUNNER_FINISH" --success
+"\$PI_AGENT_FINISH" --success
 
 If the run fails, execute:
-"\$PI_CHILD_RUNNER_FINISH" --failure "short reason"
+"\$PI_AGENT_FINISH" --failure "short reason"
 
 The finish helper updates sentinel files. Do not create sentinels manually. A
 successful finish closes this tmux pane automatically; failures leave the pane
@@ -183,12 +198,12 @@ cat >"$runner_script" <<RUNNER
 #!/usr/bin/env bash
 set -euo pipefail
 cd $(printf '%q' "$cwd")
-export PI_CHILD_RUNNER_SKILL=$(printf '%q' "$skill")
-export PI_CHILD_RUNNER_ARTIFACT_PATH=$(printf '%q' "$artifact_path")
-export PI_CHILD_RUNNER_TASK_FILE=$(printf '%q' "$task_file")
-export PI_CHILD_RUNNER_FINISH=$(printf '%q' "$finish_script")
-export PI_CHILD_RUNNER_SKILLS_SCRIPTS_DIR=$(printf '%q' "$script_dir")
-pi_args=(--prompt-template $(printf '%q' "$prompt_template"))
+export PI_AGENT_CHILD=1
+export PI_AGENT_ROLE=$(printf '%q' "$agent")
+export PI_AGENT_ARTIFACT_PATH=$(printf '%q' "$artifact_path")
+export PI_AGENT_FINISH=$(printf '%q' "$finish_script")
+pi_args=(--no-skills --no-prompt-templates --exclude-tools run_agent,run_skill)
+pi_args+=(--append-system-prompt "\$(cat $(printf '%q' "$system_file"))")
 RUNNER
 [[ -n "$provider" ]] && printf 'pi_args+=(--provider %q)\n' "$provider" >>"$runner_script"
 [[ -n "$model" ]] && printf 'pi_args+=(--model %q)\n' "$model" >>"$runner_script"
@@ -226,7 +241,7 @@ window_exists() {
 
 tmux_session=$(resolve_current_session)
 if [[ -z "$tmux_session" ]]; then
-  tmux_session=${PI_CHILD_RUNNER_FALLBACK_SESSION:-pi-agent}
+  tmux_session=${PI_AGENT_TMUX_SESSION:-pi-agent}
   if ! tmux has-session -t "$tmux_session" 2>/dev/null; then
     tmux new-session -d -s "$tmux_session" -n agent
   fi
@@ -236,13 +251,13 @@ tmux_window_target="${tmux_session}:${tmux_window}"
 
 set +e
 if window_exists "$tmux_session" "$tmux_window"; then
-  pane_info=$(tmux split-window -d -t "$tmux_window_target" -P -F '#{session_name}:#{window_index}.#{pane_index} #{pane_id}' "$runner_script" 2>>"$runner_log")
+  pane_info=$(tmux split-window -d -t "$tmux_window_target" -P -F '#{session_name}:#{window_index}.#{pane_index} #{pane_id}' bash "$runner_script" 2>>"$runner_log")
   tmux_status=$?
   if [[ $tmux_status -eq 0 ]]; then
     tmux select-layout -t "$tmux_window_target" tiled 2>>"$runner_log" || true
   fi
 else
-  pane_info=$(tmux new-window -d -t "${tmux_session}:" -n "$tmux_window" -P -F '#{session_name}:#{window_index}.#{pane_index} #{pane_id}' "$runner_script" 2>>"$runner_log")
+  pane_info=$(tmux new-window -d -t "${tmux_session}:" -n "$tmux_window" -P -F '#{session_name}:#{window_index}.#{pane_index} #{pane_id}' bash "$runner_script" 2>>"$runner_log")
   tmux_status=$?
 fi
 set -e

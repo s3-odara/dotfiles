@@ -15,6 +15,8 @@ interface FetchOptions {
 interface FetchResult {
   path: string;
   bytes: number;
+  status: number;
+  finalUrl: string;
 }
 
 interface WebfetchParams {
@@ -137,9 +139,15 @@ export async function fetchUrl(rawUrl: string, options: FetchOptions = {}, signa
   const redirectLimit = clampedNumber(options.redirectLimit, DEFAULT_REDIRECT_LIMIT, 0, 10);
 
   let url = validateHttpUrl(rawUrl);
+  const deadline = performance.now() + timeoutMs;
   for (let redirects = 0; redirects <= redirectLimit; redirects += 1) {
-    const result = await requestUrl(url, timeoutMs, maxBytes, signal);
-    if (result.status >= 300 && result.status < 400 && result.location) {
+    if (signal?.aborted) throw new Error("request aborted");
+    const remainingMs = deadline - performance.now();
+    if (remainingMs <= 0) throw new Error("timeout exceeded");
+    const result = await requestUrl(url, remainingMs, maxBytes, signal);
+    if (signal?.aborted) throw new Error("request aborted");
+    if (performance.now() >= deadline) throw new Error("timeout exceeded");
+    if ([301, 302, 303, 307, 308].includes(result.status) && result.location) {
       if (redirects === redirectLimit) throw new Error("redirect limit exceeded");
       // Re-parse and re-check every redirect target so an initially safe URL
       // cannot switch to file:, data:, or another non-HTTP(S) protocol.
@@ -147,11 +155,16 @@ export async function fetchUrl(rawUrl: string, options: FetchOptions = {}, signa
       continue;
     }
 
+    // Never save error pages or unresolved redirects as successful downloads.
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(`HTTP ${result.status} for ${url.href}`);
+    }
+
     const relativePath = join(".agents", "downloads", `${Date.now()}-${randomUUID()}`);
     const absolutePath = join(cwd, relativePath);
     await mkdir(join(cwd, ".agents", "downloads"), { recursive: true });
     await writeFile(absolutePath, result.body);
-    return { path: relativePath, bytes: result.bytes };
+    return { path: relativePath, bytes: result.bytes, status: result.status, finalUrl: url.href };
   }
   throw new Error("unreachable redirect handling state");
 }
@@ -164,13 +177,13 @@ export function registerWebfetchTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "webfetch",
     label: "Web Fetch",
-    description: "Fetch a specific HTTP/HTTPS URL to a file under .agents/downloads/ with timeout, byte, and redirect protections.",
+    description: "Fetch a specific HTTP/HTTPS URL to a file under .agents/downloads/. Returns the path, byte count, HTTP status and final URL. Rejects non-2xx responses and enforces a total network timeout across redirects, plus byte and redirect limits.",
     promptSnippet: "Fetch a specific URL to .agents/downloads/ and return the saved path; this is not a web search tool.",
     promptGuidelines: ["Use webfetch only when the user provides a specific URL or asks to fetch a known page; do not use it for web search."],
     parameters: webfetchParameters,
     async execute(_toolCallId: string, params: WebfetchParams, signal?: AbortSignal, _onUpdate?: unknown, ctx?: { cwd?: string }) {
       const result = await fetchUrl(params.url, params, signal, ctx?.cwd);
-      return { content: [{ type: "text", text: `${result.path}\n${result.bytes} bytes` }], details: result };
+      return { content: [{ type: "text", text: `${result.path}\n${result.bytes} bytes\nHTTP ${result.status}\nURL: ${result.finalUrl}` }], details: result };
     },
   });
 }

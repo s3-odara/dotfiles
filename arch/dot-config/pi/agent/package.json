@@ -4,8 +4,8 @@
   "type": "module",
   "keywords": ["pi-package"],
   "scripts": {
-    "test": "node test/osc99-notify.test.ts && node test/webfetch.test.ts && node test/skill-tmux-runner.test.ts && node test/tmux-helper.test.ts && node test/readonly-skills.test.ts && node test/active-skills.test.ts",
-    "test:unit": "node test/osc99-notify.test.ts && node test/webfetch.test.ts && node test/skill-tmux-runner.test.ts && node test/tmux-helper.test.ts && node test/readonly-skills.test.ts && node test/active-skills.test.ts"
+    "test": "node test/osc99-notify.test.ts && node test/webfetch.test.ts && node test/agents.test.ts && node test/tmux-helper.test.ts",
+    "test:unit": "npm test"
   },
   "pi": {
     "extensions": [

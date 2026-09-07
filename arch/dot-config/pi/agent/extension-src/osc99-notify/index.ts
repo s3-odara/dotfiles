@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "../types.ts";
+import { isChild } from "../agents/config.ts";
 
 type EventType = "session-idle";
 
@@ -15,7 +16,7 @@ interface Osc99NotificationInput {
   idPrefix?: string;
 }
 
-type NotificationContext = { cwd?: string } | undefined;
+type NotificationContext = { cwd?: string; mode?: string } | undefined;
 
 const EVENT_MESSAGES: Record<EventType, string> = {
   "session-idle": "session idle",
@@ -73,12 +74,17 @@ function notify(eventType: EventType, message: string, ctx: NotificationContext)
 }
 
 export function registerOsc99Notify(pi: ExtensionAPI): void {
+  if (isChild()) return;
   if (typeof pi?.on !== "function") {
     console.warn("pi-coding-kit: OSC99 notifications disabled because pi.on is unavailable");
     return;
   }
 
-  pi.on("agent_end", (_event: unknown, ctx: NotificationContext) => {
-    notify("session-idle", EVENT_MESSAGES["session-idle"], ctx);
+  pi.on("agent_settled", (_event, ctx) => {
+    const context = ctx as NotificationContext;
+    // agent_end may precede retries, compaction or queued follow-ups. Only
+    // notify once settled, and never emit terminal escapes into JSON/print/RPC.
+    if (isChild() || context?.mode !== "tui") return;
+    notify("session-idle", EVENT_MESSAGES["session-idle"], context);
   });
 }
