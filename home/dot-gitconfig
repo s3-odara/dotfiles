@@ -51,6 +51,8 @@
         forcepush = push --force-with-lease --force-if-includes
         diffedit = "!f() { vimdiff <(git show HEAD:\"$1\") \"$1\"; }; f"
         wdiff = diff --color-words
+        dft = -c diff.external=difft diff
+
 [tag]
         gpgsign = true
 
