@@ -98,5 +98,5 @@ add-zsh-hook preexec _cmdtimer_preexec
 add-zsh-hook precmd  _cmdtimer_precmd
 
 # Prompt
-PROMPT='%F{cyan}%~%f${vcs_info_msg_0_}
-%(?..%F{red}[%?] %f)%F{green}%%%f '
+PROMPT='%F{cyan}%~%f${vcs_info_msg_0_}%(?.. %F{red}[%?]%f)
+%F{green}%%%f '
