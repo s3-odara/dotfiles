@@ -248,6 +248,20 @@ def RegisterZls(servers: list<dict<any>>)
   )
 enddef
 
+def RegisterNixd(servers: list<dict<any>>)
+  var opts = {
+    rootSearch: ['flake.nix', 'shell.nix', 'default.nix', '.git'],
+  }
+  AddLspServerIfExecutable(
+    servers,
+    'nixd',
+    ['nix'],
+    ['nixd'],
+    [],
+    opts
+  )
+enddef
+
 def RegisterGleam(servers: list<dict<any>>)
   var opts = {
     rootSearch: ['gleam.toml', '.git'],
@@ -451,6 +465,7 @@ def g:RegisterLspServers()
   RegisterLuaLs(servers)
   RegisterRustAnalyzer(servers)
   RegisterZls(servers)
+  RegisterNixd(servers)
   RegisterGleam(servers)
   RegisterHtml(servers)
   RegisterCssls(servers)
