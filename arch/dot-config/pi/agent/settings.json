@@ -1,7 +1,7 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
-  "defaultThinkingLevel": "medium",
+  "defaultModel": "gpt-6-luna",
+  "defaultThinkingLevel": "xhigh",
   "theme": "system",
   "externalEditor": "vim",
   "enableAnalytics": false,
@@ -31,10 +31,14 @@
   "images": {
     "autoResize": true
   },
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "1.0.0",
   "packages": [
-    "npm:pi-mcp-adapter",
-    "npm:@spences10/pi-lsp"
+    "npm:@spences10/pi-lsp",
+    "npm:@lll9p/pi-better-compaction"
   ],
-  "showHardwareCursor": false
+  "showHardwareCursor": false,
+  "hideThinkingBlock": true,
+  "extensions": [
+    "+builtin:mcp"
+  ]
 }

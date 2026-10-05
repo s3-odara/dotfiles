@@ -4,15 +4,15 @@ import { fileURLToPath } from "node:url";
 export const AGENTS = {
   explorer: {
     artifactDir: "research", workspaceLock: false,
-    provider: "openai-codex", model: "gpt-5.6-luna", thinking: "low",
+    provider: "openai-codex", model: "gpt-6-luna", thinking: "low",
   },
   implementer: {
     artifactDir: "impl-reports", workspaceLock: true,
-    provider: "openai-codex", model: "gpt-5.6-sol", thinking: "medium",
+    provider: "openai-codex", model: "gpt-6-luna", thinking: "xhigh",
   },
   "internet-researcher": {
     artifactDir: "research", workspaceLock: false,
-    provider: "openai-codex", model: "gpt-5.6-terra", thinking: "medium",
+    provider: "openai-codex", model: "gpt-6-luna", thinking: "xhigh",
   },
   reviewer: {
     artifactDir: "reviews", workspaceLock: false,

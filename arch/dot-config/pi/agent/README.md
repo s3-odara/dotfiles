@@ -89,13 +89,15 @@ Do not replay old `run_skill` calls. There is intentionally no legacy launch ali
 
 ## MCP
 
-`arch/dot-config/mcp/mcp.json` stows to `~/.config/mcp/mcp.json`. It lists the remote
-servers `context7`, `deepwiki`, `exa` and `parallel-search` using URL entries and
-environment-variable header references, without storing secrets.
+`arch/dot-config/pi/agent/mcp.json` stows to `~/.config/pi/agent/mcp.json` and
+configures Pi's built-in MCP support. It contains the remote servers `context7`,
+`deepwiki`, `exa` and `parallel-search`, with environment-variable header references
+rather than stored secrets.
 
-The installed `pi-mcp-adapter` reads the shared configuration. Pi does not launch
-MCP servers directly from this file. Do not set `command: "pi-mcp-adapter"` there.
-The existing `@spences10/pi-lsp` package supplies LSP tools.
+`arch/dot-config/mcp/mcp.json` remains at `~/.config/mcp/mcp.json` for other clients
+that use the shared MCP config format; Pi's built-in MCP support does not read it.
+The `pi-mcp-adapter` package is no longer autoloaded. The existing
+`@spences10/pi-lsp` package supplies LSP tools.
 
 ## OSC99 and webfetch
 
