@@ -27,5 +27,8 @@ Host 10.0.0.*
   User user
   RemoteForward /run/user/1000/gnupg/S.gpg-agent ${GPG_AGENT_EXTRA_SOCK}
   RemoteForward /run/user/1000/gnupg/S.gpg-agent.ssh ${SSH_AUTH_SOCK}
+  StreamLocalBindUnlink yes
+  ExitOnForwardFailure yes
+
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null

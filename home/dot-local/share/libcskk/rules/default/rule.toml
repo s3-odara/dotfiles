@@ -6,6 +6,14 @@ name = "default"
 # 説明文。必須。
 description = "default typing rule"
 
+[options]
+# PreCompositionモードに入るKeysym。
+# アルファベット以外でかな入力をする場合、ここにKeysymを追加することでそのかな文字での変換開始位置を指定する。
+composition_triggers = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+]
+
 # conversion:
 # Key-Valueの配列 ローマ字変換規則
 #
@@ -407,7 +415,7 @@ zz = ["z", "っ"]
 "C-h" = ["Delete"]
 "Tab" = ["TryNextCompletion"]
 
-[pre_compisition_okurigana.hiragana]
+[pre_composition_okurigana.hiragana]
 "space" = ["TryNextCandidate"]
 "q" = ["ForceKanaConvert(Katakana)", "ConfirmAs(Katakana)", "ChangeCompositionMode(Direct)"]
 "Q" = ["FinishKeyEvent"]
@@ -416,7 +424,7 @@ zz = ["z", "っ"]
 "C-j" = ["ForceKanaConvert(Hiragana)", "ConfirmAs(Hiragana)", "ChangeCompositionMode(Direct)"]
 "BackSpace" = ["Delete"]
 "C-h" = ["Delete"]
-[pre_compisition_okurigana.katakana]
+[pre_composition_okurigana.katakana]
 "space" = ["TryNextCandidate"]
 "q" = ["ForceKanaConvert(Hiragana)", "ConfirmAs(Hiragana)", "ChangeCompositionMode(Direct)"]
 "Q" = ["FinishKeyEvent"]
@@ -425,7 +433,7 @@ zz = ["z", "っ"]
 "C-j" = ["ForceKanaConvert(Katakana)", "ConfirmAs(Katakana)", "ChangeCompositionMode(Direct)"]
 "BackSpace" = ["Delete"]
 "C-h" = ["Delete"]
-[pre_compisition_okurigana.hankakukatakana]
+[pre_composition_okurigana.hankakukatakana]
 "space" = ["TryNextCandidate"]
 "q" = ["ForceKanaConvert(Hiragana)", "ConfirmAs(Hiragana)", "ChangeCompositionMode(Direct)"]
 "Q" = ["FinishKeyEvent"]
@@ -441,6 +449,7 @@ zz = ["z", "っ"]
 "C-h" = ["Delete"]
 "C-j" = ["ConfirmAs(Ascii)", "ChangeCompositionMode(Direct)"]
 "C-q" = ["ConfirmAs(Zenkaku)", "ChangeCompositionMode(Direct)"]
+"C-g" = ["ClearUnconfirmedInputs", "Abort"]
 "Tab" = ["TryNextCompletion"]
 [abbreviation.katakana]
 "space" = ["TryNextCandidate"]
@@ -448,6 +457,7 @@ zz = ["z", "っ"]
 "C-h" = ["Delete"]
 "C-j" = ["ConfirmAs(Ascii)", "ChangeCompositionMode(Direct)"]
 "C-q" = ["ConfirmAs(Zenkaku)", "ChangeCompositionMode(Direct)"]
+"C-g" = ["ClearUnconfirmedInputs", "Abort"]
 "Tab" = ["TryNextCompletion"]
 [abbreviation.hankakukatakana]
 "space" = ["TryNextCandidate"]
@@ -455,6 +465,7 @@ zz = ["z", "っ"]
 "C-h" = ["Delete"]
 "C-j" = ["ConfirmAs(Ascii)", "ChangeCompositionMode(Direct)"]
 "C-q" = ["ConfirmAs(Zenkaku)", "ChangeCompositionMode(Direct)"]
+"C-g" = ["ClearUnconfirmedInputs", "Abort"]
 "Tab" = ["TryNextCompletion"]
 
 [composition_selection.hiragana]
