@@ -85,6 +85,7 @@ command -v "$pi_bin" >/dev/null 2>&1 || die "Pi executable not found: $pi_bin"
 
 cwd=$(cd "$cwd" && pwd -P)
 role_prompt=$(cd "$(dirname "$role_prompt")" && pwd -P)/$(basename "$role_prompt")
+secret_env_file="${XDG_CONFIG_HOME:-$HOME/.config}/secrets/env"
 agents_dir="$cwd/.agents"
 mkdir -p "$agents_dir/status" "$agents_dir/logs" "$agents_dir/locks"
 agents_dir=$(cd "$agents_dir" && pwd -P)
@@ -198,6 +199,13 @@ cat >"$runner_script" <<RUNNER
 #!/usr/bin/env bash
 set -euo pipefail
 cd $(printf '%q' "$cwd")
+# tmux panes inherit the server's environment, which may predate login secrets.
+secret_env_file=$(printf '%q' "$secret_env_file")
+if [[ -r "$secret_env_file" ]]; then
+  set +u
+  source "$secret_env_file"
+  set -u
+fi
 export PI_AGENT_CHILD=1
 export PI_AGENT_ROLE=$(printf '%q' "$agent")
 export PI_AGENT_ARTIFACT_PATH=$(printf '%q' "$artifact_path")
